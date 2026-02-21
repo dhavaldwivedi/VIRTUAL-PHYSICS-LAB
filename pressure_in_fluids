@@ -19,7 +19,32 @@
             user-select: none;
         }
 
-        h2 { color: #333; margin: 15px 0; text-align: center; }
+        /* --- Top Bar (Title & Back Button) --- */
+        .top-bar {
+            display: flex;
+            align-items: center;
+            width: 90%;
+            max-width: 1200px;
+            margin: 15px 0;
+        }
+
+        .back-btn {
+            text-decoration: none;
+            color: #0288d1;
+            font-weight: bold;
+            background: white;
+            padding: 8px 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            transition: background 0.2s;
+            font-size: 0.9em;
+        }
+
+        .back-btn:hover { background: #e1f5fe; }
+        
+        h2 { flex: 1; color: #333; margin: 0; text-align: center; font-size: 1.5em; }
+        
+        .spacer { width: 85px; } /* Balances the title so it stays perfectly centered */
 
         .container {
             display: flex;
@@ -210,6 +235,9 @@
                 height: auto;
                 overflow-y: auto; /* Allow page scrolling on small devices */
             }
+            .top-bar {
+                margin: 20px 0 10px 0;
+            }
             .container {
                 flex-direction: column;
                 height: auto;
@@ -219,13 +247,18 @@
                 min-height: 400px;
                 flex: none;
             }
+            h2 { font-size: 1.2em; }
         }
 
     </style>
 </head>
 <body>
 
-    <h2>Fluid Pressure Lab (P = h ρ g)</h2>
+    <div class="top-bar">
+        <a href="index.html" class="back-btn">🔙 Menu</a>
+        <h2>Fluid Pressure Lab (P = h ρ g)</h2>
+        <div class="spacer"></div>
+    </div>
 
     <div class="container">
         <div class="tank-wrapper" id="tankZone">
