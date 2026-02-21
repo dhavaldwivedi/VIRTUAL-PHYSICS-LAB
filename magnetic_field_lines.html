@@ -1,0 +1,262 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
+  <title>Zenith Magnetism Lab - Precision Edition</title>
+  <style>
+    :root { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; }
+    body { margin: 0; background:#0b0f17; color:#e8eefc; overflow: hidden; display: flex; flex-direction: column; align-items: center; height: 100vh; }
+    
+    .toolbar {
+      width: 100%;
+      padding: 10px;
+      background: #0f1625;
+      border-bottom: 1px solid rgba(255,255,255,0.1);
+      display: flex;
+      justify-content: center;
+      gap: 12px;
+      z-index: 10;
+      flex-wrap: wrap;
+    }
+
+    .tool-group {
+      display: flex;
+      gap: 5px;
+      background: rgba(255,255,255,0.05);
+      padding: 5px;
+      border-radius: 10px;
+      border: 1px solid rgba(255,255,255,0.1);
+    }
+
+    canvas { 
+      background:#080c14; 
+      cursor: crosshair;
+      touch-action: none; /* CRITICAL: Prevents iPad from scrolling when drawing */
+      flex-grow: 1; 
+      width: 100%;
+    }
+
+    button {
+      padding: 10px 15px; /* Slightly larger for touch targets */
+      border-radius: 6px;
+      border: 1px solid rgba(79, 195, 247, 0.3);
+      background: #1a2536;
+      color: #4fc3f7;
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 12px;
+      transition: all 0.2s;
+    }
+
+    button.active { background: #4fc3f7; color: #0b0f17; border-color: #fff; }
+    button:hover { filter: brightness(1.2); }
+    
+    .hint { position: absolute; bottom: 20px; left: 20px; opacity: 0.5; font-size: 13px; pointer-events: none; }
+  </style>
+</head>
+<body>
+
+  <div class="toolbar">
+    <div class="tool-group">
+      <button id="addCompass">ADD COMPASS</button>
+      <button id="clearAll">CLEAR COMPASSES</button>
+    </div>
+    
+    <div class="tool-group">
+      <button id="btnMove" class="active">MOVE</button>
+      <button id="btnDot">DOT</button>
+      <button id="btnPencil">PENCIL</button>
+      <button id="btnEraser">ERASER</button>
+      <button id="clearDrawing" style="border-color: #ff5252; color: #ff5252;">CLEAR SKETCH</button>
+    </div>
+
+    <div class="tool-group">
+      <button id="btnDownload" style="border-color: #4caf50; color: #4caf50;">SAVE IMAGE</button>
+    </div>
+  </div>
+
+  <canvas id="labCanvas"></canvas>
+  <div class="hint" id="statusHint">Mode: Move Compasses</div>
+
+  <script>
+    const canvas = document.getElementById("labCanvas");
+    const ctx = canvas.getContext("2d");
+
+    let currentTool = 'move';
+    let isPainting = false;
+    let paths = []; 
+    let currentPath = null;
+
+    function resize() {
+      canvas.width = window.innerWidth;
+      const toolbarHeight = document.querySelector('.toolbar').offsetHeight;
+      canvas.height = window.innerHeight - toolbarHeight;
+    }
+    window.addEventListener('resize', resize);
+    resize();
+
+    const MAGNET_WIDTH = 220, MAGNET_HEIGHT = 60, POLE_OFFSET = 0.8, COMPASS_RADIUS = 30;
+
+    class Magnet {
+      constructor(x, y) { this.updatePos(x, y); }
+      updatePos(x, y) {
+        this.x = x; this.y = y;
+        this.w = MAGNET_WIDTH; this.h = MAGNET_HEIGHT;
+        this.northPole = { x: x + (this.w / 2) * POLE_OFFSET, y: y };
+        this.southPole = { x: x - (this.w / 2) * POLE_OFFSET, y: y };
+      }
+      draw(ctx) {
+        ctx.save();
+        ctx.translate(this.x, this.y);
+        ctx.fillStyle = "#1976d2"; ctx.fillRect(-this.w/2, -this.h/2, this.w/2, this.h);
+        ctx.fillStyle = "#d32f2f"; ctx.fillRect(0, -this.h/2, this.w/2, this.h);
+        ctx.fillStyle = "white"; ctx.font = "bold 20px monospace"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+        ctx.fillText("S", -this.w/4, 0); ctx.fillText("N", this.w/4, 0);
+        ctx.strokeStyle = "rgba(255,255,255,0.2)"; ctx.lineWidth = 2; ctx.strokeRect(-this.w/2, -this.h/2, this.w, this.h);
+        ctx.restore();
+      }
+    }
+
+    class Compass {
+      constructor(x, y) {
+        this.x = x; this.y = y;
+        this.radius = COMPASS_RADIUS; this.angle = 0; this.isDragging = false;
+      }
+      update(magnet) {
+        const dxN = this.x - magnet.northPole.x, dyN = this.y - magnet.northPole.y;
+        const dN_sq = dxN**2 + dyN**2 || 1, dN = Math.sqrt(dN_sq);
+        const dxS = this.x - magnet.southPole.x, dyS = this.y - magnet.southPole.y;
+        const dS_sq = dxS**2 + dyS**2 || 1, dS = Math.sqrt(dS_sq);
+        const fN = { x: dxN / (dN * dN_sq), y: dyN / (dN * dN_sq) };
+        const fS = { x: -dxS / (dS * dS_sq), y: -dyS / (dS * dS_sq) };
+        this.angle = Math.atan2(fN.y + fS.y, fN.x + fS.x);
+      }
+      draw(ctx) {
+        ctx.save();
+        ctx.translate(this.x, this.y);
+        ctx.beginPath(); ctx.arc(0, 0, this.radius, 0, Math.PI*2);
+        ctx.fillStyle = "#1a2536"; ctx.fill();
+        ctx.strokeStyle = this.isDragging ? "#4fc3f7" : "rgba(255,255,255,0.3)";
+        ctx.lineWidth = 2; ctx.stroke();
+        ctx.rotate(this.angle);
+        ctx.beginPath(); ctx.moveTo(this.radius-5, 0); ctx.lineTo(0, -5); ctx.lineTo(0, 5); ctx.fillStyle = "#ff5252"; ctx.fill();
+        ctx.beginPath(); ctx.moveTo(-(this.radius-5), 0); ctx.lineTo(0, -5); ctx.lineTo(0, 5); ctx.fillStyle = "#eee"; ctx.fill();
+        ctx.restore();
+      }
+      contains(mx, my) { return (mx-this.x)**2 + (my-this.y)**2 < this.radius**2; }
+    }
+
+    const barMagnet = new Magnet(0, 0);
+    let compasses = [];
+    let draggedCompass = null;
+
+    function getMousePos(e) {
+      const rect = canvas.getBoundingClientRect();
+      return {
+        x: e.clientX - rect.left,
+        y: e.clientY - rect.top
+      };
+    }
+
+    // UPDATED: Using pointer events for universal touch/mouse compatibility
+    canvas.addEventListener('pointerdown', (e) => {
+      // Capture the pointer so dragging works even if the finger moves fast
+      canvas.setPointerCapture(e.pointerId);
+      const pos = getMousePos(e);
+
+      if (currentTool === 'move') {
+        for (let i = compasses.length - 1; i >= 0; i--) {
+          if (compasses[i].contains(pos.x, pos.y)) {
+            draggedCompass = compasses[i];
+            draggedCompass.isDragging = true;
+            return;
+          }
+        }
+      } else if (currentTool === 'dot') {
+        paths.push({type: 'dot', x: pos.x, y: pos.y});
+      } else if (currentTool === 'pencil' || currentTool === 'eraser') {
+        isPainting = true;
+        currentPath = {type: currentTool, points: [{x: pos.x, y: pos.y}]};
+        paths.push(currentPath);
+      }
+    });
+
+    window.addEventListener('pointermove', (e) => {
+      const pos = getMousePos(e);
+      if (draggedCompass) {
+        draggedCompass.x = pos.x; draggedCompass.y = pos.y;
+      } else if (isPainting && currentPath) {
+        currentPath.points.push({x: pos.x, y: pos.y});
+      }
+    });
+
+    window.addEventListener('pointerup', (e) => {
+      if (draggedCompass) { 
+        draggedCompass.isDragging = false; 
+        draggedCompass = null; 
+      }
+      isPainting = false; 
+      currentPath = null;
+      canvas.releasePointerCapture(e.pointerId);
+    });
+
+    function drawSketches() {
+      ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+      paths.forEach(p => {
+        if (p.type === 'dot') {
+          ctx.fillStyle = '#4fc3f7'; ctx.beginPath(); ctx.arc(p.x, p.y, 4, 0, Math.PI*2); ctx.fill();
+        } else if (p.type === 'pencil') {
+          ctx.strokeStyle = 'rgba(79, 195, 247, 0.6)'; ctx.lineWidth = 3;
+          ctx.beginPath(); ctx.moveTo(p.points[0].x, p.points[0].y);
+          p.points.forEach(pt => ctx.lineTo(pt.x, pt.y)); ctx.stroke();
+        } else if (p.type === 'eraser') {
+          ctx.strokeStyle = '#080c14'; ctx.lineWidth = 25;
+          ctx.beginPath(); ctx.moveTo(p.points[0].x, p.points[0].y);
+          p.points.forEach(pt => ctx.lineTo(pt.x, pt.y)); ctx.stroke();
+        }
+      });
+    }
+
+    // Tool Management
+    const buttons = {
+      move: document.getElementById('btnMove'),
+      dot: document.getElementById('btnDot'),
+      pencil: document.getElementById('btnPencil'),
+      eraser: document.getElementById('btnEraser')
+    };
+
+    function setActiveTool(tool) {
+      currentTool = tool;
+      Object.keys(buttons).forEach(k => buttons[k].classList.remove('active'));
+      buttons[tool].classList.add('active');
+      document.getElementById('statusHint').textContent = `Mode: ${tool.charAt(0).toUpperCase() + tool.slice(1)}`;
+    }
+
+    Object.keys(buttons).forEach(k => buttons[k].onclick = () => setActiveTool(k));
+    document.getElementById('clearDrawing').onclick = () => paths = [];
+    document.getElementById('clearAll').onclick = () => compasses = [];
+    document.getElementById('addCompass').onclick = () => compasses.push(new Compass(100 + Math.random()*200, 100 + Math.random()*200));
+
+    // Save Image Logic
+    document.getElementById('btnDownload').onclick = () => {
+      const link = document.createElement('a');
+      link.download = 'magnetic_field_map.png';
+      link.href = canvas.toDataURL();
+      link.click();
+    };
+
+    function animate() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      barMagnet.updatePos(canvas.width/2, canvas.height/2);
+      drawSketches();
+      barMagnet.draw(ctx);
+      compasses.forEach(c => { c.update(barMagnet); c.draw(ctx); });
+      requestAnimationFrame(animate);
+    }
+
+    animate();
+    for(let i=0; i<3; i++) document.getElementById('addCompass').click();
+  </script>
+</body>
+</html>
