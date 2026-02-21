@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hydrostatic Pressure Lab</title>
+    <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background-color: #f0f4f8;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            overflow: hidden;
+            user-select: none;
+        }
+
+        h2 { color: #333; margin: 15px 0; text-align: center; }
+
+        .container {
+            display: flex;
+            width: 90%;
+            max-width: 1200px;
+            height: 85vh;
+            gap: 30px;
+            background: white;
+            padding: 20px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+
+        /* --- Visual Area (Left) --- */
+        .tank-wrapper {
+            flex: 2;
+            position: relative;
+            border: 4px solid #546e7a;
+            border-top: none; 
+            background: #e1f5fe;
+            border-radius: 0 0 10px 10px;
+            overflow: hidden;
+            cursor: crosshair;
+        }
+
+        .water {
+            position: absolute;
+            top: 50px;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: linear-gradient(to bottom, #4fc3f7, #0288d1);
+            opacity: 0.9;
+            border-top: 3px solid #0277bd;
+        }
+
+        .water-label {
+            position: absolute;
+            top: 60px;
+            right: 15px;
+            color: rgba(255,255,255,0.7);
+            font-weight: bold;
+            font-size: 1.2em;
+            pointer-events: none;
+        }
+
+        /* The Submarine */
+        #submarine {
+            position: absolute;
+            left: calc(50% - 80px); 
+            top: 60px; 
+            width: 160px;
+            height: 70px;
+            background: #37474f;
+            border-radius: 40px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+            cursor: grab;
+            z-index: 10;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            font-weight: bold;
+            touch-action: none; /* CRITICAL: Prevents mobile screen from scrolling when dragging */
+        }
+        #submarine:active { cursor: grabbing; }
+        
+        /* Sub Details */
+        #submarine::after { /* Periscope */
+            content: '';
+            position: absolute;
+            top: -20px;
+            left: 50px;
+            width: 12px;
+            height: 20px;
+            background: #37474f;
+            border-radius: 4px 4px 0 0;
+        }
+        #submarine::before { /* Window */
+            content: '';
+            width: 25px;
+            height: 25px;
+            background: #81d4fa;
+            border-radius: 50%;
+            border: 3px solid #263238;
+        }
+
+        /* Ruler */
+        .ruler {
+            position: absolute;
+            left: 0;
+            top: 50px;
+            bottom: 0;
+            width: 70px;
+            border-right: 2px solid rgba(0,0,0,0.2);
+            pointer-events: none;
+        }
+        .tick {
+            position: absolute;
+            width: 100%;
+            border-top: 1px solid rgba(0,0,0,0.3);
+            font-size: 11px;
+            padding-left: 5px;
+            color: #333;
+        }
+
+        /* --- Controls Area (Right) --- */
+        .sidebar {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            overflow-y: auto; /* Allows scrolling inside sidebar if needed */
+        }
+
+        .control-panel {
+            background: #fafafa;
+            padding: 15px;
+            border-radius: 10px;
+            border: 1px solid #ddd;
+        }
+
+        .input-group { margin-bottom: 15px; }
+        label { display: block; font-weight: 600; margin-bottom: 5px; color: #555; }
+        
+        input[type="number"] {
+            width: 100%;
+            padding: 8px;
+            font-size: 1em;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            box-sizing: border-box;
+        }
+        
+        /* Specific styling for the depth dual-input */
+        .dual-input {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        input[type="range"] {
+            flex: 1;
+            cursor: pointer;
+        }
+
+        /* Math Board */
+        .math-board {
+            background: #263238;
+            color: #eceff1;
+            padding: 20px;
+            border-radius: 10px;
+            font-family: 'Courier New', Courier, monospace;
+            border-left: 5px solid #ffa726;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+        }
+
+        .math-line {
+            margin-bottom: 12px;
+            font-size: 1.1em;
+        }
+
+        .substitution {
+            color: #b0bec5;
+            padding-bottom: 8px;
+            border-bottom: 1px dashed #546e7a;
+        }
+
+        .final-answer {
+            font-size: 1.6em;
+            color: #4fc3f7;
+            font-weight: bold;
+            margin-top: 10px;
+        }
+
+        .highlight-var { color: #ffa726; font-weight: bold; }
+
+        .hint {
+            font-size: 0.9em;
+            color: #666;
+            text-align: center;
+            margin-top: 5px;
+            font-style: italic;
+        }
+
+        /* --- Mobile/iPad Responsiveness --- */
+        @media (max-width: 850px) {
+            body {
+                height: auto;
+                overflow-y: auto; /* Allow page scrolling on small devices */
+            }
+            .container {
+                flex-direction: column;
+                height: auto;
+                min-height: 90vh;
+            }
+            .tank-wrapper {
+                min-height: 400px;
+                flex: none;
+            }
+        }
+
+    </style>
+</head>
+<body>
+
+    <h2>Fluid Pressure Lab (P = h ρ g)</h2>
+
+    <div class="container">
+        <div class="tank-wrapper" id="tankZone">
+            <div class="water"></div>
+            <span class="water-label">Fluid</span>
+            <div class="ruler" id="ruler"></div>
+            
+            <div id="submarine">
+                <span style="z-index:2; margin-left: 10px;">DRAG ME</span>
+            </div>
+        </div>
+
+        <div class="sidebar">
+            
+            <div class="control-panel">
+                
+                <div class="input-group">
+                    <label>Depth (h) in meters</label>
+                    <div class="dual-input">
+                        <input type="range" id="depthSlider" min="0" max="14" step="0.01" value="0.38">
+                        <input type="number" id="depthInput" value="0.38" step="0.1" style="width: 80px;">
+                    </div>
+                </div>
+
+                <div class="input-group">
+                    <label>Fluid Density (ρ) in kg/m<sup>3</sup></label>
+                    <input type="number" id="densityInput" value="1000" step="50">
+                </div>
+                
+                <div class="input-group">
+                    <label>Gravity (g) in m/s<sup>2</sup></label>
+                    <input type="number" id="gravityInput" value="9.8" step="0.1">
+                </div>
+            </div>
+
+            <div class="math-board">
+                <div class="math-line"><strong>Formula:</strong></div>
+                <div class="math-line">
+                    P = h ρ g
+                </div>
+                
+                <div class="math-line" style="margin-top: 15px;"><strong>Substitution:</strong></div>
+                <div class="math-line substitution" id="mathSub">
+                    P = 0.00 &times; 1000 &times; 9.8
+                </div>
+
+                <div class="final-answer" id="mathResult">
+                    = 0 Pa
+                </div>
+            </div>
+
+            <div class="hint">
+                💡 Control depth by dragging the object OR using the slider.
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- Config ---
+        const PIXELS_PER_METER = 40; 
+        const WATER_START_Y = 50;    
+        
+        // --- Elements ---
+        const sub = document.getElementById('submarine');
+        const tank = document.getElementById('tankZone');
+        const ruler = document.getElementById('ruler');
+        
+        const inDepthSlider = document.getElementById('depthSlider');
+        const inDepthNum = document.getElementById('depthInput');
+        const inRho = document.getElementById('densityInput');
+        const inG = document.getElementById('gravityInput');
+        
+        const elSub = document.getElementById('mathSub');
+        const elRes = document.getElementById('mathResult');
+
+        // --- State ---
+        let isDragging = false;
+        let startX = 0;
+        let startY = 0;
+        let subTop = WATER_START_Y + 15; 
+
+        // --- Init Ruler ---
+        function createRuler() {
+            const maxMeters = 15;
+            for (let i = 0; i <= maxMeters; i++) {
+                const tick = document.createElement('div');
+                tick.className = 'tick';
+                tick.style.top = (i * PIXELS_PER_METER) + 'px';
+                tick.innerText = i + ' m';
+                ruler.appendChild(tick);
+            }
+        }
+        createRuler();
+
+        // --- Logic ---
+        function updatePressureAndUI() {
+            const rho = parseFloat(inRho.value) || 0;
+            const g = parseFloat(inG.value) || 0;
+            
+            const subCenterY = subTop + 35; 
+            const pixelDepth = subCenterY - WATER_START_Y;
+            
+            let h = Math.max(0, pixelDepth / PIXELS_PER_METER);
+
+            if(document.activeElement !== inDepthSlider && document.activeElement !== inDepthNum) {
+                inDepthSlider.value = h.toFixed(2);
+                inDepthNum.value = h.toFixed(2);
+            }
+
+            const P = h * rho * g;
+
+            elSub.innerHTML = `P = <span class="highlight-var">${h.toFixed(2)}m</span> &times; ${rho} &times; ${g}`;
+            elRes.innerText = `= ${Math.round(P).toLocaleString()} Pa`;
+        }
+
+        function updateSubFromSlider() {
+            let h = parseFloat(this.value);
+            if(h < 0) h = 0;
+            
+            let newTop = (h * PIXELS_PER_METER) + WATER_START_Y - 35;
+
+            const tankHeight = tank.clientHeight;
+            const subHeight = 70;
+            const maxTop = tankHeight - subHeight;
+            
+            if (newTop < WATER_START_Y) newTop = WATER_START_Y; 
+            if (newTop > maxTop) newTop = maxTop; 
+
+            subTop = newTop;
+            sub.style.top = subTop + 'px';
+
+            if(this === inDepthSlider) inDepthNum.value = h;
+            if(this === inDepthNum) inDepthSlider.value = h;
+
+            updatePressureAndUI();
+        }
+
+        // --- UPDATED Dragging Mechanics (Pointer Events) ---
+        sub.addEventListener('pointerdown', (e) => {
+            isDragging = true;
+            sub.style.cursor = 'grabbing';
+            // Capture pointer so dragging works even if finger slides off the sub slightly
+            sub.setPointerCapture(e.pointerId); 
+            startX = e.clientX - sub.offsetLeft;
+            startY = e.clientY - sub.offsetTop;
+        });
+
+        document.addEventListener('pointerup', (e) => {
+            if(isDragging) {
+                isDragging = false;
+                sub.style.cursor = 'grab';
+                sub.releasePointerCapture(e.pointerId);
+            }
+        });
+
+        document.addEventListener('pointermove', (e) => {
+            if (!isDragging) return;
+
+            let newLeft = e.clientX - startX;
+            let newTop = e.clientY - startY;
+
+            const tankWidth = tank.clientWidth;
+            const tankHeight = tank.clientHeight;
+            const subWidth = 160;
+            const subHeight = 70;
+
+            const maxLeft = tankWidth - subWidth;
+            if (newLeft < 0) newLeft = 0;
+            if (newLeft > maxLeft) newLeft = maxLeft;
+
+            const maxTop = tankHeight - subHeight;
+            if (newTop < WATER_START_Y) newTop = WATER_START_Y;
+            if (newTop > maxTop) newTop = maxTop;
+
+            sub.style.left = newLeft + 'px';
+            sub.style.top = newTop + 'px';
+            
+            subTop = newTop;
+
+            updatePressureAndUI();
+        });
+
+        // Listeners
+        inRho.addEventListener('input', updatePressureAndUI);
+        inG.addEventListener('input', updatePressureAndUI);
+        
+        inDepthSlider.addEventListener('input', updateSubFromSlider);
+        inDepthNum.addEventListener('input', updateSubFromSlider);
+
+        // Initial setup
+        sub.style.top = subTop + 'px';
+        updatePressureAndUI();
+
+    </script>
+</body>
+</html>
