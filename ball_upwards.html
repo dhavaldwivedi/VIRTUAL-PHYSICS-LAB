@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Motion in One Dimension (Ball thrown vertically upwards)</title>
+    <title>Motion in One Dimension (Realistic Building)</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         * { box-sizing: border-box; }
@@ -16,21 +16,15 @@
             overflow-x: hidden; 
         }
         
-        h2 { text-align: center; color: #4fc3f7; margin-top: 5px; }
+        h2 { text-align: center; color: white; margin-top: 5px; }
 
         #dashboard { 
-            display: flex; 
-            flex-wrap: wrap; 
-            gap: 15px; 
-            max-width: 1200px; 
-            margin: 0 auto; 
-            width: 100%; 
+            display: flex; flex-wrap: wrap; gap: 15px; 
+            max-width: 1200px; margin: 0 auto; width: 100%; 
         }
 
         .panel { 
-            background: #2a2a40; 
-            padding: 20px; 
-            border-radius: 12px; 
+            background: #2a2a40; padding: 20px; border-radius: 12px; 
             box-shadow: 0 4px 12px rgba(0,0,0,0.3); 
             border: 1px solid rgba(255,255,255,0.05);
         }
@@ -51,13 +45,9 @@
         button:hover { background: #0277bd; }
 
         canvas#simCanvas { 
-            background: #1a1a2e; 
-            border-bottom: 4px solid #4fc3f7; 
-            border-radius: 6px; 
-            width: 100%; 
-            max-width: 300px;
-            height: 550px; 
-            display: block; 
+            background: #1a1a2e; border-bottom: 4px solid #4fc3f7; 
+            border-radius: 6px; width: 100%; max-width: 320px;
+            height: 550px; display: block; 
         }
 
         .telemetry { display: flex; justify-content: space-between; margin-top: 15px; font-family: monospace; font-size: 14px; color: #81c784; }
@@ -67,39 +57,23 @@
         }
 
         .chart-container { position: relative; height: 190px; width: 100%; background: #232336; border-radius: 8px; padding: 10px; }
-
-        /* --- CSS FOR PROPER FRACTIONS --- */
-        .math-line { 
-            display: flex; 
-            align-items: center; 
-            margin-bottom: 12px; 
-            white-space: nowrap;
-        }
-        .fraction { 
-            display: inline-flex; 
-            flex-direction: column; 
-            align-items: center; 
-            margin: 0 6px; 
-            font-size: 0.95em;
-        }
-        .fraction .num { 
-            padding: 0 4px; 
-            border-bottom: 1px solid #ffd54f; /* Divider line */
-        }
-        .fraction .den { 
-            padding: 2px 4px 0 4px; 
-        }
+        .math-line { display: flex; align-items: center; margin-bottom: 12px; white-space: nowrap; }
+        .fraction { display: inline-flex; flex-direction: column; align-items: center; margin: 0 6px; font-size: 0.95em; }
+        .fraction .num { padding: 0 4px; border-bottom: 1px solid #ffd54f; }
+        .fraction .den { padding: 2px 4px 0 4px; }
     </style>
 </head>
 <body>
 
-    <h2>Motion in One Dimension (Ball thrown vertically upwards)</h2>
+    <h2>Motion in One Dimension (Ball launched upwards)</h2>
+
+    <img id="buildingSource" src="Gemini_Generated_Image_awyisyawyisyawyi.png" alt="Building Texture" style="display: none;">
 
     <div id="dashboard">
         <div class="panel" id="controls">
             <div class="input-row">
-                <label>Initial Velocity (u) <span class="val" id="uVal">25.0 m/s</span></label>
-                <input type="range" id="uSlider" min="5" max="50" step="0.5" value="25">
+                <label>Initial Velocity (u) <span class="val" id="uVal">30.0 m/s</span></label>
+                <input type="range" id="uSlider" min="5" max="30" step="0.5" value="30">
             </div>
             <div class="input-row">
                 <label>Gravity (g) <span class="val" id="gVal">9.8 m/s²</span></label>
@@ -120,7 +94,7 @@
         </div>
 
         <div class="panel" id="sim">
-            <canvas id="simCanvas" width="300" height="550"></canvas>
+            <canvas id="simCanvas" width="320" height="550"></canvas>
         </div>
 
         <div class="panel" id="charts">
@@ -136,20 +110,33 @@
     <script>
         const canvas = document.getElementById('simCanvas');
         const ctx = canvas.getContext('2d');
+        const buildingImg = document.getElementById('buildingSource');
         
         let animationId;
         let posChart, velChart;
         let isRunning = false;
 
+        // --- GLOBAL CANVAS CONSTANTS ---
+        const FIXED_MAX_METERS = 50;
+        const groundY = canvas.height - 25; 
+        const pxPerMeter = (canvas.height - 50) / FIXED_MAX_METERS; 
+        const velScale = (canvas.height * 0.25) / 30; // Fixed vector scale
+
         const uSlider = document.getElementById('uSlider');
         const gSlider = document.getElementById('gSlider');
-        uSlider.oninput = () => document.getElementById('uVal').innerText = parseFloat(uSlider.value).toFixed(1) + " m/s";
-        gSlider.oninput = () => document.getElementById('gVal').innerText = parseFloat(gSlider.value).toFixed(1) + " m/s²";
+
+        // Update values and re-render initial state if we are not running
+        uSlider.oninput = () => {
+            document.getElementById('uVal').innerText = parseFloat(uSlider.value).toFixed(1) + " m/s";
+            if (!isRunning) drawInitialState();
+        };
+        gSlider.oninput = () => {
+            document.getElementById('gVal').innerText = parseFloat(gSlider.value).toFixed(1) + " m/s²";
+        };
 
         Chart.defaults.color = '#a0a0b0';
         Chart.defaults.font.family = 'system-ui';
         
-        // Changing to scatter charts for perfectly smooth lines with numerical X-axes
         const posCtx = document.getElementById('posChart').getContext('2d');
         posChart = new Chart(posCtx, {
             type: 'scatter',
@@ -164,103 +151,118 @@
             options: { responsive: true, maintainAspectRatio: false, scales: { x: { type: 'linear', title: { display: true, text: 'Time (s)' } } }, animation: false }
         });
 
-        function drawVector(x, y, v, scale) {
+        function drawVector(x, y, v) {
             if (Math.abs(v) < 0.5) return; 
-            
-            const length = v * scale;
-            ctx.strokeStyle = "#ffb74d";
-            ctx.fillStyle = "#ffb74d";
-            ctx.lineWidth = 3;
-            
-            ctx.beginPath();
-            ctx.moveTo(x, y);
-            ctx.lineTo(x, y - length); 
-            ctx.stroke();
-
-            ctx.beginPath();
-            ctx.moveTo(x, y - length);
+            const length = v * velScale;
+            ctx.strokeStyle = "#ffb74d"; ctx.fillStyle = "#ffb74d"; ctx.lineWidth = 3;
+            ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x, y - length); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(x, y - length);
             const headOffset = v > 0 ? 6 : -6;
-            ctx.lineTo(x - 6, y - length + headOffset);
-            ctx.lineTo(x + 6, y - length + headOffset);
-            ctx.fill();
+            ctx.lineTo(x - 6, y - length + headOffset); ctx.lineTo(x + 6, y - length + headOffset); ctx.fill();
         }
 
         function drawStopwatch(t) {
-            ctx.fillStyle = "rgba(0, 0, 0, 0.5)";
-            ctx.beginPath();
-            ctx.roundRect(canvas.width - 110, 10, 100, 35, 8);
-            ctx.fill();
-
-            ctx.fillStyle = "#fff";
-            ctx.font = "18px monospace";
-            ctx.textAlign = "right";
+            ctx.fillStyle = "rgba(0, 0, 0, 0.6)";
+            ctx.beginPath(); ctx.roundRect(canvas.width - 110, 10, 100, 35, 8); ctx.fill();
+            ctx.fillStyle = "#fff"; ctx.font = "18px monospace"; ctx.textAlign = "right";
             ctx.fillText(`⏱️ ${t.toFixed(2)}s`, canvas.width - 20, 33);
+        }
+
+        // --- REWRITTEN BUILDING FUNCTION ---
+        // Building now fills the launch area
+        function drawBuilding() {
+            const buildingHeightMeters = 60;
+            const bHeightPx = buildingHeightMeters * pxPerMeter;
+            const bX = 50; // Start right after the axis line
+            const bWidthPx = canvas.width - bX; // Fill the rest of the canvas width
+            const bY = groundY - bHeightPx + 30;
+
+            if (!buildingImg.complete || buildingImg.naturalWidth === 0) {
+                // Fallback drawing if image is missing
+                ctx.fillStyle = "#2c3e50";
+                ctx.fillRect(bX, bY, bWidthPx, bHeightPx);
+                ctx.fillStyle = "#aaa"; ctx.textAlign = "center";
+                ctx.fillText("[Building Image]", bX + (bWidthPx/2), groundY - (20 * pxPerMeter));
+            } else {
+                ctx.drawImage(buildingImg, bX, bY, bWidthPx, bHeightPx);
+                
+                // Add a subtle dark overlay to the building so the blue ball pops more
+                ctx.fillStyle = "rgba(30, 30, 47, 0.3)"; 
+                ctx.fillRect(bX, bY, bWidthPx, bHeightPx);
+            }
+
+            // Draw a thin roof line to cap it off
+            ctx.strokeStyle = "#111"; ctx.lineWidth = 3;
+            ctx.beginPath(); ctx.moveTo(bX, bY); ctx.lineTo(bX + bWidthPx, bY); ctx.stroke();
+        }
+
+        // --- NEW INITIAL STATE RENDERING ---
+        function drawInitialState() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // 1. Draw Background Building
+            drawBuilding();
+
+            // 2. Draw Y-Axis line and ticks
+            ctx.beginPath(); ctx.strokeStyle = "rgba(255,255,255,0.4)"; ctx.lineWidth = 1;
+            ctx.moveTo(45, 0); ctx.lineTo(45, canvas.height); ctx.stroke();
+
+            ctx.fillStyle = "#b0bec5"; ctx.font = "12px monospace"; ctx.textAlign = "right";
+            for(let m = 0; m <= FIXED_MAX_METERS; m += 5) {
+                let tickY = groundY - (m * pxPerMeter);
+                ctx.beginPath(); ctx.moveTo(40, tickY); ctx.lineTo(45, tickY); ctx.stroke();
+                ctx.fillText(m + "m", 37, tickY + 4);
+            }
+
+            // 3. Draw Initial Ball on Ground
+            const ballX = 185; // Centered on the background building
+            const initialVelocity = parseFloat(uSlider.value);
+
+            ctx.beginPath(); ctx.arc(ballX, groundY, 15, 0, Math.PI * 2); 
+            ctx.fillStyle = "red"; ctx.fill();
+            
+            // Draw Initial Velocity Vector & Timer at 0
+            drawVector(ballX, groundY, initialVelocity);
+            drawStopwatch(0);
+        }
+
+        // Trigger the initial draw as soon as the image loads
+        if(buildingImg.complete) {
+            drawInitialState();
+        } else {
+            buildingImg.onload = drawInitialState;
+            buildingImg.onerror = drawInitialState; // Draw fallback if it fails
         }
 
         function launch() {
             if (isRunning) return;
             cancelAnimationFrame(animationId);
-            
-            const u = parseFloat(uSlider.value);
-            const g = parseFloat(gSlider.value);
-            
-            const tPeak = u / g;
-            const hMax = (u * u) / (2 * g);
-            const tTotal = tPeak * 2;
+            const u = parseFloat(uSlider.value); const g = parseFloat(gSlider.value);
+            const tPeak = u / g; const hMax = (u * u) / (2 * g); const tTotal = tPeak * 2;
 
-            // --- RENDER PROPER MATH FRACTIONS ---
             document.getElementById('calcContent').innerHTML = `
-                <div style="margin-bottom: 16px; font-weight:bold;">Substituted Solutions:</div>
-                
-                <div class="math-line">
-                    t_peak = 
-                    <div class="fraction"><span class="num">u</span><span class="den">g</span></div> = 
-                    <div class="fraction"><span class="num">${u}</span><span class="den">${g}</span></div> = 
-                    <b>${tPeak.toFixed(2)}s</b>
-                </div>
-
-                <div class="math-line">
-                    H_max = 
-                    <div class="fraction"><span class="num">u²</span><span class="den">2g</span></div> = 
-                    <div class="fraction"><span class="num">${u}²</span><span class="den">2 × ${g}</span></div> = 
-                    <b>${hMax.toFixed(2)}m</b>
-                </div>
-
-                <div class="math-line">
-                    Total Flight = 2 × t_peak = <b>${tTotal.toFixed(2)}s</b>
-                </div>
+                <div style="margin-bottom: 16px; font-weight:bold;">Solutions:</div>
+                <div class="math-line">t_peak = <div class="fraction"><span class="num">${u}</span><span class="den">${g}</span></div> = <b>${tPeak.toFixed(2)}s</b></div>
+                <div class="math-line">H_max = <div class="fraction"><span class="num">${u}²</span><span class="den">2 × ${g}</span></div> = <b>${hMax.toFixed(2)}m</b></div>
+                <div class="math-line">Total Flight = 2 × t_peak = <b>${tTotal.toFixed(2)}s</b></div>
             `;
-
-            posChart.data.datasets[0].data = [];
-            velChart.data.datasets[0].data = [];
-            
-            // Set graph axis limits so they don't jitter
-            posChart.options.scales.x.max = tTotal;
-            velChart.options.scales.x.max = tTotal;
-
+            posChart.data.datasets[0].data = []; velChart.data.datasets[0].data = [];
+            posChart.options.scales.x.max = tTotal; velChart.options.scales.x.max = tTotal;
             posChart.update(); velChart.update();
 
             document.getElementById('launchBtn').innerText = "SIMULATION RUNNING...";
             document.getElementById('launchBtn').style.background = "#555";
             isRunning = true;
-
             animate(u, g, hMax, tPeak, tTotal);
         }
 
         function animate(u, g, hMax, tPeak, tTotal) {
             let startTime = performance.now();
             let lastChartUpdate = -1;
-            
-            const pxPerMeter = (canvas.height - 50) / (hMax * 1.2); 
-            const velScale = (canvas.height * 0.25) / u; 
-            const groundY = canvas.height - 25; 
-
-            let tickInterval = hMax < 15 ? 2 : (hMax < 50 ? 5 : 10);
 
             function step(now) {
                 let t = (now - startTime) / 1000; 
                 if (t > tTotal) t = tTotal; 
-
                 let y = (u * t) - (0.5 * g * Math.pow(t, 2));
                 let v = u - (g * t);
 
@@ -270,63 +272,50 @@
 
                 ctx.clearRect(0, 0, canvas.width, canvas.height);
                 
-                ctx.beginPath();
-                ctx.strokeStyle = "rgba(255,255,255,0.2)";
-                ctx.lineWidth = 1;
-                ctx.moveTo(40, 0);
-                ctx.lineTo(40, canvas.height);
-                ctx.stroke();
+                // 1. Draw Background
+                drawBuilding();
 
-                ctx.fillStyle = "#b0bec5";
-                ctx.font = "12px monospace";
-                ctx.textAlign = "right";
-                for(let m = 0; m <= hMax * 1.2; m += tickInterval) {
+                // 2. Draw Axis and Ticks
+                ctx.beginPath(); ctx.strokeStyle = "rgba(255,255,255,0.4)"; ctx.lineWidth = 1;
+                ctx.moveTo(45, 0); ctx.lineTo(45, canvas.height); ctx.stroke();
+
+                ctx.fillStyle = "#b0bec5"; ctx.font = "12px monospace"; ctx.textAlign = "right";
+                for(let m = 0; m <= FIXED_MAX_METERS; m += 5) {
                     let tickY = groundY - (m * pxPerMeter);
-                    ctx.beginPath(); 
-                    ctx.moveTo(35, tickY); 
-                    ctx.lineTo(40, tickY); 
-                    ctx.stroke();
-                    ctx.fillText(m + "m", 32, tickY + 4);
+                    ctx.beginPath(); ctx.moveTo(40, tickY); ctx.lineTo(45, tickY); ctx.stroke();
+                    ctx.fillText(m + "m", 37, tickY + 4);
                 }
 
-                if (t >= tPeak) {
+                // 3. Draw Peak Marker (if reached)
+                if (t >= tPeak && hMax <= FIXED_MAX_METERS) {
                     let peakY = groundY - (hMax * pxPerMeter);
-                    ctx.setLineDash([5, 5]);
-                    ctx.strokeStyle = "#ff5252";
-                    ctx.beginPath();
-                    ctx.moveTo(40, peakY);
-                    ctx.lineTo(canvas.width, peakY);
-                    ctx.stroke();
-                    ctx.setLineDash([]);
+                    ctx.setLineDash([5, 5]); ctx.strokeStyle = "#ff5252"; ctx.lineWidth = 2;
+                    ctx.beginPath(); ctx.moveTo(45, peakY); ctx.lineTo(canvas.width, peakY); ctx.stroke();
+                    ctx.setLineDash([]); 
                     
-                    ctx.fillStyle = "#ff5252";
-                    ctx.textAlign = "left";
-                    ctx.font = "bold 13px system-ui";
-                    ctx.fillText(`H_max = ${hMax.toFixed(2)}m       t_peak = ${tPeak.toFixed(2)}s`, 45, peakY - 8);
+                    // Add background box to make text readable over the building
+                    ctx.fillStyle = "rgba(30,30,47,0.8)";
+                    ctx.fillRect(150, peakY - 18, 120, 20);
+                    ctx.fillStyle = "#ff5252"; ctx.textAlign = "left"; ctx.font = "bold 13px system-ui";
+                    ctx.fillText(`H_max = ${hMax.toFixed(2)}m`, 155, peakY - 4);
                 }
 
+                // 4. Draw Ball and Vector
                 let ballY = groundY - (y * pxPerMeter);
-                let ballX = (canvas.width / 2) + 20;
+                let ballX = 185; 
 
-                ctx.beginPath();
-                ctx.arc(ballX, ballY, 18, 0, Math.PI * 2); 
-                ctx.fillStyle = "#4fc3f7";
-                ctx.fill();
-                ctx.shadowBlur = 15;
-                ctx.shadowColor = "#4fc3f7";
-                ctx.shadowBlur = 0; 
-
-                drawVector(ballX, ballY, v, velScale);
+                ctx.beginPath(); ctx.arc(ballX, ballY, 15, 0, Math.PI * 2); 
+                ctx.fillStyle = "red"; ctx.fill();
+                
+                drawVector(ballX, ballY, v);
                 drawStopwatch(t);
 
-                // --- SMOOTH CHART UPDATING ---
-                // Using scatter chart {x, y} coordinates instead of labels
+                // Chart Updating
                 if (t - lastChartUpdate >= 0.05 || t === tTotal) {
                     lastChartUpdate = t;
                     posChart.data.datasets[0].data.push({x: t, y: y});
                     velChart.data.datasets[0].data.push({x: t, y: v});
-                    posChart.update('none'); 
-                    velChart.update('none');
+                    posChart.update('none'); velChart.update('none');
                 }
 
                 if (t < tTotal) {
@@ -335,7 +324,6 @@
                     isRunning = false;
                     document.getElementById('launchBtn').innerText = "RESET & RELAUNCH";
                     document.getElementById('launchBtn').style.background = "#0288d1";
-                    
                     document.getElementById('yLive').innerText = "0.00m";
                     document.getElementById('vLive').innerText = (-u).toFixed(2) + "m/s";
                 }
