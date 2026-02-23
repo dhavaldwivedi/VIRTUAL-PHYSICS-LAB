@@ -111,6 +111,9 @@
 </head>
 <body>
 
+    <!-- SOUND: plays ONLY while pressing/holding the push button -->
+    <audio id="liftSound" src="hydraulic_lift.mp3" preload="auto" loop></audio>
+
     <aside id="dashboard">
         <h2>Hydraulic Lift (Pascal's Law)</h2>
 
@@ -165,7 +168,7 @@
         const g = 9.81;
         
         let state = {
-            m1: 50, // CHANGED: matching the new slider default
+            m1: 50,
             A1: 0.2,
             m2: 1000, 
             A2: 2.0,
@@ -179,6 +182,21 @@
         const warningMsg = document.getElementById('warningMsg');
         const pushBtn = document.getElementById('pushBtn');
 
+        // --- AUDIO (hold-to-play) ---
+        const liftSound = document.getElementById('liftSound');
+
+        function startLiftSound() {
+            if (!liftSound.paused) return;
+            liftSound.currentTime = 0;
+            liftSound.play().catch(() => {});
+        }
+
+        function stopLiftSound() {
+            if (liftSound.paused) return;
+            liftSound.pause();
+            liftSound.currentTime = 0;
+        }
+
         const sliders = {
             m1: document.getElementById('m1Slider'),
             A1: document.getElementById('a1Slider'),
@@ -189,9 +207,14 @@
         function resizeCanvas() {
             const rect = canvas.parentElement.getBoundingClientRect();
             const dpr = window.devicePixelRatio || 1;
+
             canvas.width = rect.width * dpr;
             canvas.height = rect.height * dpr;
+
+            // reset transform so repeated resizes don't keep scaling
+            ctx.setTransform(1, 0, 0, 1, 0, 0);
             ctx.scale(dpr, dpr);
+
             canvas.logicalWidth = rect.width;
             canvas.logicalHeight = rect.height;
             draw();
@@ -223,7 +246,6 @@
             
             const f2Element = document.getElementById('f2Live');
             f2Element.innerText = F2.toFixed(1) + " N";
-            
             document.getElementById('maLive').innerText = MA.toFixed(2);
 
             const statusText = document.getElementById('statusText');
@@ -236,7 +258,7 @@
                 statusText.innerHTML = `F₂ (${F2.toFixed(0)}N) < W (${W.toFixed(0)}N)<br><b style="color:#f87171">Force too low!</b>`;
             }
 
-            if(!state.isPushing) {
+            if (!state.isPushing) {
                 state.deltaH1 = 0;
             }
             draw();
@@ -284,7 +306,7 @@
             ctx.rect(cx1 - w1/2, baseY, (cx2 - cx1) + w2/2, w1); 
             ctx.fill();
 
-            ctx.fillStyle = "rgba(56, 189, 248, 0.7)";
+           ctx.fillStyle = "rgba(234, 179, 8, 0.7)";
             ctx.beginPath();
             ctx.moveTo(cx1 - w1/2, baseY - h1);
             ctx.lineTo(cx1 + w1/2, baseY - h1);
@@ -297,19 +319,19 @@
             ctx.closePath();
             ctx.fill();
 
-            ctx.strokeStyle = "#38bdf8"; ctx.lineWidth = 3;
+            ctx.strokeStyle = "#eab308"; ctx.lineWidth = 3;
             ctx.beginPath(); ctx.moveTo(cx1 - w1/2, baseY - h1); ctx.lineTo(cx1 + w1/2, baseY - h1); ctx.stroke();
             ctx.beginPath(); ctx.moveTo(cx2 - w2/2, baseY - h2); ctx.lineTo(cx2 + w2/2, baseY - h2); ctx.stroke();
 
             ctx.fillStyle = "#94a3b8"; 
             ctx.fillRect(cx1 - w1/2 + 2, baseY - h1 - 15, w1 - 4, 15);
             
-            // Scaled the visual box slightly down so 200kg doesn't overflow a tiny A1 pipe
-            const boxSize1 = Math.min(Math.sqrt(state.m1) * 4.5, w1-6); 
-            ctx.fillStyle = "#facc15"; 
-            ctx.fillRect(cx1 - boxSize1/2, baseY - h1 - 15 - boxSize1, boxSize1, boxSize1);
-            ctx.fillStyle = "#000"; ctx.textAlign = "center"; ctx.font = "bold 12px sans-serif";
-            ctx.fillText("m₁", cx1, baseY - h1 - 15 - (boxSize1/2) + 4);
+           const boxSize1 = Math.min(Math.sqrt(state.m1) * 4.5, w1 - 6); 
+ctx.fillStyle = "#ef4444"; // CHANGED: Now a nice bright red
+ctx.fillRect(cx1 - boxSize1/2, baseY - h1 - 15 - boxSize1, boxSize1, boxSize1);
+ctx.fillStyle = "#fff"; // CHANGED: Now white so it's easy to read on the red background
+ctx.textAlign = "center"; ctx.font = "bold 12px sans-serif";
+ctx.fillText("m₁", cx1, baseY - h1 - 15 - (boxSize1/2) + 4);
 
             ctx.fillStyle = "#94a3b8"; 
             ctx.fillRect(cx2 - w2/2 + 2, baseY - h2 - 20, w2 - 4, 20);
@@ -343,16 +365,44 @@
             requestAnimationFrame(animate);
         }
 
-        pushBtn.addEventListener('mousedown', () => { state.isPushing = true; });
-        window.addEventListener('mouseup', () => { state.isPushing = false; warningMsg.style.opacity = "0"; });
-        
-        pushBtn.addEventListener('touchstart', (e) => { e.preventDefault(); state.isPushing = true; });
-        window.addEventListener('touchend', () => { state.isPushing = false; warningMsg.style.opacity = "0"; });
+        // --- PRESS & HOLD HANDLERS (mouse + touch + pen) ---
+        pushBtn.addEventListener('pointerdown', (e) => {
+            e.preventDefault();
+            pushBtn.setPointerCapture(e.pointerId);
+            state.isPushing = true;
+            startLiftSound();
+        });
 
+        pushBtn.addEventListener('pointerup', () => {
+            state.isPushing = false;
+            warningMsg.style.opacity = "0";
+            stopLiftSound();
+        });
+
+        pushBtn.addEventListener('pointercancel', () => {
+            state.isPushing = false;
+            warningMsg.style.opacity = "0";
+            stopLiftSound();
+        });
+
+        pushBtn.addEventListener('pointerleave', () => {
+            if (state.isPushing) {
+                state.isPushing = false;
+                warningMsg.style.opacity = "0";
+                stopLiftSound();
+            }
+        });
+
+        window.addEventListener('blur', () => {
+            state.isPushing = false;
+            warningMsg.style.opacity = "0";
+            stopLiftSound();
+        });
+
+        // init
         resizeCanvas();
         updateMath();
         requestAnimationFrame(animate);
-
     </script>
 </body>
 </html>
