@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Archimedes' Principle & Buoyancy Lab</title>
+    <style>
+        * { box-sizing: border-box; }
+        body { 
+            font-family: system-ui, -apple-system, sans-serif; 
+            background: #0f172a; 
+            color: #e2e8f0; 
+            margin: 0; 
+            padding: 0; 
+            overflow: hidden; 
+            display: flex;
+            height: 100vh;
+            width: 100vw;
+        }
+        
+        /* --- LAYOUT --- */
+        #dashboard { 
+            width: 400px; 
+            background: #1e293b; 
+            border-right: 2px solid #334155;
+            padding: 20px; 
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            z-index: 10;
+        }
+
+        #simulation {
+            flex: 1;
+            position: relative;
+            background: #020617; /* Deep dark background for the canvas */
+        }
+
+        h2 { text-align: center; color: white; margin: 0 0 5px 0; font-size: 1.4rem; }
+        .subtitle { text-align: center; color: #94a3b8; font-size: 0.9rem; margin-bottom: 10px; }
+
+        /* --- CONTROLS --- */
+        .panel { 
+            background: #334155; 
+            padding: 15px; 
+            border-radius: 10px; 
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3); 
+        }
+
+        .input-row { margin-bottom: 15px; }
+        .input-row:last-child { margin-bottom: 0; }
+        label { display: flex; justify-content: space-between; font-size: 13px; color: #94a3b8; font-weight: bold; }
+        .val { color: #38bdf8; font-family: monospace; font-size: 14px; }
+        input[type="range"] { width: 100%; margin-top: 8px; accent-color: #38bdf8; cursor: pointer; }
+        
+        .btn-group { display: flex; gap: 10px; margin-top: 5px; }
+        button { 
+            flex: 1; padding: 14px; border: none; border-radius: 8px; 
+            font-size: 15px; font-weight: bold; cursor: pointer; 
+            transition: all 0.1s; color: white; text-transform: uppercase;
+        }
+        #dropBtn { background: #3b82f6; }
+        #dropBtn:active { background: #2563eb; transform: scale(0.98); }
+        #resetBtn { background: #64748b; }
+        #resetBtn:active { background: #475569; transform: scale(0.98); }
+
+        /* --- TELEMETRY --- */
+        .telemetry { 
+            display: flex; flex-direction: column; gap: 10px;
+            font-family: monospace; font-size: 14px; color: #a7f3d0; 
+        }
+        .telemetry span { display: flex; justify-content: space-between; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 6px; }
+        .telemetry span:last-child { border-bottom: none; padding-bottom: 0; }
+        .telemetry b { color: #fff; }
+        
+        .force-weight { color: #f87171; }
+        .force-buoyancy { color: #60a5fa; }
+
+        .math-box { 
+            background: rgba(0,0,0,0.25); padding: 15px; border-radius: 8px; 
+            font-family: 'Courier New', monospace; font-size: 14px; color: #fde047;
+            border-left: 4px solid #fde047; margin-top: 5px; line-height: 1.5;
+        }
+        
+        /* --- CANVAS --- */
+        canvas#simCanvas { 
+            width: 100%; 
+            height: 100%; 
+            display: block; 
+        }
+
+        /* --- MOBILE RESPONSIVENESS --- */
+        @media (max-width: 800px) {
+            body { flex-direction: column; overflow-y: auto; }
+            #dashboard { width: 100%; border-right: none; border-bottom: 2px solid #334155; }
+            #simulation { height: 65vh; min-height: 450px; flex: none; }
+        }
+    </style>
+</head>
+<body>
+
+    <aside id="dashboard">
+        <h2>Buoyancy & Upthrust</h2>
+        <div class="subtitle">Archimedes' Principle Lab</div>
+
+        <div class="panel">
+            <div class="input-row">
+                <label>Fluid Density (ρ_fluid) <span class="val" id="rhoFVal">1000 kg/m³</span></label>
+                <input type="range" id="rhoFSlider" min="500" max="2000" step="10" value="1000">
+            </div>
+            <div class="input-row">
+                <label>Object Density (ρ_obj) <span class="val" id="rhoOVal">600 kg/m³</span></label>
+                <input type="range" id="rhoOSlider" min="100" max="3000" step="10" value="600">
+            </div>
+            <div class="input-row">
+                <label>Total Volume (V_total) <span class="val" id="volVal">5.0 m³</span></label>
+                <input type="range" id="volSlider" min="1.0" max="10.0" step="0.1" value="5.0">
+            </div>
+            
+            <div class="btn-group">
+                <button id="dropBtn" onclick="dropObject()">DROP OBJECT</button>
+                <button id="resetBtn" onclick="resetSim()">RESET</button>
+            </div>
+        </div>
+
+        <div class="panel">
+            <div class="telemetry">
+                <span>Object Mass (m): <b id="massLive">3000 kg</b></span>
+                <span class="force-weight">Weight (W): <b id="wLive">29430 N ↓</b></span>
+                <span class="force-buoyancy">Buoyancy (F_b): <b id="fbLive">0 N ↑</b></span>
+                <span style="margin-top: 5px; color: #cbd5e1;">Final State: <b id="stateLive" style="color: #fde047;">Floating</b></span>
+            </div>
+        </div>
+
+        <div class="math-box">
+            <strong style="color: #fff;">Weight Equation:</strong><br>
+            W = ρ_obj · V_total · g<br>
+            <span id="mathW" style="color: #f87171;">W = 600 · 5.0 · 9.81 = 29430 N</span><br><br>
+            
+            <strong style="color: #fff;">Live Buoyancy Equation:</strong><br>
+            F_b = ρ_fluid · V_sub · g<br>
+            <span id="mathFb" style="color: #60a5fa;">F_b = 1000 · 0.00 · 9.81 = 0 N</span><br><br>
+
+            <strong style="color: #fff;">Theoretical Equilibrium:</strong><br>
+            <span id="eqLive">V_sub / V_total = 60.0%</span>
+        </div>
+    </aside>
+
+    <main id="simulation">
+        <canvas id="simCanvas"></canvas>
+    </main>
+
+    <script>
+        // --- PHYSICS CONSTANTS & STATE ---
+        const g = 9.81;
+        const TANK_WIDTH = 12.0; // logical meters
+        const TANK_HEIGHT = 10.0; // logical meters
+        const FLUID_START_Y = 5.0; // meters from bottom
+        
+        let state = {
+            rhoF: 1000,
+            rhoO: 600,
+            V: 5.0,
+            y: 12.0, // y position of the object's CENTER in meters (0 is bottom of tank)
+            v: 0.0,  // velocity (m/s)
+            isDropped: false,
+            animId: null
+        };
+
+        // --- DOM ELEMENTS ---
+        const canvas = document.getElementById('simCanvas');
+        const ctx = canvas.getContext('2d');
+        const sliders = {
+            rhoF: document.getElementById('rhoFSlider'),
+            rhoO: document.getElementById('rhoOSlider'),
+            V: document.getElementById('volSlider')
+        };
+        const dropBtn = document.getElementById('dropBtn');
+
+        // --- RESIZE HANDLER ---
+        let pxPerMeter = 1;
+        let canvasOrigin = { x: 0, y: 0 };
+
+        function resizeCanvas() {
+            const rect = canvas.parentElement.getBoundingClientRect();
+            const dpr = window.devicePixelRatio || 1;
+            canvas.width = rect.width * dpr;
+            canvas.height = rect.height * dpr;
+            ctx.scale(dpr, dpr);
+            canvas.logicalWidth = rect.width;
+            canvas.logicalHeight = rect.height;
+            
+            // Calculate scale: fit 16 meters vertically, 14 meters horizontally
+            pxPerMeter = Math.min(canvas.logicalWidth / 14, canvas.logicalHeight / 15);
+            
+            // Origin at bottom center
+            canvasOrigin.x = canvas.logicalWidth / 2;
+            canvasOrigin.y = canvas.logicalHeight - (canvas.logicalHeight * 0.05); 
+            
+            if(!state.isDropped) draw();
+        }
+        window.addEventListener('resize', resizeCanvas);
+
+        // --- PHYSICS MATH & UI UPDATES ---
+        function updateMath() {
+            state.rhoF = parseFloat(sliders.rhoF.value);
+            state.rhoO = parseFloat(sliders.rhoO.value);
+            state.V = parseFloat(sliders.V.value);
+
+            const mass = state.rhoO * state.V;
+            const weight = mass * g;
+
+            // Theoretical End State
+            let theoreticalState = "";
+            let fraction = 0;
+            if (state.rhoO < state.rhoF) {
+                theoreticalState = "Floating";
+                fraction = (state.rhoO / state.rhoF) * 100;
+            } else if (state.rhoO > state.rhoF) {
+                theoreticalState = "Sinking";
+                fraction = 100;
+            } else {
+                theoreticalState = "Neutral";
+                fraction = 100;
+            }
+
+            // UI Updates
+            document.getElementById('rhoFVal').innerText = state.rhoF + " kg/m³";
+            document.getElementById('rhoOVal').innerText = state.rhoO + " kg/m³";
+            document.getElementById('volVal').innerText = state.V.toFixed(1) + " m³";
+            
+            document.getElementById('massLive').innerText = mass.toFixed(0) + " kg";
+            document.getElementById('wLive').innerText = weight.toFixed(0) + " N ↓";
+            document.getElementById('stateLive').innerText = theoreticalState;
+            
+            // Equation substitution updates (Weight is constant until sliders move)
+            document.getElementById('mathW').innerText = `W = ${state.rhoO} · ${state.V.toFixed(1)} · 9.81 = ${weight.toFixed(0)} N`;
+
+            if(theoreticalState === "Floating") {
+                document.getElementById('eqLive').innerText = `V_sub / V_total = ${fraction.toFixed(1)}%`;
+            } else {
+                document.getElementById('eqLive').innerText = `Fully Submerged (100%)`;
+            }
+
+            if(!state.isDropped) {
+                // Keep block hovering above if not dropped
+                state.y = FLUID_START_Y + Math.sqrt(state.V)/2 + 3.0; 
+                state.v = 0;
+                draw();
+            }
+        }
+
+        Object.values(sliders).forEach(s => s.addEventListener('input', updateMath));
+
+        function dropObject() {
+            if (state.isDropped) return;
+            state.isDropped = true;
+            dropBtn.disabled = true;
+            dropBtn.style.background = "#555";
+            lastTime = performance.now();
+            requestAnimationFrame(physicsLoop);
+        }
+
+        function resetSim() {
+            cancelAnimationFrame(state.animId);
+            state.isDropped = false;
+            dropBtn.disabled = false;
+            dropBtn.style.background = "#3b82f6";
+            document.getElementById('fbLive').innerText = "0 N ↑";
+            updateMath(); // Resets position and draws
+        }
+
+        // --- DRAWING ENGINE ---
+        function getBlockColor(density) {
+            // Map density 100 (light wood) to 3000 (dark metal)
+            // Using HSL: 100 -> Wood (H:30, S:60%, L:65%), 3000 -> Metal (H:210, S:10%, L:30%)
+            const t = Math.max(0, Math.min(1, (density - 100) / 2900));
+            const h = 30 + t * (210 - 30);
+            const s = 60 - t * (60 - 10);
+            const l = 65 - t * (65 - 30);
+            return `hsl(${h}, ${s}%, ${l}%)`;
+        }
+
+        function drawVector(cx, cy, lengthPx, color, directionUp) {
+            if (lengthPx < 2) return;
+            ctx.strokeStyle = color;
+            ctx.fillStyle = color;
+            ctx.lineWidth = 4;
+            
+            const sign = directionUp ? -1 : 1; // Canvas Y is inverted
+            const endY = cy + (lengthPx * sign);
+            
+            ctx.beginPath();
+            ctx.moveTo(cx, cy);
+            ctx.lineTo(cx, endY);
+            ctx.stroke();
+            
+            // Arrow head
+            ctx.beginPath();
+            ctx.moveTo(cx, endY);
+            ctx.lineTo(cx - 6, endY - (10 * sign));
+            ctx.lineTo(cx + 6, endY - (10 * sign));
+            ctx.fill();
+        }
+
+        function draw() {
+            const w = canvas.logicalWidth;
+            const h = canvas.logicalHeight;
+            ctx.clearRect(0, 0, w, h);
+
+            // --- Geometric calculations based on current state ---
+            const blockSideMeters = Math.sqrt(state.V); 
+            const y_bot = state.y - (blockSideMeters / 2); // Bottom edge of block in meters
+            const y_top = state.y + (blockSideMeters / 2); // Top edge of block in meters
+
+            // Calculate exact fluid displacement geometrically to avoid physics jitter
+            let h_sub = 0;
+            let fluidSurfaceY = FLUID_START_Y;
+
+            // If block bottom is below the theoretical starting fluid level
+            if (y_bot < FLUID_START_Y) {
+                // Algebraic solution for fluid rise: h_sub = (y_surf0 - y_bot) / (1 - A_obj/A_tank)
+                const denom = 1.0 - (blockSideMeters / TANK_WIDTH);
+                h_sub = (FLUID_START_Y - y_bot) / denom;
+                
+                // Clamp submerged height
+                if (h_sub > blockSideMeters) h_sub = blockSideMeters;
+                if (h_sub < 0) h_sub = 0;
+            }
+            
+            const V_sub = h_sub * blockSideMeters; // Since depth=1m, Area matches Volume
+            fluidSurfaceY = FLUID_START_Y + (V_sub / TANK_WIDTH);
+
+            // Calculate live Buoyancy for UI and Vectors
+            const Fb = state.rhoF * V_sub * g;
+            const W_force = state.rhoO * state.V * g;
+
+            // Live updates to the math box and telemetry
+            document.getElementById('mathFb').innerText = `F_b = ${state.rhoF} · ${V_sub.toFixed(2)} · 9.81 = ${Fb.toFixed(0)} N`;
+            
+            if (state.isDropped) {
+                document.getElementById('fbLive').innerText = Fb.toFixed(0) + " N ↑";
+            }
+
+            ctx.save();
+            // Translate to our physics coordinate system origin (bottom center)
+            ctx.translate(canvasOrigin.x, canvasOrigin.y);
+
+            // 1. Draw Tank Background
+            const tW = TANK_WIDTH * pxPerMeter;
+            const tH = TANK_HEIGHT * pxPerMeter;
+            ctx.fillStyle = "#1e293b";
+            ctx.fillRect(-tW/2, -tH, tW, tH);
+
+            // 2. Draw Fluid
+            const fluidPxH = fluidSurfaceY * pxPerMeter;
+            // Fluid opacity changes slightly based on density
+            const fluidOpacity = 0.4 + ((state.rhoF - 500) / 1500) * 0.4;
+            ctx.fillStyle = `rgba(14, 165, 233, ${fluidOpacity})`;
+            ctx.fillRect(-tW/2, -fluidPxH, tW, fluidPxH);
+
+            // Fluid Surface Line
+            ctx.strokeStyle = "#38bdf8";
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.moveTo(-tW/2, -fluidPxH);
+            ctx.lineTo(tW/2, -fluidPxH);
+            ctx.stroke();
+
+            // 3. Draw Tank Borders (Glass)
+            ctx.strokeStyle = "rgba(255,255,255,0.4)";
+            ctx.lineWidth = 6;
+            ctx.beginPath();
+            ctx.moveTo(-tW/2, -tH);
+            ctx.lineTo(-tW/2, 0);
+            ctx.lineTo(tW/2, 0);
+            ctx.lineTo(tW/2, -tH);
+            ctx.stroke();
+
+            // 4. Draw Block
+            const blockPx = blockSideMeters * pxPerMeter;
+            const blockCenterY_px = -(state.y * pxPerMeter); // Canvas Y is inverted
+            
+            ctx.fillStyle = getBlockColor(state.rhoO);
+            ctx.fillRect(-blockPx/2, blockCenterY_px - blockPx/2, blockPx, blockPx);
+            ctx.strokeStyle = "#000";
+            ctx.lineWidth = 2;
+            ctx.strokeRect(-blockPx/2, blockCenterY_px - blockPx/2, blockPx, blockPx);
+
+            // 5. Draw Dynamic Force Vectors
+            if (state.isDropped || state.y < FLUID_START_Y + blockSideMeters) {
+                // Scale forces visually. Max weight is ~300,000 N. Using sqrt mapping for visibility of small forces.
+                const visualScale = 0.5; 
+                const wLen = Math.sqrt(W_force) * visualScale;
+                const fbLen = Math.sqrt(Fb) * visualScale;
+
+                // Offset arrows slightly horizontally so they don't overlap perfectly
+                drawVector(-15, blockCenterY_px, wLen, "#ef4444", false); // Red Down
+                drawVector(15, blockCenterY_px, fbLen, "#60a5fa", true);  // Blue Up
+            }
+
+            ctx.restore();
+            return { h_sub, V_sub, Fb, W_force, blockSideMeters }; // Return physics state for the engine
+        }
+
+        // --- PHYSICS ENGINE LOOP ---
+        let lastTime = 0;
+        function physicsLoop(now) {
+            if (!state.isDropped) return;
+            
+            let dt = (now - lastTime) / 1000;
+            if (dt > 0.02) dt = 0.02; // Clamp dt to prevent explosions during tab switching
+            lastTime = now;
+
+            // Run a draw to get the exact geometric displacement constraints
+            const phy = draw();
+
+            // Apply Forces
+            const mass = state.rhoO * state.V;
+            
+            // Drag calculation (critical damping model for fluid, light air drag otherwise)
+            let F_drag = 0;
+            if (phy.h_sub > 0) {
+                // Realistic fluid damping
+                const dragCoef = state.rhoF * phy.blockSideMeters * 1.5; 
+                F_drag = -dragCoef * state.v;
+            } else {
+                // Air drag
+                F_drag = -10 * state.v;
+            }
+
+            const F_net = phy.Fb - phy.W_force + F_drag;
+            const a = F_net / mass;
+
+            // Euler Integration
+            state.v += a * dt;
+            state.y += state.v * dt;
+
+            // Floor collision
+            const min_y = phy.blockSideMeters / 2; // Can't go through the bottom of the tank
+            if (state.y <= min_y) {
+                state.y = min_y;
+                state.v *= -0.2; // slight dull bounce
+                if (Math.abs(state.v) < 0.1) state.v = 0; // come to rest completely
+            }
+
+            state.animId = requestAnimationFrame(physicsLoop);
+        }
+
+        // Init
+        resizeCanvas();
+        updateMath();
+
+    </script>
+</body>
+</html>
