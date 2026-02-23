@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Virtual Physics Lab: Newton's Second Law</title>
+    <style>
+        * { box-sizing: border-box; }
+        body { 
+            font-family: system-ui, -apple-system, sans-serif; 
+            background: #12121c; 
+            color: #e0e0e0; 
+            margin: 0; 
+            padding: 15px; 
+            overflow-x: hidden; 
+        }
+        
+        h2 { text-align: center; color: white; margin-top: 0; font-size: 1.5rem; }
+
+        #dashboard { 
+            display: flex; flex-wrap: wrap; gap: 20px; 
+            max-width: 1400px; margin: 0 auto; width: 100%; 
+        }
+
+        .panel { 
+            background: #1e1e2f; padding: 20px; border-radius: 12px; 
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5); 
+            border: 1px solid rgba(255,255,255,0.05);
+        }
+
+        #controls-container { flex: 1 1 320px; display: flex; flex-direction: column; gap: 15px; }
+        #sim-container { flex: 2 1 400px; display: flex; flex-direction: column; gap: 15px; }
+
+        .input-row { margin-bottom: 15px; }
+        label { display: flex; justify-content: space-between; font-size: 14px; color: #b0bec5; font-weight: bold; }
+        .val { color: #4fc3f7; font-family: monospace; font-size: 16px; }
+        input[type="range"] { width: 100%; margin-top: 8px; accent-color: #4fc3f7; }
+        
+        button { 
+            width: 100%; padding: 15px; background: #e53935; color: white; 
+            border: none; border-radius: 8px; font-size: 18px; font-weight: bold; 
+            cursor: pointer; transition: background 0.2s; letter-spacing: 1px;
+        }
+        button:hover { background: #d32f2f; }
+        button:disabled { background: #555; cursor: not-allowed; }
+
+        .telemetry { 
+            display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
+            margin-top: 10px; font-family: monospace; font-size: 14px; color: #81c784; 
+            background: rgba(0,0,0,0.3); padding: 15px; border-radius: 8px;
+        }
+        .telemetry span { display: flex; justify-content: space-between; }
+        .telemetry b { color: #fff; }
+
+        .math-box { 
+            background: rgba(0,0,0,0.4); padding: 20px; border-radius: 8px; 
+            font-family: 'Courier New', monospace; font-size: 15px; color: #ffd54f;
+            border-left: 4px solid #ffd54f; overflow-x: auto; 
+        }
+        .math-box h3 { margin: 0 0 10px 0; color: #fff; font-size: 16px; font-family: system-ui; }
+
+        canvas#simCanvas { 
+            background: #272727; border-radius: 8px; 
+            width: 100%; 
+            height: auto; 
+            aspect-ratio: 2 / 1; 
+            box-shadow: inset 0 0 20px rgba(0,0,0,0.8);
+            display: block; 
+        }
+
+        .fraction { display: inline-flex; flex-direction: column; align-items: center; margin: 0 6px; vertical-align: middle; }
+        .fraction .num { padding: 0 4px; border-bottom: 1px solid #ffd54f; }
+        .fraction .den { padding: 2px 4px 0 4px; }
+
+        @media (max-width: 600px) {
+            .telemetry { grid-template-columns: 1fr; }
+            button { font-size: 16px; padding: 12px; }
+            h2 { font-size: 1.25rem; }
+        }
+    </style>
+</head>
+<body>
+
+    <audio id="hitSound" src="alex_jauk-billiard-sound-01-288421.mp3" preload="auto"></audio>
+
+    <h2>Virtual Lab: Newton's 2nd Law</h2>
+
+    <div id="dashboard">
+        <div id="controls-container">
+            <div class="panel">
+                <div class="input-row">
+                    <label>Applied Force (F) <span class="val" id="fVal">25.0 N</span></label>
+                    <input type="range" id="fSlider" min="1" max="50" step="0.5" value="25">
+                </div>
+                <div class="input-row">
+                    <label>Mass of Ball (m) <span class="val" id="mVal">0.14 kg</span></label>
+                    <input type="range" id="mSlider" min="0.1" max="1.0" step="0.01" value="0.14">
+                </div>
+                <div class="input-row">
+                    <label>Friction Coeff (μ) <span class="val" id="muVal">0.015</span></label>
+                    <input type="range" id="muSlider" min="0" max="0.05" step="0.001" value="0.015">
+                </div>
+                
+                <button id="strikeBtn" onclick="initiateStrike()">STRIKE BALL</button>
+
+                <div class="telemetry">
+                    <span>Time (t): <b id="tLive">0.00 s</b></span>
+                    <span>Speed (|v|): <b id="vLive">0.00 m/s</b></span>
+                    <span>Pos X: <b id="xLive">0.00 m</b></span>
+                    <span>Pos Y: <b id="yLive">0.00 m</b></span>
+                </div>
+            </div>
+
+            <div class="panel math-box" id="calcContent">
+                <h3>Theoretical Acceleration</h3>
+                <div style="margin-bottom: 10px;">At the exact moment of impact:</div>
+                <div style="display: flex; align-items: center; font-size: 18px;">
+                    a = <div class="fraction"><span class="num" id="mathF">25.0 N</span><span class="den" id="mathM">0.14 kg</span></div> = <b style="color: white; margin-left: 5px;" id="mathA">178.57 m/s²</b>
+                </div>
+                <div style="margin-top: 15px; font-size: 13px; color: #b0bec5;">
+                  
+                </div>
+            </div>
+        </div>
+
+        <div id="sim-container">
+            <div class="panel" style="padding: 10px;">
+                <canvas id="simCanvas" width="800" height="400"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- PHYSICS & ENGINE CONSTANTS ---
+        const g = 9.81; 
+        const dt = 0.016; 
+        const impactTime = 0.02; 
+        const pixelsPerMeter = 250; 
+        
+        // --- DOM ELEMENTS ---
+        const canvas = document.getElementById('simCanvas');
+        const ctx = canvas.getContext('2d');
+        const sliders = {
+            F: document.getElementById('fSlider'),
+            m: document.getElementById('mSlider'),
+            mu: document.getElementById('muSlider')
+        };
+        const strikeBtn = document.getElementById('strikeBtn');
+        const hitSound = document.getElementById('hitSound'); 
+
+        // --- DYNAMIC BALL SIZE LOGIC ---
+        // Calculate radius based on mass (Volume is proportional to mass, so r is proportional to cube root of mass)
+        function getBallRadius() {
+            const m = parseFloat(sliders.m.value);
+            const standardMass = 0.14; // The default 8px radius is based on 0.14kg
+            const standardRadius = 8;
+            return standardRadius * Math.pow(m / standardMass, 1/3);
+        }
+
+        // --- STATE VARIABLES ---
+        let state = {
+            x: 1.0,  
+            y: 0.8,  
+            vx: 0, 
+            vy: 0,
+            t: 0,
+            isRolling: false,
+            isStriking: false, 
+            stickOffset: 0, 
+            animId: null
+        };
+
+        // --- HELPER FUNCTION TO PLAY SOUND ---
+        function playHitSound() {
+            hitSound.currentTime = 0;
+            hitSound.play().catch(e => console.log("Browser blocked audio play:", e));
+        }
+
+        // --- INITIALIZATION ---
+        function updateMathPanel() {
+            const F = parseFloat(sliders.F.value);
+            const m = parseFloat(sliders.m.value);
+            const a = F / m;
+            
+            document.getElementById('fVal').innerText = F.toFixed(1) + " N";
+            document.getElementById('mVal').innerText = m.toFixed(2) + " kg";
+            document.getElementById('muVal').innerText = parseFloat(sliders.mu.value).toFixed(3);
+            
+            document.getElementById('mathF').innerText = F.toFixed(1) + " N";
+            document.getElementById('mathM').innerText = m.toFixed(2) + " kg";
+            document.getElementById('mathA').innerText = a.toFixed(2) + " m/s²";
+
+            if(!state.isRolling && !state.isStriking) {
+                state.stickOffset = 2 + (F * 0.8);
+                drawTable();
+            }
+        }
+
+        Object.values(sliders).forEach(s => s.addEventListener('input', updateMathPanel));
+
+        // --- RENDERING ---
+        function drawTable() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            ctx.fillStyle = "#2e7d32"; 
+            ctx.fillRect(20, 20, canvas.width - 40, canvas.height - 40);
+            
+            ctx.strokeStyle = "#5d4037"; ctx.lineWidth = 20;
+            ctx.strokeRect(10, 10, canvas.width - 20, canvas.height - 20);
+
+            const px = 20 + (state.x * pixelsPerMeter);
+            const py = 20 + (state.y * pixelsPerMeter);
+            const currentBallRadius = getBallRadius(); // Get the dynamic radius
+            
+            if(!state.isRolling || state.isStriking) {
+                // Adjust stick position based on the ball's current radius
+                const tipX = px - currentBallRadius - state.stickOffset;
+                const endX = tipX - 200; 
+                
+                ctx.beginPath();
+                ctx.moveTo(tipX, py);
+                ctx.lineTo(endX, py);
+                ctx.strokeStyle = "#bcaaa4"; 
+                ctx.lineWidth = 5;
+                ctx.lineCap = "round";
+                ctx.stroke();
+
+                ctx.beginPath();
+                ctx.moveTo(tipX, py);
+                ctx.lineTo(tipX - 8, py);
+                ctx.strokeStyle = "#0288d1"; 
+                ctx.lineWidth = 5;
+                ctx.stroke();
+                
+                ctx.beginPath();
+                ctx.moveTo(endX + 60, py);
+                ctx.lineTo(endX, py);
+                ctx.strokeStyle = "#3e2723"; 
+                ctx.lineWidth = 6;
+                ctx.stroke();
+            }
+
+            // Draw dynamic Ball Shadow
+            ctx.beginPath(); ctx.arc(px + (currentBallRadius*0.25), py + (currentBallRadius*0.25), currentBallRadius, 0, Math.PI * 2);
+            ctx.fillStyle = "rgba(0,0,0,0.5)"; ctx.fill();
+
+            // Draw dynamic Ball body
+            ctx.beginPath(); ctx.arc(px, py, currentBallRadius, 0, Math.PI * 2);
+            ctx.fillStyle = "#ffffff"; ctx.fill();
+        }
+
+        // --- STRIKE ANIMATION SEQUENCE ---
+        function initiateStrike() {
+            hitSound.play().catch(() => {});
+            hitSound.pause();
+            hitSound.currentTime = 0;
+
+            if (state.isRolling || state.isStriking) {
+                cancelAnimationFrame(state.animId);
+                const F = parseFloat(sliders.F.value);
+                state = { 
+                    x: 1.0, y: 0.8, vx: 0, vy: 0, t: 0, 
+                    isRolling: false, isStriking: false, 
+                    stickOffset: 2 + (F * 0.8), 
+                    animId: null 
+                };
+                strikeBtn.innerText = "STRIKE BALL";
+                strikeBtn.style.background = "#e53935";
+                strikeBtn.disabled = false;
+                
+                document.getElementById('tLive').innerText = "0.00 s";
+                document.getElementById('vLive').innerText = "0.00 m/s";
+                document.getElementById('xLive').innerText = "1.00 m";
+                document.getElementById('yLive').innerText = "0.80 m";
+
+                drawTable();
+                updateMathPanel();
+                return;
+            }
+
+            state.isStriking = true;
+            strikeBtn.disabled = true; 
+            strikeBtn.innerText = "STRIKING...";
+            
+            animateStick();
+        }
+
+        function animateStick() {
+            state.stickOffset -= 5; 
+
+            if (state.stickOffset <= 0) {
+                state.stickOffset = 0;
+                state.isStriking = false;
+                
+                playHitSound();
+                
+                launchBall(); 
+            } else {
+                drawTable();
+                state.animId = requestAnimationFrame(animateStick);
+            }
+        }
+
+        function launchBall() {
+            const F = parseFloat(sliders.F.value);
+            const m = parseFloat(sliders.m.value);
+            
+            const a_strike = F / m; 
+            state.vx = a_strike * impactTime; 
+            state.vy = 0; 
+            state.t = 0;
+            state.isRolling = true;
+
+            strikeBtn.disabled = false;
+            strikeBtn.innerText = "RESET";
+            strikeBtn.style.background = "#0288d1";
+
+            lastTime = performance.now();
+            physicsLoop(lastTime);
+        }
+
+        // --- PHYSICS ENGINE ---
+        let lastTime = 0;
+        function physicsLoop(now) {
+            if(!state.isRolling) return;
+            
+            let deltaT = (now - lastTime) / 1000;
+            if(deltaT > 0.1) deltaT = 0.016; 
+            lastTime = now;
+
+            const mu = parseFloat(sliders.mu.value);
+            let speed = Math.sqrt(state.vx*state.vx + state.vy*state.vy);
+            
+            if (speed > 0.01 && mu > 0) {
+                let deceleration = mu * g;
+                let speedLoss = deceleration * deltaT;
+                let ratio = Math.max(0, speed - speedLoss) / speed;
+                state.vx *= ratio;
+                state.vy *= ratio;
+                speed = Math.sqrt(state.vx*state.vx + state.vy*state.vy);
+            } else if (speed <= 0.01) {
+                state.vx = 0; state.vy = 0; speed = 0;
+                state.isRolling = false;
+            }
+
+            state.x += state.vx * deltaT;
+            state.y += state.vy * deltaT;
+            state.t += deltaT;
+
+            const tableWidthMeters = (canvas.width - 40) / pixelsPerMeter;
+            const tableHeightMeters = (canvas.height - 40) / pixelsPerMeter;
+            
+            // Re-calculate boundary hit-box based on dynamic ball size
+            const currentBallRadius = getBallRadius();
+            const ballRadiusMeters = currentBallRadius / pixelsPerMeter;
+
+            if (state.x + ballRadiusMeters >= tableWidthMeters && state.vx > 0) { 
+                state.x = tableWidthMeters - ballRadiusMeters; 
+                state.vx *= -1; 
+            }
+            if (state.x - ballRadiusMeters <= 0 && state.vx < 0) { 
+                state.x = ballRadiusMeters; 
+                state.vx *= -1; 
+            }
+            if (state.y + ballRadiusMeters >= tableHeightMeters && state.vy > 0) { 
+                state.y = tableHeightMeters - ballRadiusMeters; 
+                state.vy *= -1; 
+            }
+            if (state.y - ballRadiusMeters <= 0 && state.vy < 0) { 
+                state.y = ballRadiusMeters; 
+                state.vy *= -1; 
+            }
+
+            document.getElementById('tLive').innerText = state.t.toFixed(2) + " s";
+            document.getElementById('vLive').innerText = speed.toFixed(2) + " m/s";
+            document.getElementById('xLive').innerText = state.x.toFixed(2) + " m";
+            document.getElementById('yLive').innerText = state.y.toFixed(2) + " m";
+
+            drawTable();
+
+            if (state.isRolling) {
+                state.animId = requestAnimationFrame(physicsLoop);
+            }
+        }
+
+        state.stickOffset = 2 + (parseFloat(sliders.F.value) * 0.8);
+        updateMathPanel();
+        drawTable();
+    </script>
+</body>
+</html>
