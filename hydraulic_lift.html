@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pascal's Law: Hydraulic Lift Lab</title>
+    <style>
+        * { box-sizing: border-box; }
+        body { 
+            font-family: system-ui, -apple-system, sans-serif; 
+            background: #0f172a; 
+            color: #e2e8f0; 
+            margin: 0; 
+            padding: 0; 
+            overflow: hidden; 
+            display: flex;
+            height: 100vh;
+            width: 100vw;
+        }
+        
+        #dashboard { 
+            width: 380px; 
+            background: #1e293b; 
+            border-right: 2px solid #334155;
+            padding: 20px; 
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            z-index: 10;
+        }
+
+        #simulation {
+            flex: 1;
+            position: relative;
+            background: #0f172a;
+        }
+
+        h2 { text-align: center; color: white; margin: 0 0 10px 0; font-size: 1.4rem; }
+
+        .panel { 
+            background: #334155; 
+            padding: 15px; 
+            border-radius: 10px; 
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3); 
+        }
+
+        .input-row { margin-bottom: 12px; }
+        .input-row:last-child { margin-bottom: 0; }
+        label { display: flex; justify-content: space-between; font-size: 13px; color: #94a3b8; font-weight: bold; }
+        .val { color: #38bdf8; font-family: monospace; font-size: 14px; }
+        input[type="range"] { width: 100%; margin-top: 6px; accent-color: #38bdf8; cursor: pointer; }
+        
+        .btn-group { display: flex; gap: 10px; margin-top: 5px; }
+        button { 
+            flex: 1; padding: 12px; border: none; border-radius: 8px; 
+            font-size: 14px; font-weight: bold; cursor: pointer; 
+            transition: all 0.1s; color: white; text-transform: uppercase;
+        }
+        #pushBtn { background: #e11d48; user-select: none; touch-action: none; }
+        #pushBtn:active { background: #be123c; transform: scale(0.98); }
+        #resetBtn { background: #0ea5e9; }
+        #resetBtn:active { background: #0284c7; transform: scale(0.98); }
+
+        .telemetry { 
+            display: flex; flex-direction: column; gap: 8px;
+            font-family: monospace; font-size: 13.5px; color: #a7f3d0; 
+        }
+        .telemetry span { display: flex; justify-content: space-between; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 4px; }
+        .telemetry span:last-child { border-bottom: none; padding-bottom: 0; }
+        .telemetry b { color: #fff; }
+        .alert-text { color: #f87171 !important; }
+        .success-text { color: #4ade80 !important; }
+
+        .math-box { 
+            background: rgba(0,0,0,0.25); padding: 15px; border-radius: 8px; 
+            font-family: 'Courier New', monospace; font-size: 14px; color: #fde047;
+            border-left: 4px solid #fde047; margin-top: 5px;
+        }
+        
+        canvas#simCanvas { 
+            width: 100%; 
+            height: 100%; 
+            display: block; 
+        }
+
+        #warningMsg {
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #ef4444;
+            color: white;
+            padding: 10px 25px;
+            border-radius: 30px;
+            font-weight: bold;
+            font-size: 1.2rem;
+            box-shadow: 0 4px 15px rgba(239, 68, 68, 0.4);
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.2s;
+            white-space: nowrap;
+        }
+
+        @media (max-width: 800px) {
+            body { flex-direction: column; overflow-y: auto; }
+            #dashboard { width: 100%; border-right: none; border-bottom: 2px solid #334155; }
+            #simulation { height: 60vh; min-height: 400px; flex: none; }
+        }
+    </style>
+</head>
+<body>
+
+    <aside id="dashboard">
+        <h2>Hydraulic Lift (Pascal's Law)</h2>
+
+        <div class="panel">
+            <div class="input-row">
+                <label>Input Mass (m₁) <span class="val" id="m1Val">50 kg</span></label>
+                <input type="range" id="m1Slider" min="10" max="200" step="1" value="50">
+            </div>
+            <div class="input-row">
+                <label>Input Area (A₁) <span class="val" id="a1Val">0.20 m²</span></label>
+                <input type="range" id="a1Slider" min="0.1" max="1.0" step="0.05" value="0.2">
+            </div>
+            <div class="input-row" style="margin-top: 15px; border-top: 1px solid #475569; padding-top: 15px;">
+                <label>Output Area (A₂) <span class="val" id="a2Val">2.00 m²</span></label>
+                <input type="range" id="a2Slider" min="1.0" max="10.0" step="0.5" value="2.0">
+            </div>
+            <div class="input-row">
+                <label>Load Mass (m₂) <span class="val" id="m2Val">1000 kg</span></label>
+                <input type="range" id="m2Slider" min="500" max="5000" step="100" value="1000">
+            </div>
+            
+            <div class="btn-group">
+                <button id="pushBtn">PRESS & HOLD<br>TO PUSH (P₁)</button>
+                <button id="resetBtn" onclick="resetLift()">RESET<br>HEIGHT</button>
+            </div>
+        </div>
+
+        <div class="panel">
+            <div class="telemetry">
+                <span>Input Force (F₁ = m₁g): <b id="f1Live">0.0 N</b></span>
+                <span>Fluid Pressure (P = F₁/A₁): <b id="pLive">0.0 Pa</b></span>
+                <span style="margin-top: 8px;">Load Weight (W = m₂g): <b id="wLive">0.0 N</b></span>
+                <span style="color: #38bdf8;">Theor. Lift Force (F₂ = P·A₂): <b id="f2Live">0.0 N</b></span>
+                <span style="margin-top: 8px;">Mechanical Advantage (A₂/A₁): <b id="maLive">0.00</b></span>
+            </div>
+        </div>
+
+        <div class="math-box" id="calcContent">
+            <strong>Pascal's Principle:</strong><br>
+            P = F₁/A₁ = F₂/A₂<br><br>
+            <strong>System Status:</strong><br>
+            <span id="statusText">Awaiting input...</span>
+        </div>
+    </aside>
+
+    <main id="simulation">
+        <div id="warningMsg">⚠️ INSUFFICIENT FORCE TO LIFT LOAD</div>
+        <canvas id="simCanvas"></canvas>
+    </main>
+
+    <script>
+        const g = 9.81;
+        
+        let state = {
+            m1: 50, // CHANGED: matching the new slider default
+            A1: 0.2,
+            m2: 1000, 
+            A2: 2.0,
+            deltaH1: 0,   
+            isPushing: false,
+            canLift: false
+        };
+
+        const canvas = document.getElementById('simCanvas');
+        const ctx = canvas.getContext('2d');
+        const warningMsg = document.getElementById('warningMsg');
+        const pushBtn = document.getElementById('pushBtn');
+
+        const sliders = {
+            m1: document.getElementById('m1Slider'),
+            A1: document.getElementById('a1Slider'),
+            m2: document.getElementById('m2Slider'),
+            A2: document.getElementById('a2Slider')
+        };
+
+        function resizeCanvas() {
+            const rect = canvas.parentElement.getBoundingClientRect();
+            const dpr = window.devicePixelRatio || 1;
+            canvas.width = rect.width * dpr;
+            canvas.height = rect.height * dpr;
+            ctx.scale(dpr, dpr);
+            canvas.logicalWidth = rect.width;
+            canvas.logicalHeight = rect.height;
+            draw();
+        }
+        window.addEventListener('resize', resizeCanvas);
+
+        function updateMath() {
+            state.m1 = parseFloat(sliders.m1.value);
+            state.A1 = parseFloat(sliders.A1.value);
+            state.m2 = parseFloat(sliders.m2.value);
+            state.A2 = parseFloat(sliders.A2.value);
+
+            const F1 = state.m1 * g;
+            const P = F1 / state.A1;
+            const W = state.m2 * g;
+            const F2 = P * state.A2;
+            const MA = state.A2 / state.A1;
+
+            state.canLift = F2 >= W;
+
+            document.getElementById('m1Val').innerText = state.m1 + " kg";
+            document.getElementById('a1Val').innerText = state.A1.toFixed(2) + " m²";
+            document.getElementById('m2Val').innerText = state.m2 + " kg";
+            document.getElementById('a2Val').innerText = state.A2.toFixed(1) + " m²";
+
+            document.getElementById('f1Live').innerText = F1.toFixed(1) + " N";
+            document.getElementById('pLive').innerText = P.toFixed(1) + " Pa";
+            document.getElementById('wLive').innerText = W.toFixed(1) + " N";
+            
+            const f2Element = document.getElementById('f2Live');
+            f2Element.innerText = F2.toFixed(1) + " N";
+            
+            document.getElementById('maLive').innerText = MA.toFixed(2);
+
+            const statusText = document.getElementById('statusText');
+            if (state.canLift) {
+                f2Element.className = "success-text";
+                statusText.innerHTML = `F₂ (${F2.toFixed(0)}N) ≥ W (${W.toFixed(0)}N)<br><b style="color:#4ade80">System can lift.</b>`;
+                warningMsg.style.opacity = "0";
+            } else {
+                f2Element.className = "alert-text";
+                statusText.innerHTML = `F₂ (${F2.toFixed(0)}N) < W (${W.toFixed(0)}N)<br><b style="color:#f87171">Force too low!</b>`;
+            }
+
+            if(!state.isPushing) {
+                state.deltaH1 = 0;
+            }
+            draw();
+        }
+
+        Object.values(sliders).forEach(s => s.addEventListener('input', updateMath));
+
+        function resetLift() {
+            state.deltaH1 = 0;
+            warningMsg.style.opacity = "0";
+            draw();
+        }
+
+        function draw() {
+            const w = canvas.logicalWidth;
+            const h = canvas.logicalHeight;
+            ctx.clearRect(0, 0, w, h);
+
+            const cx1 = w * 0.25; 
+            const cx2 = w * 0.75; 
+            const baseY = h * 0.85; 
+            
+            const baseScale = 80;
+            const w1 = Math.max(Math.sqrt(state.A1) * baseScale, 20); 
+            const w2 = Math.max(Math.sqrt(state.A2) * baseScale, 40); 
+
+            const defaultH = h * 0.4; 
+            const deltaH2 = state.deltaH1 * (state.A1 / state.A2);
+            
+            const h1 = defaultH - state.deltaH1; 
+            const h2 = defaultH + deltaH2;       
+
+            const pipeThickness = 8;
+            ctx.fillStyle = "#1e293b";
+            ctx.beginPath();
+            ctx.rect(cx1 - w1/2 - pipeThickness, baseY - defaultH - 80, w1 + pipeThickness*2, defaultH + 80 + pipeThickness); 
+            ctx.rect(cx2 - w2/2 - pipeThickness, baseY - defaultH - 80 - 100, w2 + pipeThickness*2, defaultH + 180 + pipeThickness); 
+            ctx.rect(cx1 - w1/2 - pipeThickness, baseY, (cx2 - cx1) + w2/2 + pipeThickness*2, w1 + pipeThickness*2); 
+            ctx.fill();
+
+            ctx.fillStyle = "#0f172a";
+            ctx.beginPath();
+            ctx.rect(cx1 - w1/2, baseY - defaultH - 80, w1, defaultH + 80); 
+            ctx.rect(cx2 - w2/2, baseY - defaultH - 180, w2, defaultH + 180); 
+            ctx.rect(cx1 - w1/2, baseY, (cx2 - cx1) + w2/2, w1); 
+            ctx.fill();
+
+            ctx.fillStyle = "rgba(56, 189, 248, 0.7)";
+            ctx.beginPath();
+            ctx.moveTo(cx1 - w1/2, baseY - h1);
+            ctx.lineTo(cx1 + w1/2, baseY - h1);
+            ctx.lineTo(cx1 + w1/2, baseY);
+            ctx.lineTo(cx2 - w2/2, baseY);
+            ctx.lineTo(cx2 - w2/2, baseY - h2);
+            ctx.lineTo(cx2 + w2/2, baseY - h2);
+            ctx.lineTo(cx2 + w2/2, baseY + w1);
+            ctx.lineTo(cx1 - w1/2, baseY + w1);
+            ctx.closePath();
+            ctx.fill();
+
+            ctx.strokeStyle = "#38bdf8"; ctx.lineWidth = 3;
+            ctx.beginPath(); ctx.moveTo(cx1 - w1/2, baseY - h1); ctx.lineTo(cx1 + w1/2, baseY - h1); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(cx2 - w2/2, baseY - h2); ctx.lineTo(cx2 + w2/2, baseY - h2); ctx.stroke();
+
+            ctx.fillStyle = "#94a3b8"; 
+            ctx.fillRect(cx1 - w1/2 + 2, baseY - h1 - 15, w1 - 4, 15);
+            
+            // Scaled the visual box slightly down so 200kg doesn't overflow a tiny A1 pipe
+            const boxSize1 = Math.min(Math.sqrt(state.m1) * 4.5, w1-6); 
+            ctx.fillStyle = "#facc15"; 
+            ctx.fillRect(cx1 - boxSize1/2, baseY - h1 - 15 - boxSize1, boxSize1, boxSize1);
+            ctx.fillStyle = "#000"; ctx.textAlign = "center"; ctx.font = "bold 12px sans-serif";
+            ctx.fillText("m₁", cx1, baseY - h1 - 15 - (boxSize1/2) + 4);
+
+            ctx.fillStyle = "#94a3b8"; 
+            ctx.fillRect(cx2 - w2/2 + 2, baseY - h2 - 20, w2 - 4, 20);
+            
+            const boxW2 = Math.min(w2 - 10, 100);
+            const boxH2 = Math.min(Math.sqrt(state.m2) * 2, 80);
+            ctx.fillStyle = "#ea580c"; 
+            ctx.fillRect(cx2 - boxW2/2, baseY - h2 - 20 - boxH2, boxW2, boxH2);
+            ctx.strokeStyle = "#c2410c"; ctx.lineWidth = 2;
+            ctx.beginPath(); ctx.moveTo(cx2 - boxW2/2, baseY - h2 - 20 - boxH2); ctx.lineTo(cx2 + boxW2/2, baseY - h2 - 20); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(cx2 + boxW2/2, baseY - h2 - 20 - boxH2); ctx.lineTo(cx2 - boxW2/2, baseY - h2 - 20); ctx.stroke();
+            ctx.strokeRect(cx2 - boxW2/2, baseY - h2 - 20 - boxH2, boxW2, boxH2);
+            
+            ctx.fillStyle = "#fff"; ctx.font = "bold 16px sans-serif";
+            ctx.fillRect(cx2 - 15, baseY - h2 - 20 - (boxH2/2) - 10, 30, 20);
+            ctx.fillStyle = "#000";
+            ctx.fillText("m₂", cx2, baseY - h2 - 20 - (boxH2/2) + 5);
+        }
+
+        function animate() {
+            if (state.isPushing) {
+                if (state.canLift) {
+                    state.deltaH1 += 2; 
+                    if (state.deltaH1 > 150) state.deltaH1 = 150; 
+                    warningMsg.style.opacity = "0";
+                } else {
+                    warningMsg.style.opacity = "1";
+                }
+                draw();
+            }
+            requestAnimationFrame(animate);
+        }
+
+        pushBtn.addEventListener('mousedown', () => { state.isPushing = true; });
+        window.addEventListener('mouseup', () => { state.isPushing = false; warningMsg.style.opacity = "0"; });
+        
+        pushBtn.addEventListener('touchstart', (e) => { e.preventDefault(); state.isPushing = true; });
+        window.addEventListener('touchend', () => { state.isPushing = false; warningMsg.style.opacity = "0"; });
+
+        resizeCanvas();
+        updateMath();
+        requestAnimationFrame(animate);
+
+    </script>
+</body>
+</html>
