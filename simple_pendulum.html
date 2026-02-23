@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simple Pendulum Simulation</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #1e1e1e;
+            color: #d4d4d4;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+            margin: 0;
+            box-sizing: border-box;
+        }
+        h1 { 
+            color: #569cd6; 
+            text-align: center; 
+            font-size: clamp(1.5rem, 4vw, 2.5rem); 
+        }
+        .container {
+            display: flex;
+            flex-wrap: wrap; 
+            justify-content: center;
+            gap: 20px;
+            margin-top: 10px;
+            width: 100%;
+            max-width: 900px;
+        }
+        canvas {
+            background-color: #252526;
+            border: 2px solid #3c3c3c;
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+            max-width: 100%; 
+            height: auto;
+        }
+        .controls {
+            background-color: #252526;
+            padding: 20px;
+            border-radius: 8px;
+            border: 1px solid #3c3c3c;
+            flex: 1; 
+            min-width: 280px; 
+            box-sizing: border-box;
+        }
+        .control-group { margin-bottom: 20px; }
+        label { display: block; margin-bottom: 8px; font-weight: bold;}
+        input[type="range"] { width: 100%; cursor: pointer;}
+        .readout { font-family: monospace; color: #ce9178; font-size: 1.1em; float: right;}
+        
+        /* New Button Styles */
+        .btn-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+            margin-bottom: 20px;
+        }
+        button {
+            flex: 1;
+            padding: 12px;
+            font-size: 1.1em;
+            font-weight: bold;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            color: white;
+            transition: background-color 0.2s, transform 0.1s;
+        }
+        button:active { transform: scale(0.98); }
+        #startBtn { background-color: #4CAF50; }
+        #startBtn:hover { background-color: #45a049; }
+        #resetBtn { background-color: #d32f2f; }
+        #resetBtn:hover { background-color: #b71c1c; }
+
+        .formula { 
+            background: #1e1e1e; 
+            padding: 15px; 
+            border-radius: 4px; 
+            text-align: center; 
+            font-family: monospace; 
+            color: #4ec9b0; 
+            line-height: 1.5;
+        }
+        .timer {
+            text-align: center;
+            font-family: monospace;
+            font-size: 1.5em;
+            color: #c586c0;
+            margin-top: 15px;
+            background: #1e1e1e;
+            padding: 10px;
+            border-radius: 4px;
+        }
+        
+        /* Flash Animation for the Period */
+        .flash-effect {
+            animation: highlightFlash 1.5s ease-out;
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 4px;
+        }
+        @keyframes highlightFlash {
+            0% { background-color: #dcdcaa; color: #1e1e1e; transform: scale(1.1); box-shadow: 0 0 10px #dcdcaa;}
+            100% { background-color: transparent; color: #dcdcaa; transform: scale(1); box-shadow: 0 0 0px transparent;}
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Simple Pendulum Dynamics</h1>
+    
+    <div class="container">
+        <canvas id="simCanvas" width="500" height="500"></canvas>
+
+        <div class="controls">
+            <div class="btn-group">
+                <button id="startBtn">Start</button>
+                <button id="resetBtn">Reset</button>
+            </div>
+
+            <div class="control-group">
+                <label for="lengthSlider">String Length (L): <span id="l-val" class="readout">1.00 m</span></label>
+                <input type="range" id="lengthSlider" min="0.1" max="2.5" step="0.01" value="1.0">
+            </div>
+            
+            <div class="control-group">
+                <label for="gravitySlider">Gravity (g): <span id="g-val" class="readout">9.81 m/s²</span></label>
+                <input type="range" id="gravitySlider" min="1" max="25" step="0.01" value="9.81">
+            </div>
+
+            <div class="control-group">
+                <label for="massSlider">Bob Mass (m): <span id="m-val" class="readout">5.0 kg</span></label>
+                <input type="range" id="massSlider" min="1" max="20" step="0.5" value="5.0">
+            </div>
+
+            <div class="formula" id="formula-box">
+                </div>
+
+            <div class="timer">
+                Elapsed Time:<br>
+                <span id="time-val" style="color: #dcdcaa;">0.00 s</span>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Physics constants and state variables
+        const canvas = document.getElementById('simCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        let length, gravity, mass, period;
+        let time = 0;
+        let isRunning = false;
+        let hasFlashed = false;
+        
+        const initialAngle = Math.PI / 6; // 30 degrees initial pull-back
+        const scale = 150; // Pixels per meter
+        const pivot = { x: canvas.width / 2, y: 50 }; 
+        
+        // UI Elements
+        const lVal = document.getElementById('l-val');
+        const gVal = document.getElementById('g-val');
+        const mVal = document.getElementById('m-val');
+        const formulaBox = document.getElementById('formula-box');
+        const timeVal = document.getElementById('time-val');
+        const startBtn = document.getElementById('startBtn');
+        const resetBtn = document.getElementById('resetBtn');
+
+        // Update Physics Parameters from Sliders
+        function updateVariables() {
+            length = parseFloat(document.getElementById('lengthSlider').value);
+            gravity = parseFloat(document.getElementById('gravitySlider').value);
+            mass = parseFloat(document.getElementById('massSlider').value);
+            
+            lVal.textContent = length.toFixed(2) + ' m';
+            gVal.textContent = gravity.toFixed(2) + ' m/s²';
+            mVal.textContent = mass.toFixed(1) + ' kg';
+            
+            // Calculate Exact Period
+            period = 2 * Math.PI * Math.sqrt(length / gravity);
+            
+            // Inject Formula HTML
+            formulaBox.innerHTML = `
+                T = 2π √(L / g)<br><br>
+                T = 2π √(${length.toFixed(2)} / ${gravity.toFixed(2)})<br><br>
+                <span id="final-t" style="font-size: 1.5em; color: #dcdcaa;">T = ${period.toFixed(2)} s</span>
+            `;
+
+            // Auto-reset if variables change while stopped
+            if (!isRunning) {
+                resetSimulation();
+            }
+        }
+
+        // Action Triggers
+        function flashPeriod() {
+            const finalT = document.getElementById('final-t');
+            // Remove and re-add class to trigger animation if it happens multiple times
+            finalT.classList.remove('flash-effect');
+            void finalT.offsetWidth; // Trigger DOM reflow
+            finalT.classList.add('flash-effect');
+        }
+
+        function startSimulation() {
+            isRunning = true;
+            startBtn.disabled = true;
+            startBtn.style.opacity = '0.5';
+        }
+
+        function resetSimulation() {
+            isRunning = false;
+            time = 0;
+            hasFlashed = false;
+            timeVal.textContent = '0.00 s';
+            startBtn.disabled = false;
+            startBtn.style.opacity = '1';
+            
+            // Re-render frame at time 0
+            drawFrame(); 
+        }
+
+        // Event Listeners
+        document.getElementById('lengthSlider').addEventListener('input', updateVariables);
+        document.getElementById('gravitySlider').addEventListener('input', updateVariables);
+        document.getElementById('massSlider').addEventListener('input', updateVariables);
+        startBtn.addEventListener('click', startSimulation);
+        resetBtn.addEventListener('click', resetSimulation);
+
+        // Core Drawing Logic
+        function drawFrame() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // θ(t) = θ_max * cos(√(g/L) * t)
+            let angularFreq = Math.sqrt(gravity / length);
+            let currentAngle = initialAngle * Math.cos(angularFreq * time);
+            
+            let bobX = pivot.x + (length * scale) * Math.sin(currentAngle);
+            let bobY = pivot.y + (length * scale) * Math.cos(currentAngle);
+            
+            // Draw String
+            ctx.beginPath();
+            ctx.moveTo(pivot.x, pivot.y);
+            ctx.lineTo(bobX, bobY);
+            ctx.strokeStyle = '#808080';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            
+            // Draw Pivot point
+            ctx.beginPath();
+            ctx.arc(pivot.x, pivot.y, 5, 0, 2 * Math.PI);
+            ctx.fillStyle = '#569cd6';
+            ctx.fill();
+            
+            // Draw Pendulum Bob
+            let bobRadius = 10 + (mass * 1.5); 
+            ctx.beginPath();
+            ctx.arc(bobX, bobY, bobRadius, 0, 2 * Math.PI);
+            let gradient = ctx.createRadialGradient(bobX - (bobRadius/4), bobY - (bobRadius/4), bobRadius/10, bobX, bobY, bobRadius);
+            gradient.addColorStop(0, '#dcdcaa');
+            gradient.addColorStop(1, '#8a771e');
+            ctx.fillStyle = gradient;
+            ctx.fill();
+            ctx.strokeStyle = '#000';
+            ctx.stroke();
+        }
+
+        // Animation Loop
+        function animate() {
+            if (isRunning) {
+                const deltaTime = 1 / 60;
+                time += deltaTime;
+                timeVal.textContent = time.toFixed(2) + ' s';
+
+                // Check for completion of one full cycle
+                if (time >= period && !hasFlashed) {
+                    flashPeriod();
+                    hasFlashed = true; // Prevents it from flashing every frame after hitting the period
+                }
+
+                drawFrame();
+            }
+            requestAnimationFrame(animate);
+        }
+
+        // Initialize
+        updateVariables();
+        resetSimulation(); // Ensure initial pulled-back state is drawn
+        animate(); // Start listening for frames
+    </script>
+</body>
+</html>
