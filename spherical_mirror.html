@@ -1,0 +1,601 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spherical Mirrors Simulation</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #1e1e1e;
+            color: #d4d4d4;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+            margin: 0;
+            box-sizing: border-box;
+        }
+        h1 { 
+            color: #569cd6; 
+            text-align: center; 
+            font-size: clamp(1.5rem, 4vw, 2.5rem); 
+            margin-bottom: 20px;
+        }
+        .container {
+            display: flex;
+            flex-direction: column; 
+            align-items: center;
+            gap: 20px;
+            width: 100%;
+            max-width: 1200px; 
+        }
+        canvas {
+            background-color: #252526;
+            border: 2px solid #3c3c3c;
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+            width: 100%; 
+            max-width: 1000px;
+            height: auto;
+            touch-action: none; /* Prevents screen scrolling while dragging on mobile */
+        }
+        .bottom-panel {
+            display: flex;
+            flex-wrap: wrap; 
+            gap: 20px;
+            width: 100%;
+            max-width: 1000px;
+        }
+        .controls {
+            background-color: #252526;
+            padding: 20px;
+            border-radius: 8px;
+            border: 1px solid #3c3c3c;
+            flex: 2; 
+            min-width: 300px; 
+            box-sizing: border-box;
+        }
+        .control-group { margin-bottom: 20px; }
+        label { display: block; margin-bottom: 8px; font-weight: bold; font-size: 1.1em;}
+        input[type="range"] { width: 100%; cursor: pointer;}
+        select {
+            width: 100%;
+            padding: 10px;
+            background: #3c3c3c;
+            color: white;
+            border: 1px solid #555;
+            border-radius: 4px;
+            font-size: 1.1em;
+            cursor: pointer;
+        }
+        .readout { font-family: monospace; color: #ce9178; font-size: 1.1em; float: right;}
+        
+        .ray-toggles {
+            display: flex;
+            gap: 15px;
+            background: #1e1e1e;
+            padding: 15px;
+            border-radius: 6px;
+            border: 1px solid #555;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        .ray-toggle-label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-weight: normal;
+            font-family: monospace;
+            cursor: pointer;
+            margin-bottom: 0;
+        }
+        .ray-color-box { width: 12px; height: 12px; display: inline-block; border-radius: 2px; }
+
+        .results-panel {
+            flex: 1; 
+            min-width: 300px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        .formula { 
+            background: #252526; 
+            padding: 20px; 
+            border-radius: 8px; 
+            border: 1px solid #3c3c3c;
+            text-align: center; 
+            font-family: monospace; 
+            color: #4ec9b0; 
+            line-height: 1.6;
+            font-size: 1.1em;
+            flex-grow: 1; 
+        }
+        .result-box {
+            text-align: center;
+            font-family: monospace;
+            font-size: 1.3em;
+            color: #c586c0;
+            background: #252526; 
+            padding: 20px;
+            border-radius: 8px;
+            border: 1px solid #3c3c3c;
+            line-height: 1.8;
+        }
+        .nature { font-weight: bold; color: #dcdcaa; font-size: 1.2em;}
+    </style>
+</head>
+<body>
+
+    <h1>Spherical Mirrors & Optics</h1>
+    
+    <div class="container">
+        <canvas id="simCanvas" width="1000" height="450"></canvas>
+
+        <div class="bottom-panel">
+            <div class="controls">
+                
+                <div class="ray-toggles">
+                    <label class="ray-toggle-label">
+                        <input type="checkbox" id="showRay1"> 
+                        <span class="ray-color-box" style="background: rgba(216, 191, 216, 1);"></span> Ray 1 (Parallel)
+                    </label>
+                    <label class="ray-toggle-label">
+                        <input type="checkbox" id="showRay2"> 
+                        <span class="ray-color-box" style="background: rgba(255, 165, 0, 1);"></span> Ray 2 (Pole)
+                    </label>
+                    <label class="ray-toggle-label">
+                        <input type="checkbox" id="showRay3"> 
+                        <span class="ray-color-box" style="background: rgba(0, 255, 255, 1);"></span> Ray 3 (Center)
+                    </label>
+                </div>
+
+                <div class="control-group">
+                    <label for="mirrorType">Mirror Type:</label>
+                    <select id="mirrorType">
+                        <option value="concave">Concave Mirror</option>
+                        <option value="convex">Convex Mirror</option>
+                    </select>
+                </div>
+
+                <div class="control-group">
+                    <label for="objPosSlider">Object Distance (u): <span id="u-val" class="readout">-40 cm</span></label>
+                    <input type="range" id="objPosSlider" min="-80" max="-5" step="1" value="-40">
+                </div>
+                
+                <div class="control-group">
+                    <label for="focalSlider">Focal Length Magnitude (|f|): <span id="f-val" class="readout">20 cm</span></label>
+                    <input type="range" id="focalSlider" min="20" max="40" step="1" value="20">
+                </div>
+
+                <div class="control-group">
+                    <label for="heightSlider">Object Height (h_o): <span id="h-val" class="readout">15 cm</span></label>
+                    <input type="range" id="heightSlider" min="2" max="25" step="1" value="15">
+                </div>
+            </div>
+
+            <div class="results-panel">
+                <div class="formula" id="formula-box"></div>
+
+                <div class="result-box">
+                    Image Distance (v): <span id="v-val" style="color: #4CAF50;">0.00 cm</span><br>
+                    Magnification (m): <span id="m-val" style="color: #2196F3;">0.00</span><br>
+                    <span id="nature-val" class="nature">Real, Inverted</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('simCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        let u, f_mag, f, h_o, v, m, mirrorType;
+        
+        const scale = 6; 
+        const originX = canvas.width * 0.7; 
+        const originY = canvas.height / 2;
+        
+        const uVal = document.getElementById('u-val');
+        const fVal = document.getElementById('f-val');
+        const hVal = document.getElementById('h-val');
+        const formulaBox = document.getElementById('formula-box');
+        const vVal = document.getElementById('v-val');
+        const mVal = document.getElementById('m-val');
+        const natureVal = document.getElementById('nature-val');
+        const typeSelect = document.getElementById('mirrorType');
+
+        const uSlider = document.getElementById('objPosSlider');
+        const fSlider = document.getElementById('focalSlider');
+        const hSlider = document.getElementById('heightSlider');
+
+        // Checkbox Elements
+        const chkRay1 = document.getElementById('showRay1');
+        const chkRay2 = document.getElementById('showRay2');
+        const chkRay3 = document.getElementById('showRay3');
+
+        // Drag state variables
+        let isDraggingU = false;
+        let isDraggingH = false;
+
+        function updatePhysics() {
+            mirrorType = typeSelect.value;
+            u = parseFloat(uSlider.value); 
+            f_mag = parseFloat(fSlider.value);
+            h_o = parseFloat(hSlider.value);
+            
+            f = (mirrorType === 'concave') ? -f_mag : f_mag;
+            
+            uVal.textContent = u.toFixed(1) + ' cm';
+            fVal.textContent = f.toFixed(1) + ' cm';
+            hVal.textContent = h_o.toFixed(1) + ' cm';
+            
+            if (u === f) {
+                v = Infinity;
+                m = Infinity;
+            } else {
+                v = (u * f) / (u - f);
+                m = -v / u;
+            }
+            
+            updateUI();
+            drawFrame();
+        }
+
+        function updateUI() {
+            formulaBox.innerHTML = `
+                <strong style="color: #dcdcaa; font-size: 1.2em;">Mirror Equation</strong><br><br>
+                1/v + 1/u = 1/f<br><br>
+                1/v + (1 / ${u}) = 1 / ${f}<br><br>
+                1/v = (1 / ${f}) - (1 / ${u})<br>
+            `;
+
+            if (!isFinite(v)) {
+                vVal.textContent = "Infinity (at focus)";
+                mVal.textContent = "Infinity";
+                natureVal.textContent = "Image at Infinity";
+                return;
+            }
+
+            vVal.textContent = v.toFixed(2) + ' cm';
+            mVal.textContent = m.toFixed(2);
+            
+            let nature = "";
+            if (v < 0) {
+                nature = "Real & Inverted";
+            } else {
+                nature = "Virtual & Erect";
+            }
+            natureVal.textContent = nature;
+        }
+
+        function drawArrow(x, y, height, color, label) {
+            const pixelHeight = height * scale;
+            const endY = y - pixelHeight; 
+            
+            ctx.beginPath();
+            ctx.moveTo(x, y);
+            ctx.lineTo(x, endY);
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 4; // Made slightly thicker for easier grabbing
+            ctx.stroke();
+            
+            ctx.beginPath();
+            ctx.moveTo(x, endY);
+            if (height > 0) {
+                ctx.lineTo(x - 8, endY + 12);
+                ctx.lineTo(x + 8, endY + 12);
+            } else {
+                ctx.lineTo(x - 8, endY - 12);
+                ctx.lineTo(x + 8, endY - 12);
+            }
+            ctx.fillStyle = color;
+            ctx.fill();
+
+            if (label) {
+                ctx.font = "bold 16px monospace";
+                ctx.fillStyle = color;
+                ctx.textAlign = "center";
+                let labelY = height > 0 ? endY - 18 : endY + 28;
+                ctx.fillText(label, x, labelY);
+            }
+        }
+
+        function drawFrame() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // Draw Principal Axis
+            ctx.beginPath();
+            ctx.moveTo(0, originY);
+            ctx.lineTo(canvas.width, originY);
+            ctx.strokeStyle = '#666';
+            ctx.lineWidth = 1.5;
+            ctx.setLineDash([8, 8]);
+            ctx.stroke();
+            ctx.setLineDash([]); 
+
+            // Draw Principal Plane
+            ctx.beginPath();
+            ctx.moveTo(originX, 0);
+            ctx.lineTo(originX, canvas.height);
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
+            ctx.lineWidth = 1;
+            ctx.setLineDash([4, 4]);
+            ctx.stroke();
+            ctx.setLineDash([]);
+            
+            // Draw Pole (P)
+            ctx.beginPath();
+            ctx.arc(originX, originY, 4, 0, 2 * Math.PI);
+            ctx.fillStyle = 'white';
+            ctx.fill();
+            ctx.font = "bold 18px monospace";
+            ctx.fillStyle = "white";
+            ctx.fillText("P", originX + 12, originY + 22);
+            
+            const focalX = originX + (f * scale);
+            const centerX = originX + (2 * f * scale);
+            
+            // Draw F & C
+            ctx.fillStyle = '#4ec9b0';
+            ctx.fillRect(focalX - 4, originY - 4, 8, 8); 
+            ctx.font = "bold 18px monospace";
+            ctx.fillText("F", focalX, originY + 25);
+
+            ctx.fillStyle = '#c586c0';
+            ctx.fillRect(centerX - 4, originY - 4, 8, 8); 
+            ctx.font = "bold 18px monospace";
+            ctx.fillText("C", centerX, originY + 25);
+            
+            // Draw Mirror Arc
+            let radius = Math.abs(2 * f * scale);
+            let maxDeltaY = canvas.height / 2;
+            let mirrorAngle = Math.asin(Math.min(1, maxDeltaY / radius));
+
+            ctx.beginPath();
+            if (mirrorType === 'concave') {
+                ctx.arc(centerX, originY, radius, -mirrorAngle, mirrorAngle);
+            } else {
+                ctx.arc(centerX, originY, radius, Math.PI - mirrorAngle, Math.PI + mirrorAngle);
+            }
+            ctx.strokeStyle = '#569cd6';
+            ctx.lineWidth = 4;
+            ctx.stroke();
+
+            // Non-reflective side hashes
+            ctx.strokeStyle = '#444';
+            ctx.lineWidth = 1.5;
+            for (let angle = -mirrorAngle; angle <= mirrorAngle; angle += 0.05) {
+                let rAngle = (mirrorType === 'concave') ? angle : angle + Math.PI;
+                let startX = centerX + radius * Math.cos(rAngle);
+                let startY = originY + radius * Math.sin(rAngle);
+                
+                let hashDir = (mirrorType === 'concave') ? 1 : -1;
+                let endX = startX + hashDir * 12 * Math.cos(rAngle);
+                let endY = startY + hashDir * 12 * Math.sin(rAngle);
+
+                ctx.beginPath();
+                ctx.moveTo(startX, startY);
+                ctx.lineTo(endX, endY);
+                ctx.stroke();
+            }
+
+            // Draw Object
+            const objCanvasX = originX + (u * scale);
+            // Highlight object if dragging
+            let objColor = (isDraggingU || isDraggingH) ? '#ffff00' : '#dcdcaa';
+            drawArrow(objCanvasX, originY, h_o, objColor, "Obj");
+
+            if (isFinite(v)) {
+                const imgCanvasX = originX + (v * scale);
+                const h_i = h_o * m;
+                drawArrow(imgCanvasX, originY, h_i, '#4CAF50', "Img");
+
+                const objTipY = originY - h_o * scale;
+                const imgTipY = originY - h_i * scale;
+
+                // ---------------------------------------------------------
+                // RAY 1 (Purple): Parallel to axis, reflects through F
+                // ---------------------------------------------------------
+                if (chkRay1.checked) {
+                    ctx.beginPath();
+                    ctx.moveTo(objCanvasX, objTipY); 
+                    ctx.lineTo(originX, objTipY); 
+                    ctx.strokeStyle = 'rgba(216, 191, 216, 1)';
+                    ctx.lineWidth = 2;
+                    ctx.stroke();
+                    
+                    let m1 = (originY - objTipY) / (focalX - originX);
+                    
+                    ctx.beginPath();
+                    ctx.moveTo(originX, objTipY);
+                    ctx.lineTo(-2000, objTipY + m1 * (-2000 - originX));
+                    ctx.strokeStyle = 'rgba(216, 191, 216, 0.8)';
+                    ctx.stroke();
+
+                    if (v > 0) { 
+                        ctx.beginPath();
+                        ctx.setLineDash([6, 6]);
+                        ctx.moveTo(originX, objTipY);
+                        ctx.lineTo(2000, objTipY + m1 * (2000 - originX));
+                        ctx.strokeStyle = 'rgba(216, 191, 216, 0.5)';
+                        ctx.stroke();
+                        ctx.setLineDash([]); 
+                    }
+                }
+
+                // ---------------------------------------------------------
+                // RAY 2 (Orange): To Pole, reflects symmetrically
+                // ---------------------------------------------------------
+                if (chkRay2.checked) {
+                    ctx.beginPath();
+                    ctx.moveTo(objCanvasX, objTipY);
+                    ctx.lineTo(originX, originY); 
+                    ctx.strokeStyle = 'rgba(255, 165, 0, 1)';
+                    ctx.lineWidth = 2;
+                    ctx.stroke();
+                    
+                    let m_inc = (originY - objTipY) / (originX - objCanvasX);
+                    let m2 = -m_inc;
+
+                    ctx.beginPath();
+                    ctx.moveTo(originX, originY);
+                    ctx.lineTo(-2000, originY + m2 * (-2000 - originX));
+                    ctx.strokeStyle = 'rgba(255, 165, 0, 0.8)';
+                    ctx.stroke();
+
+                    if (v > 0) { 
+                        ctx.beginPath();
+                        ctx.setLineDash([6, 6]);
+                        ctx.moveTo(originX, originY);
+                        ctx.lineTo(2000, originY + m2 * (2000 - originX));
+                        ctx.strokeStyle = 'rgba(255, 165, 0, 0.5)';
+                        ctx.stroke();
+                        ctx.setLineDash([]); 
+                    }
+                }
+
+                // ---------------------------------------------------------
+                // RAY 3 (Cyan): Aligned with Center of Curvature (C)
+                // ---------------------------------------------------------
+                if (chkRay3.checked && Math.abs(centerX - objCanvasX) > 0.1) {
+                    let m3 = (originY - objTipY) / (centerX - objCanvasX);
+                    let mirrorY_ray3 = objTipY + m3 * (originX - objCanvasX);
+
+                    ctx.beginPath();
+                    ctx.moveTo(objCanvasX, objTipY);
+                    ctx.lineTo(originX, mirrorY_ray3);
+                    ctx.strokeStyle = 'rgba(0, 255, 255, 1)';
+                    ctx.lineWidth = 2;
+                    ctx.stroke();
+
+                    ctx.beginPath();
+                    ctx.moveTo(originX, mirrorY_ray3);
+                    ctx.lineTo(-2000, mirrorY_ray3 + m3 * (-2000 - originX));
+                    ctx.strokeStyle = 'rgba(0, 255, 255, 0.8)';
+                    ctx.stroke();
+
+                    if (v > 0 || mirrorType === 'convex') { 
+                        ctx.beginPath();
+                        ctx.setLineDash([6, 6]);
+                        ctx.moveTo(originX, mirrorY_ray3);
+                        ctx.lineTo(2000, mirrorY_ray3 + m3 * (2000 - originX));
+                        ctx.strokeStyle = 'rgba(0, 255, 255, 0.5)';
+                        ctx.stroke();
+                        ctx.setLineDash([]);
+                    }
+                }
+            }
+        }
+
+        // --- INTERACTIVITY (DRAG & DROP) LOGIC ---
+        
+        function getMousePos(evt) {
+            const rect = canvas.getBoundingClientRect();
+            // Handle both touch and mouse events
+            let clientX = evt.clientX;
+            let clientY = evt.clientY;
+            
+            if (evt.touches && evt.touches.length > 0) {
+                clientX = evt.touches[0].clientX;
+                clientY = evt.touches[0].clientY;
+            }
+
+            return {
+                x: (clientX - rect.left) * (canvas.width / rect.width),
+                y: (clientY - rect.top) * (canvas.height / rect.height)
+            };
+        }
+
+        function handlePointerDown(evt) {
+            const pos = getMousePos(evt);
+            const objX = originX + u * scale;
+            const objTipY = originY - h_o * scale;
+
+            // Hit tolerance (pixels)
+            const hitTolerance = 25; 
+
+            // Check if user clicked near the TIP (controls height)
+            if (Math.abs(pos.x - objX) <= hitTolerance && Math.abs(pos.y - objTipY) <= hitTolerance) {
+                isDraggingH = true;
+                if(evt.cancelable) evt.preventDefault(); // Prevent scrolling on mobile
+                return;
+            }
+
+            // Check if user clicked near the BODY (controls distance)
+            let minY = Math.min(originY, objTipY);
+            let maxY = Math.max(originY, objTipY);
+            if (Math.abs(pos.x - objX) <= hitTolerance && pos.y >= minY - 10 && pos.y <= maxY + 10) {
+                isDraggingU = true;
+                if(evt.cancelable) evt.preventDefault();
+            }
+        }
+
+        function handlePointerMove(evt) {
+            const pos = getMousePos(evt);
+            const objX = originX + u * scale;
+            const objTipY = originY - h_o * scale;
+
+            // Hover effects (only when not dragging)
+            if (!isDraggingU && !isDraggingH) {
+                if (Math.abs(pos.x - objX) <= 25 && Math.abs(pos.y - objTipY) <= 25) {
+                    canvas.style.cursor = 'ns-resize'; // Up/down arrow
+                } else if (Math.abs(pos.x - objX) <= 25 && pos.y >= Math.min(originY, objTipY) && pos.y <= Math.max(originY, objTipY)) {
+                    canvas.style.cursor = 'ew-resize'; // Left/right arrow
+                } else {
+                    canvas.style.cursor = 'default';
+                }
+                return;
+            }
+
+            if(evt.cancelable) evt.preventDefault();
+
+            if (isDraggingU) {
+                // Calculate new u, snap to integers
+                let newU = Math.round((pos.x - originX) / scale);
+                // Clamp to slider min/max
+                newU = Math.max(parseInt(uSlider.min), Math.min(parseInt(uSlider.max), newU));
+                uSlider.value = newU;
+                updatePhysics();
+            } else if (isDraggingH) {
+                // Calculate new height, snap to integers
+                let newH = Math.round((originY - pos.y) / scale);
+                // Clamp to slider min/max
+                newH = Math.max(parseInt(hSlider.min), Math.min(parseInt(hSlider.max), newH));
+                hSlider.value = newH;
+                updatePhysics();
+            }
+        }
+
+        function handlePointerUp() {
+            isDraggingU = false;
+            isDraggingH = false;
+            canvas.style.cursor = 'default';
+            drawFrame(); // Re-draw to clear the yellow selection highlight
+        }
+
+        // Mouse Events
+        canvas.addEventListener('mousedown', handlePointerDown);
+        canvas.addEventListener('mousemove', handlePointerMove);
+        window.addEventListener('mouseup', handlePointerUp); // Using window so it doesn't get stuck if dragging off canvas
+
+        // Touch Events (iPad / Mobile)
+        canvas.addEventListener('touchstart', handlePointerDown, {passive: false});
+        canvas.addEventListener('touchmove', handlePointerMove, {passive: false});
+        window.addEventListener('touchend', handlePointerUp);
+
+        // UI Listeners
+        typeSelect.addEventListener('change', updatePhysics);
+        uSlider.addEventListener('input', updatePhysics);
+        fSlider.addEventListener('input', updatePhysics);
+        hSlider.addEventListener('input', updatePhysics);
+        
+        chkRay1.addEventListener('change', drawFrame);
+        chkRay2.addEventListener('change', drawFrame);
+        chkRay3.addEventListener('change', drawFrame);
+
+        // Initialize
+        updatePhysics();
+    </script>
+</body>
+</html>
