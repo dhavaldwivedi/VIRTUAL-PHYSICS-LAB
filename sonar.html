@@ -1,0 +1,526 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SONAR</title>
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            background-color: #000;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            overflow: hidden; 
+            touch-action: none; /* Crucial for iPad dragging */
+        }
+        
+        canvas {
+            display: block;
+            width: 100vw;
+            height: 100vh;
+        }
+
+        .controls-overlay {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            background-color: rgba(30, 30, 30, 0.85); 
+            backdrop-filter: blur(5px);
+            padding: 20px;
+            border-radius: 12px;
+            border: 1px solid #555;
+            color: #d4d4d4;
+            width: 320px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+            z-index: 10;
+        }
+
+        .title-overlay {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            color: #569cd6;
+            font-size: clamp(1.5rem, 4vw, 2rem);
+            font-weight: bold;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+            z-index: 10;
+            pointer-events: none;
+        }
+        .instructions {
+            font-size: 16px;
+            color: #ccc;
+            font-weight: normal;
+            margin-top: 5px;
+        }
+
+        .control-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 8px; font-weight: bold; font-size: 1.05em;}
+        input[type="range"] { width: 100%; cursor: pointer;}
+        .readout { font-family: monospace; color: #ce9178; font-size: 1.1em; float: right;}
+        
+        button.action-btn {
+            width: 100%;
+            padding: 15px;
+            font-size: 1.2em;
+            font-weight: bold;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            color: white;
+            background-color: #4CAF50;
+            transition: background-color 0.2s, transform 0.1s;
+            margin-bottom: 15px;
+        }
+        button.action-btn:hover { background-color: #45a049; }
+        button.action-btn:active { transform: scale(0.98); }
+        button.action-btn:disabled { background-color: #555; color: #888; cursor: not-allowed; transform: none;}
+
+        .formula { 
+            background: rgba(0, 0, 0, 0.5); 
+            padding: 15px; 
+            border-radius: 6px; 
+            border: 1px solid #444;
+            text-align: center; 
+            font-family: monospace; 
+            color: #4ec9b0; 
+            line-height: 1.5;
+        }
+        
+        .timer-box {
+            text-align: center;
+            font-family: monospace;
+            font-size: 1.5em;
+            color: #c586c0;
+            background: rgba(0,0,0,0.5); 
+            padding: 10px;
+            border-radius: 6px;
+            margin-bottom: 15px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="title-overlay">
+        ⛴️ SONAR Ranging
+        <div class="instructions">Drag the ship or use Arrow Keys to navigate.</div>
+    </div>
+
+    <canvas id="simCanvas"></canvas>
+
+    <div class="controls-overlay">
+        <button id="pingBtn" class="action-btn">📡 Send Acoustic Ping</button>
+
+        <div class="timer-box" id="timer-box">
+            Time (t): <span id="time-val" style="color: #dcdcaa;">0.000 s</span>
+        </div>
+
+        <div class="control-group">
+            <label for="speedSlider">Speed of Sound in Water (v): <span id="v-val" class="readout">1500 m/s</span></label>
+            <input type="range" id="speedSlider" min="1400" max="1600" step="5" value="1500">
+        </div>
+
+        <div class="formula" id="formula-box"></div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('simCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        function resize() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        window.addEventListener('resize', resize);
+        resize();
+
+        // --- AUDIO SETUP ---
+        const pingAudio = new Audio('sonar.mp3');
+
+        // --- PHYSICS & WORLD VARIABLES ---
+        let v_sound = parseFloat(document.getElementById('speedSlider').value);
+        
+        let shipWorldX = 1000; 
+        let cameraX = 0;       
+        let shipSpeed = 400;   
+        
+        // Input States
+        let moveLeft = false;
+        let movingRight = false;
+        let isDraggingShip = false;
+        let dragStartX = 0;
+        let shipStartWorldX = 0;
+
+        // Visual Constants
+        const waterLineY = 150; 
+        const maxDepthMeters = 6000; 
+        
+        // --- SONAR STATE ---
+        let isPinging = false;
+        let timeElapsed = 0; 
+        let pingDepthY = 0; 
+        let pingWorldX = 0; 
+        let targetDepthMeters = 0; 
+        let pingDirection = 1; 
+        let lastFrameTime = performance.now();
+        let receiverFlashTimer = 0; 
+
+        // UI Elements
+        const speedSlider = document.getElementById('speedSlider');
+        const vVal = document.getElementById('v-val');
+        const timeVal = document.getElementById('time-val');
+        const formulaBox = document.getElementById('formula-box');
+        const pingBtn = document.getElementById('pingBtn');
+
+        // --- PROCEDURAL SEABED GENERATION ---
+        function getDepthAt(worldX) {
+            let baseDepth = 3500;
+            let wave1 = 1200 * Math.sin(worldX * 0.001);
+            let wave2 = 600 * Math.cos(worldX * 0.0035);
+            let wave3 = 250 * Math.sin(worldX * 0.01);
+            return baseDepth + wave1 + wave2 + wave3;
+        }
+
+        function updateUI() {
+            v_sound = parseFloat(speedSlider.value);
+            vVal.textContent = v_sound + ' m/s';
+            
+            if (!isPinging && timeElapsed === 0) {
+                formulaBox.innerHTML = `
+                    <strong style="color: #dcdcaa; font-size: 1.1em;">Acoustic Kinematics</strong><br><br>
+                    Distance = (Speed × Time) / 2<br><br>
+                    d = (v × t) / 2<br><br>
+                    <span style="color: #888;">Move ship and ping to measure.</span>
+                `;
+            }
+        }
+
+        speedSlider.addEventListener('input', updateUI);
+
+        function triggerPing() {
+            if (isPinging) return;
+            
+            // Play the sonar sound
+            pingAudio.currentTime = 0; // Rewind to start in case it's pressed repeatedly
+            pingAudio.play().catch(error => console.log("Audio playback requires user interaction first.", error));
+
+            isPinging = true;
+            timeElapsed = 0;
+            pingDepthY = 0; 
+            pingDirection = 1;
+            
+            pingWorldX = shipWorldX; 
+            targetDepthMeters = getDepthAt(pingWorldX);
+            
+            pingBtn.disabled = true;
+            pingBtn.textContent = "🔊 Listening for echo...";
+            
+            formulaBox.innerHTML = `
+                <strong style="color: #dcdcaa; font-size: 1.1em;">Acoustic Kinematics</strong><br><br>
+                Distance = (Speed × Time) / 2<br><br>
+                d = (${v_sound} × t) / 2<br><br>
+                <span style="color: #00bcd4;">Wave propagating down...</span>
+            `;
+        }
+
+        function finishPing() {
+            isPinging = false;
+            pingBtn.disabled = false;
+            pingBtn.textContent = "📡 Send Acoustic Ping";
+            
+            receiverFlashTimer = 30; 
+            
+            let measuredDepth = (v_sound * timeElapsed) / 2;
+            
+            formulaBox.innerHTML = `
+                <strong style="color: #dcdcaa; font-size: 1.1em;">Acoustic Kinematics</strong><br><br>
+                Distance = (Speed × Time) / 2<br><br>
+                d = (${v_sound} × ${timeElapsed.toFixed(3)}) / 2<br><br>
+                <span style="color: #4CAF50; font-size: 1.3em; font-weight: bold;">Depth = ${measuredDepth.toFixed(2)} m</span>
+            `;
+        }
+
+        pingBtn.addEventListener('click', triggerPing);
+
+        // --- KEYBOARD INPUT ---
+        window.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowLeft') moveLeft = true;
+            if (e.key === 'ArrowRight') movingRight = true;
+        });
+        window.addEventListener('keyup', (e) => {
+            if (e.key === 'ArrowLeft') moveLeft = false;
+            if (e.key === 'ArrowRight') movingRight = false;
+        });
+
+        // --- DRAG AND DROP / TOUCH INPUT ---
+        function getPointerPos(e) {
+            if (e.touches) return { x: e.touches[0].clientX, y: e.touches[0].clientY };
+            return { x: e.clientX, y: e.clientY };
+        }
+
+        function handlePointerDown(e) {
+            const pos = getPointerPos(e);
+            let centerScreen = canvas.width / 2;
+            let visualShipX = (shipWorldX < centerScreen) ? shipWorldX : centerScreen;
+            
+            if (Math.abs(pos.x - visualShipX) < 150 && pos.y < waterLineY + 50) {
+                isDraggingShip = true;
+                dragStartX = pos.x;
+                shipStartWorldX = shipWorldX;
+                canvas.style.cursor = 'grabbing';
+            }
+        }
+
+        function handlePointerMove(e) {
+            const pos = getPointerPos(e);
+            let centerScreen = canvas.width / 2;
+            let visualShipX = (shipWorldX < centerScreen) ? shipWorldX : centerScreen;
+            
+            if (!isDraggingShip) {
+                if (Math.abs(pos.x - visualShipX) < 150 && pos.y < waterLineY + 50) {
+                    canvas.style.cursor = 'grab';
+                } else {
+                    canvas.style.cursor = 'default';
+                }
+            }
+
+            if (isDraggingShip) {
+                let deltaX = pos.x - dragStartX;
+                shipWorldX = shipStartWorldX + deltaX * 1.5; 
+                if (shipWorldX < 100) shipWorldX = 100;
+            }
+        }
+
+        function handlePointerUp() {
+            isDraggingShip = false;
+            canvas.style.cursor = 'default';
+        }
+
+        canvas.addEventListener('mousedown', handlePointerDown);
+        window.addEventListener('mousemove', handlePointerMove);
+        window.addEventListener('mouseup', handlePointerUp);
+
+        canvas.addEventListener('touchstart', handlePointerDown, {passive: false});
+        window.addEventListener('touchmove', handlePointerMove, {passive: false});
+        window.addEventListener('touchend', handlePointerUp);
+
+        // --- NATIVE VECTOR SHIP DRAWING ---
+        function drawVectorShip(ctx, x, y) {
+            ctx.save();
+            ctx.translate(x, y);
+
+            // Submerged Hull
+            ctx.fillStyle = '#1a237e'; 
+            ctx.beginPath();
+            ctx.moveTo(-100, 0);
+            ctx.lineTo(100, 0);
+            ctx.quadraticCurveTo(110, 20, 80, 25);
+            ctx.lineTo(-90, 25);
+            ctx.quadraticCurveTo(-100, 20, -100, 0);
+            ctx.fill();
+
+            // Upper Hull
+            ctx.fillStyle = '#eceff1';
+            ctx.beginPath();
+            ctx.moveTo(-110, -25);
+            ctx.lineTo(130, -25); 
+            ctx.lineTo(100, 0);
+            ctx.lineTo(-100, 0);
+            ctx.closePath();
+            ctx.fill();
+            
+            ctx.strokeStyle = '#cfd8dc';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+
+            // Cabin Level 1
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(-80, -50, 140, 25);
+            ctx.strokeRect(-80, -50, 140, 25);
+
+            // Cabin Level 2
+            ctx.fillRect(-50, -75, 80, 25);
+            ctx.strokeRect(-50, -75, 80, 25);
+
+            // Windows
+            ctx.fillStyle = '#81d4fa';
+            for(let i=0; i<5; i++) {
+                ctx.fillRect(-70 + i*25, -45, 15, 12);
+            }
+            for(let i=0; i<3; i++) {
+                ctx.fillRect(-40 + i*25, -70, 15, 12);
+            }
+
+            // Mast
+            ctx.strokeStyle = '#78909c';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.moveTo(-10, -75);
+            ctx.lineTo(-10, -120);
+            ctx.stroke();
+
+            // Radar Dome
+            ctx.fillStyle = '#fff';
+            ctx.beginPath();
+            ctx.arc(-10, -120, 6, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+            
+            // Transducer Mount
+            ctx.fillStyle = '#333';
+            ctx.fillRect(-10, 25, 20, 8);
+
+            ctx.restore();
+        }
+
+        // --- MAIN GAME/ANIMATION LOOP ---
+        function animate(currentTime) {
+            let dt = (currentTime - lastFrameTime) / 1000;
+            lastFrameTime = currentTime;
+
+            if (moveLeft) shipWorldX -= shipSpeed * dt;
+            if (movingRight) shipWorldX += shipSpeed * dt;
+            if (shipWorldX < 100) shipWorldX = 100; 
+
+            let visualShipX;
+            let centerScreen = canvas.width / 2;
+            
+            if (shipWorldX < centerScreen) {
+                visualShipX = shipWorldX;
+                cameraX = 0; 
+            } else {
+                visualShipX = centerScreen;
+                cameraX = shipWorldX - centerScreen; 
+            }
+
+            if (isPinging) {
+                timeElapsed += dt;
+                timeVal.textContent = timeElapsed.toFixed(3) + ' s';
+
+                let distanceMoved = v_sound * dt;
+                pingDepthY += distanceMoved * pingDirection;
+
+                if (pingDirection === 1 && pingDepthY >= targetDepthMeters) {
+                    pingDepthY = targetDepthMeters; 
+                    pingDirection = -1; 
+                    document.getElementById('formula-box').innerHTML = formulaBox.innerHTML.replace('down...', 'echoing up!').replace('00bcd4', '4CAF50');
+                }
+                
+                if (pingDirection === -1 && pingDepthY <= 0) {
+                    pingDepthY = 0;
+                    finishPing();
+                }
+            }
+
+            if (receiverFlashTimer > 0) receiverFlashTimer--;
+
+            render(visualShipX);
+            requestAnimationFrame(animate);
+        }
+
+        function render(visualShipX) {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            let usableHeight = canvas.height - waterLineY;
+            let pixelsPerMeter = usableHeight / maxDepthMeters;
+
+            ctx.fillStyle = '#87CEEB'; 
+            ctx.fillRect(0, 0, canvas.width, waterLineY);
+
+            let grad = ctx.createLinearGradient(0, waterLineY, 0, canvas.height);
+            grad.addColorStop(0, 'rgba(0, 66, 122, 0.9)'); 
+            grad.addColorStop(1, 'rgba(0, 8, 20, 1)'); 
+            ctx.fillStyle = grad;
+            ctx.fillRect(0, waterLineY, canvas.width, canvas.height - waterLineY);
+
+            ctx.beginPath();
+            ctx.moveTo(0, waterLineY);
+            for (let i = 0; i <= canvas.width; i += 20) {
+                let waveOffset = Math.sin((i + cameraX) * 0.05 + performance.now() * 0.002) * 4;
+                ctx.lineTo(i, waterLineY + waveOffset);
+            }
+            ctx.strokeStyle = 'rgba(255,255,255,0.4)';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+
+            ctx.beginPath();
+            ctx.moveTo(0, canvas.height);
+            for (let screenX = 0; screenX <= canvas.width; screenX += 10) {
+                let currentWorldX = screenX + cameraX;
+                let d = getDepthAt(currentWorldX);
+                let screenY = waterLineY + (d * pixelsPerMeter);
+                ctx.lineTo(screenX, screenY);
+            }
+            ctx.lineTo(canvas.width, canvas.height);
+            ctx.closePath();
+            
+            ctx.fillStyle = '#3e2723'; 
+            ctx.fill();
+            ctx.strokeStyle = '#5d4037';
+            ctx.lineWidth = 4;
+            ctx.stroke();
+
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
+            ctx.font = '14px monospace';
+            ctx.textAlign = 'left';
+            for (let m = 1000; m <= maxDepthMeters; m += 1000) {
+                let y = waterLineY + m * pixelsPerMeter;
+                ctx.beginPath();
+                ctx.moveTo(0, y);
+                ctx.lineTo(15, y);
+                ctx.strokeStyle = 'rgba(255,255,255,0.2)';
+                ctx.stroke();
+                ctx.fillText(m + 'm', 20, y + 5);
+            }
+
+            if (isPinging) {
+                let visualPingX = pingWorldX - cameraX; 
+                
+                if (visualPingX > -100 && visualPingX < canvas.width + 100) {
+                    let waveCanvasY = waterLineY + pingDepthY * pixelsPerMeter;
+                    let waveColor = pingDirection === 1 ? 'rgba(0, 255, 255, 0.8)' : 'rgba(76, 175, 80, 0.8)';
+                    let waveRadius = Math.max(10, pingDepthY * pixelsPerMeter * 0.4); 
+                    
+                    let yOffset = pingDirection === 1 ? -waveRadius : waveRadius;
+
+                    let drawX = Math.round(visualPingX);
+                    let drawY = Math.round(waveCanvasY + yOffset);
+
+                    ctx.beginPath();
+                    ctx.arc(drawX, drawY, waveRadius, 0, Math.PI, pingDirection === -1);
+                    ctx.strokeStyle = waveColor;
+                    ctx.lineWidth = 3;
+                    ctx.stroke();
+                    
+                    ctx.beginPath();
+                    ctx.moveTo(drawX, waterLineY);
+                    ctx.lineTo(drawX, Math.round(waveCanvasY));
+                    ctx.setLineDash([5, 5]);
+                    ctx.strokeStyle = 'rgba(255,255,255,0.2)';
+                    ctx.stroke();
+                    ctx.setLineDash([]);
+                }
+            }
+
+            let bobOffset = Math.sin(performance.now() * 0.002) * 2;
+            
+            let shipDrawX = Math.round(visualShipX);
+            let shipDrawY = Math.round(waterLineY + bobOffset);
+            
+            drawVectorShip(ctx, shipDrawX, shipDrawY);
+            
+            ctx.fillStyle = receiverFlashTimer > 0 ? '#4CAF50' : (isPinging ? '#00bcd4' : '#ff9800');
+            let dotRadius = receiverFlashTimer > 0 ? 8 : 5; 
+
+            ctx.beginPath();
+            ctx.arc(shipDrawX, shipDrawY + 33, dotRadius, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        updateUI();
+        requestAnimationFrame(animate);
+
+    </script>
+</body>
+</html>
