@@ -1,0 +1,705 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Relative Density of Solid | Virtual Physics Labs</title>
+  <style>
+    :root {
+      --primary: #2563eb;
+      --bg-color: #f1f5f9;
+      --panel-bg: #ffffff;
+      --text-main: #1e293b;
+      --text-muted: #64748b;
+      --border: #e2e8f0;
+      --ok: #15803d;
+      --warn: #b45309;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      font-family: "Segoe UI", system-ui, sans-serif;
+      background-color: var(--bg-color);
+      color: var(--text-main);
+      margin: 0;
+      padding: 16px;
+      display: flex;
+      justify-content: center;
+    }
+
+    .dashboard {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 16px;
+      max-width: 1100px;
+      width: 100%;
+      background: var(--panel-bg);
+      padding: 16px;
+      border-radius: 12px;
+      box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+      align-items: flex-start; /* prevents vertical recentering shift */
+    }
+
+    .canvas-container {
+      flex: 1;
+      min-width: 320px;
+      border: 2px solid var(--border);
+      border-radius: 8px;
+      background: #fafafa;
+      overflow: hidden;
+      position: relative;
+      display: flex;
+      align-items: flex-start;  /* lock canvas to top */
+      justify-content: center;
+      min-height: 540px;        /* fixed visual area prevents shifting */
+      padding: 8px;
+    }
+
+    canvas {
+      display: block;
+      width: 100%;
+      max-width: 460px;
+      height: auto;
+      touch-action: none; /* important for iPad/mobile drag */
+      user-select: none;
+      -webkit-user-select: none;
+      -webkit-touch-callout: none;
+    }
+
+    .controls-container {
+      flex: 1;
+      min-width: 300px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    h2 {
+      margin: 0;
+      font-size: 1.35rem;
+      color: var(--primary);
+    }
+
+    .subtitle {
+      margin-top: -4px;
+      color: var(--text-muted);
+      font-size: 0.9rem;
+    }
+
+    .control-group {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    label {
+      font-weight: 600;
+      font-size: 0.92rem;
+    }
+
+    select,
+    input[type="range"] {
+      width: 100%;
+      padding: 8px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background: white;
+      font-size: 16px; /* better on iOS */
+    }
+
+    .slider-val {
+      font-weight: bold;
+      color: var(--primary);
+    }
+
+    .hint-box {
+      font-size: 0.9rem;
+      color: var(--text-muted);
+      background: #f8fafc;
+      border: 1px dashed var(--border);
+      border-radius: 8px;
+      padding: 10px;
+    }
+
+    .readout-panel {
+      background: var(--bg-color);
+      padding: 14px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      min-height: 285px; /* reserves space so panel height change is small */
+    }
+
+    .readout-panel h3 {
+      margin: 0 0 10px 0;
+      font-size: 1.05rem;
+      border-bottom: 2px solid var(--border);
+      padding-bottom: 5px;
+    }
+
+    .data-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      margin: 8px 0;
+      font-family: monospace;
+      font-size: 0.95rem;
+      gap: 8px;
+    }
+
+    .data-row span:first-child { color: var(--text-main); }
+    .data-row span:last-child { white-space: nowrap; }
+
+    .formula-box {
+      margin-top: 10px;
+      background: #e0f2fe;
+      padding: 10px;
+      border-radius: 6px;
+      border-left: 4px solid var(--primary);
+      font-family: monospace;
+      font-size: 0.9rem;
+      line-height: 1.35;
+      min-height: 78px; /* reduces layout jump when full formula appears */
+    }
+
+    .status-note {
+      font-size: 0.86rem;
+      margin-top: 8px;
+      color: var(--warn);
+      font-weight: 600;
+      min-height: 38px;
+    }
+
+    .ok-note {
+      color: var(--ok);
+    }
+
+    @media (max-width: 768px) {
+      body { padding: 10px; }
+      .dashboard { padding: 10px; gap: 10px; }
+      .canvas-container { min-height: 500px; }
+      .readout-panel { min-height: 300px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="dashboard">
+    <div class="canvas-container">
+      <canvas id="simCanvas" width="460" height="540"></canvas>
+    </div>
+
+    <div class="controls-container">
+      <h2>Relative Density Lab</h2>
+      <div class="subtitle">Solid heavier than water</div>
+
+      <div class="control-group">
+        <label for="materialSelect">Select Material:</label>
+        <select id="materialSelect">
+          <option value="7800" data-color="#64748b">Iron (ρ = 7800 kg/m³)</option>
+          <option value="8960" data-color="#b45309">Copper (ρ = 8960 kg/m³)</option>
+          <option value="2700" data-color="#cbd5e1">Aluminum (ρ = 2700 kg/m³)</option>
+        </select>
+      </div>
+
+      <div class="control-group">
+        <label for="massSlider">Mass (kg): <span id="massDisp" class="slider-val">1.0</span></label>
+        <input type="range" id="massSlider" min="0.1" max="2.0" step="0.1" value="1.0" />
+      </div>
+
+      <div class="hint-box">
+        Drag the block (or string) up/down to immerse it in water.  
+        Once the block is fully below the water surface, the apparent weight becomes <b>W<sub>water</sub></b>.
+      </div>
+
+      <div class="readout-panel">
+        <h3>Live Measurements</h3>
+
+        <div class="data-row">
+          <span>Weight in Air (W<sub>air</sub>):</span>
+          <span id="wAirReadout">0.00 N</span>
+        </div>
+
+        <div class="data-row">
+          <span>Apparent Weight:</span>
+          <span id="wApparentReadout" style="color:#2563eb;font-weight:bold;">0.00 N</span>
+        </div>
+
+        <div class="data-row">
+          <span>Buoyant Force (F<sub>b</sub>):</span>
+          <span id="fbReadout">0.00 N</span>
+        </div>
+
+        <div class="data-row">
+          <span>Weight when fully immersed (W<sub>water</sub>):</span>
+          <span id="wWaterReadout">0.00 N</span>
+        </div>
+
+        <div class="formula-box">
+          <div><b>Formula:</b> RD = W<sub>air</sub> / (W<sub>air</sub> - W<sub>water</sub>)</div>
+          <div id="calcText" style="margin-top:8px; font-weight:bold;"></div>
+        </div>
+
+        <div id="statusNote" class="status-note">
+          Drag the solid fully below the water surface to calculate RD.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ---------- Physics constants ----------
+    const g = 9.8;
+    const rho_water = 1000;
+
+    // ---------- Canvas ----------
+    const canvas = document.getElementById("simCanvas");
+    const ctx = canvas.getContext("2d");
+
+    // ---------- UI ----------
+    const materialSelect = document.getElementById("materialSelect");
+    const massSlider = document.getElementById("massSlider");
+    const massDisp = document.getElementById("massDisp");
+
+    const wAirReadout = document.getElementById("wAirReadout");
+    const wApparentReadout = document.getElementById("wApparentReadout");
+    const fbReadout = document.getElementById("fbReadout");
+    const wWaterReadout = document.getElementById("wWaterReadout");
+    const calcText = document.getElementById("calcText");
+    const statusNote = document.getElementById("statusNote");
+
+    // ---------- State ----------
+    let currentDensity = parseFloat(materialSelect.value);
+    let currentColor = materialSelect.options[materialSelect.selectedIndex].dataset.color;
+    let currentMass = parseFloat(massSlider.value);
+
+    // Drag state
+    let isDragging = false;
+    let dragOffsetY = 0;
+
+    // Geometry state (updated each frame)
+    let geom = {
+      centerX: 230,
+      baseBeakerY: 490,
+      beakerWidth: 220,
+      beakerHeight: 210,
+      waterTopBase: 315,
+
+      blockX: 0,
+      blockY: 0,
+      blockSize: 58,
+      blockStartY: 0,
+      blockMinY: 0,
+      blockMaxY: 0,
+
+      scaleTopY: 40,
+      scaleBottomY: 0,
+      waterTopCurrent: 315,
+
+      submergedFraction: 0
+    };
+
+    // blockY is directly controlled by dragging
+    let blockY = 0; // initialized in resetBlockPosition()
+
+    // ---------- Helpers ----------
+    function clamp(v, min, max) {
+      return Math.max(min, Math.min(max, v));
+    }
+
+    function getMassBlockSizePx(massKg) {
+      // Size increases with mass (square block)
+      // 0.1 kg -> ~38 px, 2.0 kg -> ~82 px
+      return 34 + massKg * 24;
+    }
+
+    function updateGeometryForCurrentMass() {
+      const centerX = canvas.width / 2;
+      const baseBeakerY = 490;
+      const beakerWidth = 220;
+      const beakerHeight = 210;
+      const waterTopBase = baseBeakerY - beakerHeight + 35;
+
+      const blockSize = getMassBlockSizePx(currentMass);
+      const blockX = centerX - blockSize / 2;
+
+      // Start position: just above water
+      const blockStartY = waterTopBase - blockSize - 10;
+
+      // Drag limits
+      const blockMinY = 40 + 78 + 8;   // stay below scale body
+      const blockMaxY = baseBeakerY - blockSize - 8; // don't go below beaker bottom
+
+      geom = {
+        centerX,
+        baseBeakerY,
+        beakerWidth,
+        beakerHeight,
+        waterTopBase,
+
+        blockX,
+        blockY,
+        blockSize,
+        blockStartY,
+        blockMinY,
+        blockMaxY,
+
+        scaleTopY: 40,
+        scaleBottomY: 0,
+        waterTopCurrent: waterTopBase,
+
+        submergedFraction: 0
+      };
+
+      // If blockY hasn't been initialized, set it
+      if (!Number.isFinite(blockY) || blockY === 0) {
+        blockY = blockStartY;
+      }
+
+      // Clamp after size changes
+      blockY = clamp(blockY, blockMinY, blockMaxY);
+      geom.blockY = blockY;
+    }
+
+    function resetBlockPosition() {
+      updateGeometryForCurrentMass();
+      blockY = geom.blockStartY;
+      geom.blockY = blockY;
+    }
+
+    function getCanvasPointFromEvent(e) {
+      const rect = canvas.getBoundingClientRect();
+      const scaleX = canvas.width / rect.width;
+      const scaleY = canvas.height / rect.height;
+      return {
+        x: (e.clientX - rect.left) * scaleX,
+        y: (e.clientY - rect.top) * scaleY
+      };
+    }
+
+    function isPointerOnDraggable(pt) {
+      // Allow dragging by touching the block or string area around center
+      const bx = geom.blockX;
+      const by = geom.blockY;
+      const bs = geom.blockSize;
+
+      const onBlock =
+        pt.x >= bx && pt.x <= bx + bs &&
+        pt.y >= by && pt.y <= by + bs;
+
+      const nearString =
+        Math.abs(pt.x - geom.centerX) < 20 &&
+        pt.y >= geom.scaleBottomY && pt.y <= by + bs;
+
+      return onBlock || nearString;
+    }
+
+    // ---------- Event listeners ----------
+    materialSelect.addEventListener("change", (e) => {
+      currentDensity = parseFloat(e.target.value);
+      currentColor = e.target.options[e.target.selectedIndex].dataset.color;
+      updatePhysics();
+    });
+
+    massSlider.addEventListener("input", (e) => {
+      currentMass = parseFloat(e.target.value);
+      massDisp.textContent = currentMass.toFixed(1);
+
+      const oldBlockY = blockY;
+      const oldBlockTopToWater = (geom.waterTopBase || 0) - (oldBlockY || 0);
+
+      updateGeometryForCurrentMass();
+
+      // Preserve approximate immersion visually after size change
+      // (keep top position relation roughly same)
+      blockY = geom.waterTopBase - oldBlockTopToWater;
+      blockY = clamp(blockY, geom.blockMinY, geom.blockMaxY);
+
+      updatePhysics();
+    });
+
+    // Pointer events for mouse + touch + pen (iPad)
+    canvas.addEventListener("pointerdown", (e) => {
+      updateGeometryForCurrentMass(); // ensure fresh geometry
+      const pt = getCanvasPointFromEvent(e);
+
+      if (isPointerOnDraggable(pt)) {
+        isDragging = true;
+        dragOffsetY = pt.y - blockY;
+        canvas.setPointerCapture(e.pointerId);
+      }
+    });
+
+    canvas.addEventListener("pointermove", (e) => {
+      if (!isDragging) return;
+      const pt = getCanvasPointFromEvent(e);
+
+      blockY = clamp(pt.y - dragOffsetY, geom.blockMinY, geom.blockMaxY);
+      updatePhysics();
+    });
+
+    canvas.addEventListener("pointerup", (e) => {
+      isDragging = false;
+      try { canvas.releasePointerCapture(e.pointerId); } catch {}
+    });
+
+    canvas.addEventListener("pointercancel", () => {
+      isDragging = false;
+    });
+
+    // ---------- Physics + UI update ----------
+    function updatePhysics() {
+      updateGeometryForCurrentMass();
+      geom.blockY = blockY;
+
+      // Scale follows block with fixed top unless block goes very high
+      geom.scaleTopY = Math.max(28, blockY - 180);
+      geom.scaleBottomY = geom.scaleTopY + 78;
+
+      // 1) Weight in air
+      const W_air = currentMass * g;
+
+      // 2) Object volume (m^3)
+      const V_obj = currentMass / currentDensity;
+
+      // 3) Max buoyant force when fully immersed
+      const F_b_max = rho_water * V_obj * g;
+
+      // 4) Submerged fraction from geometry
+      // Use base water line to determine immersion progression,
+      // then water rises slightly as immersion increases (visual only)
+      const blockTop = blockY;
+      const blockBottom = blockY + geom.blockSize;
+
+      // First-pass submerged fraction against base water level
+      let submergedFraction = clamp((blockBottom - geom.waterTopBase) / geom.blockSize, 0, 1);
+
+      // Water rise only until fully immersed (visual)
+      const waterRise = 14 * submergedFraction;
+      const waterTopCurrent = geom.waterTopBase - waterRise;
+      geom.waterTopCurrent = waterTopCurrent;
+
+      // Recompute submerged fraction using actual visible water top
+      submergedFraction = clamp((blockBottom - waterTopCurrent) / geom.blockSize, 0, 1);
+      geom.submergedFraction = submergedFraction;
+
+      // 5) Buoyant force (capped after full immersion)
+      const F_b_current = F_b_max * submergedFraction;
+
+      // 6) Apparent weight at current immersion
+      const W_apparent = W_air - F_b_current;
+
+      // 7) W_water for formula (full immersion apparent weight)
+      const W_water = W_air - F_b_max;
+
+      // 8) Relative density
+      const denom = W_air - W_water;
+      const RD = denom > 0 ? (W_air / denom) : NaN;
+
+      // Update readouts
+      wAirReadout.innerHTML = `${W_air.toFixed(2)} N`;
+      wApparentReadout.innerHTML = `${W_apparent.toFixed(2)} N`;
+      fbReadout.innerHTML = `${F_b_current.toFixed(2)} N`;
+      wWaterReadout.innerHTML = `${W_water.toFixed(2)} N`;
+
+      const fullyImmersed = submergedFraction >= 1;
+
+      if (fullyImmersed) {
+        calcText.innerHTML =
+          `RD = ${W_air.toFixed(2)} / (${W_air.toFixed(2)} - ${W_water.toFixed(2)})<br>` +
+          `RD = ${W_air.toFixed(2)} / ${(W_air - W_water).toFixed(2)}<br>` +
+          `RD = <span style="color:#15803d">${RD.toFixed(2)}</span>`;
+        calcText.style.color = "#0f172a";
+
+        statusNote.innerHTML = `✔ Fully immersed. Apparent weight reading is now W<sub>water</sub>.`;
+        statusNote.classList.add("ok-note");
+      } else {
+        calcText.innerHTML =
+          `RD can be calculated only after full immersion.<br>` +
+          `Current submerged fraction = ${(submergedFraction * 100).toFixed(0)}%`;
+        calcText.style.color = "#64748b";
+
+        statusNote.innerHTML = `Drag the solid fully below the water surface to calculate RD.`;
+        statusNote.classList.remove("ok-note");
+      }
+
+      drawCanvas({ W_apparent, submergedFraction });
+    }
+
+    // ---------- Drawing ----------
+    function drawCanvas({ W_apparent, submergedFraction }) {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      const {
+        centerX, baseBeakerY, beakerWidth, beakerHeight,
+        blockX, blockY, blockSize, scaleTopY, scaleBottomY, waterTopCurrent
+      } = geom;
+
+      // Top support
+      ctx.strokeStyle = "#475569";
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(centerX - 95, scaleTopY - 10);
+      ctx.lineTo(centerX + 95, scaleTopY - 10);
+      ctx.stroke();
+
+      // Scale body
+      const scaleW = 118;
+      const scaleH = 78;
+      const scaleX = centerX - scaleW / 2;
+      const scaleY = scaleTopY;
+
+      ctx.fillStyle = "#e2e8f0";
+      ctx.strokeStyle = "#475569";
+      ctx.lineWidth = 2;
+      roundRect(ctx, scaleX, scaleY, scaleW, scaleH, 10, true, true);
+
+      // Display
+      const dispX = scaleX + 10;
+      const dispY = scaleY + 16;
+      const dispW = scaleW - 20;
+      const dispH = 30;
+      ctx.fillStyle = "#0f172a";
+      roundRect(ctx, dispX, dispY, dispW, dispH, 6, true, false);
+
+      ctx.fillStyle = "#dcfce7";
+      ctx.font = "bold 18px monospace";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(`${W_apparent.toFixed(2)} N`, centerX, dispY + dispH / 2);
+
+      ctx.fillStyle = "#334155";
+      ctx.font = "11px sans-serif";
+      ctx.fillText("SPRING BALANCE", centerX, scaleY + scaleH - 14);
+
+      // Hooks + string
+      ctx.strokeStyle = "#334155";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(centerX, scaleY - 10);
+      ctx.lineTo(centerX, scaleY);
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.moveTo(centerX, scaleBottomY);
+      ctx.lineTo(centerX, blockY);
+      ctx.stroke();
+
+      // Beaker back
+      ctx.fillStyle = "rgba(255,255,255,0.65)";
+      ctx.fillRect(centerX - beakerWidth / 2, baseBeakerY - beakerHeight, beakerWidth, beakerHeight);
+
+      // Water fill
+      ctx.fillStyle = "rgba(56, 189, 248, 0.38)";
+      ctx.fillRect(centerX - beakerWidth / 2, waterTopCurrent, beakerWidth, baseBeakerY - waterTopCurrent);
+
+      // Water surface
+      ctx.strokeStyle = "rgba(2, 132, 199, 0.65)";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(centerX - beakerWidth / 2, waterTopCurrent);
+      ctx.lineTo(centerX + beakerWidth / 2, waterTopCurrent);
+      ctx.stroke();
+
+      // Object
+      ctx.fillStyle = currentColor;
+      ctx.strokeStyle = "#475569";
+      ctx.lineWidth = 2;
+      ctx.fillRect(blockX, blockY, blockSize, blockSize);
+      ctx.strokeRect(blockX, blockY, blockSize, blockSize);
+
+      // Underwater shading
+      const blockBottom = blockY + blockSize;
+      const submergedHeightPx = Math.max(0, Math.min(blockBottom - waterTopCurrent, blockSize));
+      if (submergedHeightPx > 0) {
+        ctx.fillStyle = "rgba(0,0,0,0.14)";
+        ctx.fillRect(blockX, blockY + (blockSize - submergedHeightPx), blockSize, submergedHeightPx);
+      }
+
+      // Buoyant force arrow
+      if (submergedFraction > 0.02) {
+        const arrowX = blockX - 30;
+        const arrowBaseY = blockY + blockSize - 4;
+        const arrowLen = 22 + 30 * submergedFraction;
+
+        ctx.strokeStyle = "#0ea5e9";
+        ctx.fillStyle = "#0ea5e9";
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.moveTo(arrowX, arrowBaseY);
+        ctx.lineTo(arrowX, arrowBaseY - arrowLen);
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.moveTo(arrowX, arrowBaseY - arrowLen - 8);
+        ctx.lineTo(arrowX - 6, arrowBaseY - arrowLen + 2);
+        ctx.lineTo(arrowX + 6, arrowBaseY - arrowLen + 2);
+        ctx.closePath();
+        ctx.fill();
+
+        ctx.font = "11px sans-serif";
+        ctx.textAlign = "center";
+        ctx.fillText("Fb", arrowX, arrowBaseY - arrowLen - 14);
+      }
+
+      // Beaker outline
+      ctx.strokeStyle = "#94a3b8";
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(centerX - beakerWidth / 2, baseBeakerY - beakerHeight);
+      ctx.lineTo(centerX - beakerWidth / 2, baseBeakerY);
+      ctx.lineTo(centerX + beakerWidth / 2, baseBeakerY);
+      ctx.lineTo(centerX + beakerWidth / 2, baseBeakerY - beakerHeight);
+      ctx.stroke();
+
+      // Water label
+      ctx.fillStyle = "#0369a1";
+      ctx.font = "11px sans-serif";
+      ctx.textAlign = "left";
+      ctx.fillText("Water surface", centerX + beakerWidth / 2 + 8, waterTopCurrent + 4);
+
+      // Full immersion line (top of block at water surface)
+      const fullImmersionY = waterTopCurrent;
+      ctx.setLineDash([4, 4]);
+      ctx.strokeStyle = "rgba(180, 83, 9, 0.7)";
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(centerX - beakerWidth / 2 - 6, fullImmersionY);
+      ctx.lineTo(centerX + beakerWidth / 2 + 6, fullImmersionY);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      ctx.fillStyle = "#92400e";
+      ctx.font = "10px sans-serif";
+      ctx.textAlign = "right";
+      
+
+      // Drag hint on canvas
+      ctx.fillStyle = "rgba(15,23,42,0.75)";
+      ctx.font = "12px sans-serif";
+      ctx.textAlign = "center";
+      ctx.fillText("Drag the block (or string) up / down", centerX, 525);
+    }
+
+    function roundRect(ctx, x, y, w, h, r, fill, stroke) {
+      const radius = Math.min(r, w / 2, h / 2);
+      ctx.beginPath();
+      ctx.moveTo(x + radius, y);
+      ctx.lineTo(x + w - radius, y);
+      ctx.quadraticCurveTo(x + w, y, x + w, y + radius);
+      ctx.lineTo(x + w, y + h - radius);
+      ctx.quadraticCurveTo(x + w, y + h, x + w - radius, y + h);
+      ctx.lineTo(x + radius, y + h);
+      ctx.quadraticCurveTo(x, y + h, x, y + h - radius);
+      ctx.lineTo(x, y + radius);
+      ctx.quadraticCurveTo(x, y, x + radius, y);
+      ctx.closePath();
+      if (fill) ctx.fill();
+      if (stroke) ctx.stroke();
+    }
+
+    // ---------- Init ----------
+    resetBlockPosition();
+    updatePhysics();
+  </script>
+</body>
+</html>
