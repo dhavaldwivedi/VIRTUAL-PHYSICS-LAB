@@ -353,6 +353,16 @@
             ctx.fillStyle = "#1e293b";
             ctx.fillRect(-tW/2, -tH, tW, tH);
 
+            // 4. Draw Block
+            const blockPx = blockSideMeters * pxPerMeter;
+            const blockCenterY_px = -(state.y * pxPerMeter); // Canvas Y is inverted
+            
+            ctx.fillStyle = getBlockColor(state.rhoO);
+            ctx.fillRect(-blockPx/2, blockCenterY_px - blockPx/2, blockPx, blockPx);
+            ctx.strokeStyle = "#000";
+            ctx.lineWidth = 2;
+            ctx.strokeRect(-blockPx/2, blockCenterY_px - blockPx/2, blockPx, blockPx);
+
             // 2. Draw Fluid
             const fluidPxH = fluidSurfaceY * pxPerMeter;
             // Fluid opacity changes slightly based on density
@@ -378,15 +388,7 @@
             ctx.lineTo(tW/2, -tH);
             ctx.stroke();
 
-            // 4. Draw Block
-            const blockPx = blockSideMeters * pxPerMeter;
-            const blockCenterY_px = -(state.y * pxPerMeter); // Canvas Y is inverted
             
-            ctx.fillStyle = getBlockColor(state.rhoO);
-            ctx.fillRect(-blockPx/2, blockCenterY_px - blockPx/2, blockPx, blockPx);
-            ctx.strokeStyle = "#000";
-            ctx.lineWidth = 2;
-            ctx.strokeRect(-blockPx/2, blockCenterY_px - blockPx/2, blockPx, blockPx);
 
             // 5. Draw Dynamic Force Vectors
             if (state.isDropped || state.y < FLUID_START_Y + blockSideMeters) {
@@ -396,8 +398,8 @@
                 const fbLen = Math.sqrt(Fb) * visualScale;
 
                 // Offset arrows slightly horizontally so they don't overlap perfectly
-                drawVector(-15, blockCenterY_px, wLen, "#ef4444", false); // Red Down
-                drawVector(15, blockCenterY_px, fbLen, "#60a5fa", true);  // Blue Up
+                drawVector(0, blockCenterY_px, wLen, "#ef4444", false); // Red Down
+                drawVector(0, blockCenterY_px, fbLen, "#60a5fa", true);  // Blue Up
             }
 
             ctx.restore();
