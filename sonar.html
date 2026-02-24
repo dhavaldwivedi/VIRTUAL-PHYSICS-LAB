@@ -135,9 +135,6 @@
         window.addEventListener('resize', resize);
         resize();
 
-        // --- AUDIO SETUP ---
-        const pingAudio = new Audio('sonar.mp3');
-
         // --- PHYSICS & WORLD VARIABLES ---
         let v_sound = parseFloat(document.getElementById('speedSlider').value);
         
@@ -201,9 +198,10 @@
         function triggerPing() {
             if (isPinging) return;
             
-            // Play the sonar sound
-            pingAudio.currentTime = 0; // Rewind to start in case it's pressed repeatedly
-            pingAudio.play().catch(error => console.log("Audio playback requires user interaction first.", error));
+            // BULLETPROOF AUDIO FIX: Generate a new audio object on every click
+            // This guarantees iOS/Safari won't lock the audio buffer after the first play
+            let pingAudio = new Audio('sonar.mp3');
+            pingAudio.play().catch(error => console.log("Audio playback blocked by browser:", error));
 
             isPinging = true;
             timeElapsed = 0;
