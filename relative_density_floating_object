@@ -1,0 +1,731 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Relative Density of Lighter Solid | Virtual Physics Labs</title>
+  <style>
+    :root {
+      --primary: #2563eb;
+      --bg-color: #f1f5f9;
+      --panel-bg: #ffffff;
+      --text-main: #1e293b;
+      --text-muted: #64748b;
+      --border: #e2e8f0;
+      --ok: #15803d;
+      --warn: #b45309;
+      --highlight: #f59e0b;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      font-family: "Segoe UI", system-ui, sans-serif;
+      background-color: var(--bg-color);
+      color: var(--text-main);
+      margin: 0;
+      padding: 16px;
+      display: flex;
+      justify-content: center;
+    }
+
+    .dashboard {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 16px;
+      max-width: 1100px;
+      width: 100%;
+      background: var(--panel-bg);
+      padding: 16px;
+      border-radius: 12px;
+      box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+      align-items: flex-start; 
+    }
+
+    .canvas-container {
+      flex: 1;
+      min-width: 320px;
+      border: 2px solid var(--border);
+      border-radius: 8px;
+      background: #fafafa;
+      overflow: hidden;
+      position: relative;
+      display: flex;
+      align-items: flex-start;  
+      justify-content: center;
+      min-height: 540px;        
+      padding: 8px;
+    }
+
+    canvas {
+      display: block;
+      width: 100%;
+      max-width: 460px;
+      height: auto;
+      touch-action: none; 
+      user-select: none;
+      -webkit-user-select: none;
+      -webkit-touch-callout: none;
+    }
+
+    .controls-container {
+      flex: 1;
+      min-width: 300px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    h2 {
+      margin: 0;
+      font-size: 1.35rem;
+      color: var(--primary);
+    }
+
+    .subtitle {
+      margin-top: -4px;
+      color: var(--text-muted);
+      font-size: 0.9rem;
+    }
+
+    .control-group {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    label {
+      font-weight: 600;
+      font-size: 0.92rem;
+    }
+
+    select,
+    input[type="range"] {
+      width: 100%;
+      padding: 8px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background: white;
+      font-size: 16px; 
+    }
+
+    .slider-val {
+      font-weight: bold;
+      color: var(--primary);
+    }
+
+    .hint-box {
+      font-size: 0.9rem;
+      color: var(--text-muted);
+      background: #f8fafc;
+      border: 1px dashed var(--border);
+      border-radius: 8px;
+      padding: 10px;
+      line-height: 1.4;
+    }
+
+    .readout-panel {
+      background: var(--bg-color);
+      padding: 14px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      min-height: 315px; 
+    }
+
+    .readout-panel h3 {
+      margin: 0 0 10px 0;
+      font-size: 1.05rem;
+      border-bottom: 2px solid var(--border);
+      padding-bottom: 5px;
+    }
+
+    .data-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      margin: 6px 0;
+      font-family: monospace;
+      font-size: 0.95rem;
+      gap: 8px;
+    }
+
+    .data-row span:first-child { color: var(--text-main); }
+    .data-row span:last-child { white-space: nowrap; }
+    
+    .live-row {
+      background: #e2e8f0;
+      padding: 6px 8px;
+      border-radius: 4px;
+      margin: 10px 0;
+      border-left: 4px solid var(--primary);
+    }
+
+    .formula-box {
+      margin-top: 10px;
+      background: #e0f2fe;
+      padding: 10px;
+      border-radius: 6px;
+      border-left: 4px solid var(--primary);
+      font-family: monospace;
+      font-size: 0.9rem;
+      line-height: 1.35;
+      min-height: 78px; 
+    }
+
+    .status-note {
+      font-size: 0.86rem;
+      margin-top: 8px;
+      color: var(--warn);
+      font-weight: 600;
+      min-height: 38px;
+    }
+
+    .ok-note {
+      color: var(--ok);
+    }
+
+    @media (max-width: 768px) {
+      body { padding: 10px; }
+      .dashboard { padding: 10px; gap: 10px; }
+      .canvas-container { min-height: 500px; }
+      .readout-panel { min-height: 300px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="dashboard">
+    <div class="canvas-container">
+      <canvas id="simCanvas" width="460" height="540"></canvas>
+    </div>
+
+    <div class="controls-container">
+      <h2>Relative Density Lab</h2>
+      <div class="subtitle">Solid lighter than water (Sinker Method)</div>
+
+      <div class="control-group">
+        <label for="materialSelect">Select Light Solid:</label>
+        <select id="materialSelect">
+          <option value="600" data-color="#b45309">Wood (ρ = 600 kg/m³)</option>
+          <option value="240" data-color="#fcd34d">Cork (ρ = 240 kg/m³)</option>
+          <option value="850" data-color="#38bdf8">Plastic (ρ = 850 kg/m³)</option>
+        </select>
+      </div>
+
+      <div class="control-group">
+        <label for="massSlider">Solid Mass (kg): <span id="massDisp" class="slider-val">0.5</span></label>
+        <input type="range" id="massSlider" min="0.1" max="1.0" step="0.1" value="0.5" />
+      </div>
+
+      <div class="hint-box">
+        <b>Sinker Method:</b><br>
+        1. Drag until <b>ONLY the sinker</b> is submerged (find W₂).<br>
+        2. Drag further until <b>BOTH solids</b> are submerged (find W₃).
+      </div>
+
+      <div class="readout-panel">
+        <h3>Milestone Measurements</h3>
+
+        <div class="data-row">
+          <span>Solid Weight in Air (W₁):</span>
+          <span id="w1Readout">0.00 N</span>
+        </div>
+
+        <div class="data-row">
+          <span title="Weight of solid in air + sinker in water">Assembly Wt (Sinker in water) (W₂):</span>
+          <span id="w2Readout" style="color:#64748b;">Waiting...</span>
+        </div>
+
+        <div class="data-row">
+          <span title="Weight of solid in water + sinker in water">Assembly Wt (Both in water) (W₃):</span>
+          <span id="w3Readout" style="color:#64748b;">Waiting...</span>
+        </div>
+
+        <div class="data-row live-row">
+          <span><b>Live Weight:</b></span>
+          <span id="wLiveReadout" style="color:#2563eb;font-weight:bold;">0.00 N</span>
+        </div>
+
+        <div class="formula-box">
+          <div><b>Formula:</b> RD = W₁ / (W₂ - W₃)</div>
+          <div id="calcText" style="margin-top:8px; font-weight:bold; color: #64748b;">
+            Find W₂ and W₃ to calculate Relative Density.
+          </div>
+        </div>
+
+        <div id="statusNote" class="status-note">
+          Drag the assembly down to immerse the sinker.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ---------- Physics Constants ----------
+    const g = 10;
+    const rho_water = 1000;
+    
+    // Fixed Sinker Properties
+    const sinkerMass = 4.0; // 1.0 kg Iron Sinker
+    const sinkerDensity = 7800;
+    const sinkerColor = "#334155";
+    const W_sinker_air = sinkerMass * g;
+    const V_sinker = sinkerMass / sinkerDensity;
+    const F_b_max_sinker = rho_water * V_sinker * g;
+
+    // ---------- Canvas Setup ----------
+    const canvas = document.getElementById("simCanvas");
+    const ctx = canvas.getContext("2d");
+
+    // ---------- UI Elements ----------
+    const materialSelect = document.getElementById("materialSelect");
+    const massSlider = document.getElementById("massSlider");
+    const massDisp = document.getElementById("massDisp");
+
+    const w1Readout = document.getElementById("w1Readout");
+    const w2Readout = document.getElementById("w2Readout");
+    const w3Readout = document.getElementById("w3Readout");
+    const wLiveReadout = document.getElementById("wLiveReadout");
+    const calcText = document.getElementById("calcText");
+    const statusNote = document.getElementById("statusNote");
+
+    // ---------- State Variables ----------
+    let currentDensity = parseFloat(materialSelect.value);
+    let currentColor = materialSelect.options[materialSelect.selectedIndex].dataset.color;
+    let currentMass = parseFloat(massSlider.value);
+
+    // Milestone Values
+    let W1 = 0;
+    let W2 = null; 
+    let W3 = null; 
+
+  // Drag State
+    let isDragging = false;
+    let dragOffsetY = 0;
+    let hasStartedDragging = false; // <-- ADD THIS LINE
+
+    // Geometry State
+    let geom = {
+      centerX: 230,
+      baseBeakerY: 520,
+      beakerWidth: 250,
+      beakerHeight: 280,
+      waterTopBase: 270,
+
+      solidSize: 0,
+      sinkerSize: 40,
+      stringGap: 30,
+
+      dragY: 0, // Top of the light solid
+      minY: 0,
+      maxY: 0,
+
+      scaleTopY: 40,
+      scaleBottomY: 0,
+      waterTopCurrent: 270,
+
+      solidSubFraction: 0,
+      sinkerSubFraction: 0
+    };
+
+    let dragY = 0; // The primary vertical coordinate we change by dragging
+
+    // ---------- Helpers ----------
+    function clamp(v, min, max) {
+      return Math.max(min, Math.min(max, v));
+    }
+
+    function getSolidSizePx(massKg) {
+      // Light solids are less dense, so they look larger even at lower masses
+      return 36 + massKg * 40; 
+    }
+
+    function updateGeometry() {
+      const centerX = canvas.width / 2;
+      const baseBeakerY = 520;
+      const beakerWidth = 250;
+      const beakerHeight = 280;
+      const waterTopBase = baseBeakerY - beakerHeight + 40;
+
+      const solidSize = getSolidSizePx(currentMass);
+      const sinkerSize = 40;
+      const stringGap = 30;
+      
+      const assemblyTotalHeight = solidSize + stringGap + sinkerSize;
+
+      // Start position: bottom of sinker is just above water
+      const startY = waterTopBase - assemblyTotalHeight - 10;
+
+      // Drag limits
+      const minY = 40 + 78 + 8; // Keep below scale body
+      const maxY = baseBeakerY - assemblyTotalHeight - 8; // Keep above beaker bottom
+
+      geom = {
+        centerX, baseBeakerY, beakerWidth, beakerHeight, waterTopBase,
+        solidSize, sinkerSize, stringGap,
+        dragY, minY, maxY,
+        scaleTopY: 40, scaleBottomY: 0, waterTopCurrent: waterTopBase,
+        solidSubFraction: 0, sinkerSubFraction: 0
+      };
+
+      if (!Number.isFinite(dragY) || dragY === 0) {
+        dragY = startY;
+      }
+      dragY = clamp(dragY, minY, maxY);
+      geom.dragY = dragY;
+    }
+
+    function resetAssembly() {
+      updateGeometry();
+      dragY = geom.waterTopBase - (geom.solidSize + geom.stringGap + geom.sinkerSize) - 10;
+      geom.dragY = dragY;
+    }
+
+    function getCanvasPoint(e) {
+      const rect = canvas.getBoundingClientRect();
+      const scaleX = canvas.width / rect.width;
+      const scaleY = canvas.height / rect.height;
+      return {
+        x: (e.clientX - rect.left) * scaleX,
+        y: (e.clientY - rect.top) * scaleY
+      };
+    }
+
+    function isDraggable(pt) {
+      const topY = geom.dragY;
+      const bottomY = geom.dragY + geom.solidSize + geom.stringGap + geom.sinkerSize;
+      
+      // Allow dragging anywhere along the vertical axis of the assembly
+      return Math.abs(pt.x - geom.centerX) < 40 && pt.y >= topY && pt.y <= bottomY;
+    }
+
+    // ---------- Event Listeners ----------
+    materialSelect.addEventListener("change", (e) => {
+      currentDensity = parseFloat(e.target.value);
+      currentColor = e.target.options[e.target.selectedIndex].dataset.color;
+      updatePhysics();
+    });
+
+    massSlider.addEventListener("input", (e) => {
+      currentMass = parseFloat(e.target.value);
+      massDisp.textContent = currentMass.toFixed(1);
+      
+      // Re-adjust dragY so assembly doesn't wildly shift up or down visually
+      const oldAssemblyHeight = geom.solidSize + geom.stringGap + geom.sinkerSize;
+      const oldBottom = dragY + oldAssemblyHeight;
+      
+      updateGeometry();
+      
+      const newAssemblyHeight = geom.solidSize + geom.stringGap + geom.sinkerSize;
+      dragY = oldBottom - newAssemblyHeight;
+      dragY = clamp(dragY, geom.minY, geom.maxY);
+      
+      updatePhysics();
+    });
+
+    canvas.addEventListener("pointerdown", (e) => {
+  updateGeometry(); 
+      const pt = getCanvasPoint(e);
+      if (isDraggable(pt)) {
+        isDragging = true;
+        hasStartedDragging = true; // <-- ADD THIS LINE
+        dragOffsetY = pt.y - dragY;
+        canvas.setPointerCapture(e.pointerId);
+      }
+    });
+
+    canvas.addEventListener("pointermove", (e) => {
+      if (!isDragging) return;
+      const pt = getCanvasPoint(e);
+      dragY = clamp(pt.y - dragOffsetY, geom.minY, geom.maxY);
+      updatePhysics();
+    });
+
+    canvas.addEventListener("pointerup", (e) => {
+      isDragging = false;
+      try { canvas.releasePointerCapture(e.pointerId); } catch {}
+    });
+
+    canvas.addEventListener("pointercancel", () => { isDragging = false; });
+
+    // ---------- Physics Calculation ----------
+    function updatePhysics() {
+      updateGeometry();
+      geom.dragY = dragY;
+
+      // Y coordinates for each component
+      const solidTop = dragY;
+      const solidBottom = solidTop + geom.solidSize;
+      const sinkerTop = solidBottom + geom.stringGap;
+      const sinkerBottom = sinkerTop + geom.sinkerSize;
+
+      // Scale positioning
+      geom.scaleTopY = Math.max(28, solidTop - 140);
+      geom.scaleBottomY = geom.scaleTopY + 78;
+
+      // 1. Calculate base weights
+      const W_solid_air = currentMass * g;
+      const W_total_air = W_solid_air + W_sinker_air;
+      W1 = W_solid_air;
+
+      // 2. Calculate Volumes & Max Buoyancy
+      const V_solid = currentMass / currentDensity;
+      const F_b_max_solid = rho_water * V_solid * g;
+
+      // 3. Immersion logic & Water rise
+      let sinkerSub = clamp((sinkerBottom - geom.waterTopBase) / geom.sinkerSize, 0, 1);
+      let solidSub = clamp((solidBottom - geom.waterTopBase) / geom.solidSize, 0, 1);
+      
+      // Visual water displacement
+      const maxRiseSinker = 4;
+      const maxRiseSolid = 16 * (currentMass / 0.5); 
+      const waterRise = (maxRiseSinker * sinkerSub) + (maxRiseSolid * solidSub);
+      const currentWaterTop = geom.waterTopBase - waterRise;
+      geom.waterTopCurrent = currentWaterTop;
+
+      // Re-evaluate submerged fractions against newly risen water level
+      sinkerSub = clamp((sinkerBottom - currentWaterTop) / geom.sinkerSize, 0, 1);
+      solidSub = clamp((solidBottom - currentWaterTop) / geom.solidSize, 0, 1);
+      
+      geom.sinkerSubFraction = sinkerSub;
+      geom.solidSubFraction = solidSub;
+
+      // 4. Current Buoyant Forces
+      const F_b_sinker_current = F_b_max_sinker * sinkerSub;
+      const F_b_solid_current = F_b_max_solid * solidSub;
+
+      // 5. Apparent Weight
+      const W_apparent = W_total_air - F_b_sinker_current - F_b_solid_current;
+
+      // 6. Milestone Logic
+      W2 = W_total_air - F_b_max_sinker; // Theoretical W2
+      W3 = W2 - F_b_max_solid;           // Theoretical W3
+
+      // Update UI Readouts
+      w1Readout.innerHTML = `${W1.toFixed(2)} N`;
+      wLiveReadout.innerHTML = `${W_apparent.toFixed(2)} N`;
+
+      // Status Note & Milestone Visuals
+      if (sinkerSub < 1) {
+        statusNote.innerHTML = `Drag the assembly down to immerse the heavy sinker.`;
+        statusNote.className = "status-note";
+        w2Readout.innerHTML = `Waiting...`;
+        w2Readout.style.color = "#64748b";
+        w3Readout.innerHTML = `Waiting...`;
+        w3Readout.style.color = "#64748b";
+        calcText.innerHTML = `Find W₂ and W₃ to calculate Relative Density.`;
+        calcText.style.color = "#64748b";
+      } 
+      else if (sinkerSub === 1 && solidSub < 1) {
+        statusNote.innerHTML = `✔ Sinker immersed! W₂ found. Now immerse the light solid.`;
+        statusNote.className = "status-note ok-note";
+        w2Readout.innerHTML = `${W2.toFixed(2)} N`;
+        w2Readout.style.color = "var(--ok)";
+        w2Readout.style.fontWeight = "bold";
+        w3Readout.innerHTML = `Waiting...`;
+        w3Readout.style.color = "#64748b";
+        calcText.innerHTML = `W₂ locked in. Keep dragging down to find W₃.`;
+        calcText.style.color = "#64748b";
+      } 
+      else if (solidSub === 1) {
+        statusNote.innerHTML = `✔ Both immersed! W₃ found. RD is calculated below.`;
+        statusNote.className = "status-note ok-note";
+        w2Readout.innerHTML = `${W2.toFixed(2)} N`;
+        w2Readout.style.color = "var(--text-main)";
+        w3Readout.innerHTML = `${W3.toFixed(2)} N`;
+        w3Readout.style.color = "var(--ok)";
+        w3Readout.style.fontWeight = "bold";
+
+        // Calculate and show RD
+        const lossOfWeight = W2 - W3;
+        const RD = W1 / lossOfWeight;
+
+        calcText.innerHTML = 
+          `RD = ${W1.toFixed(2)} / (${W2.toFixed(2)} - ${W3.toFixed(2)})<br>` +
+          `RD = ${W1.toFixed(2)} / ${lossOfWeight.toFixed(2)}<br>` +
+          `RD = <span style="color:var(--ok)">${RD.toFixed(2)}</span>`;
+        calcText.style.color = "#0f172a";
+      }
+
+      drawCanvas(W_apparent);
+    }
+
+    // ---------- Drawing Render ----------
+    function drawCanvas(apparentWeight) {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      const {
+        centerX, baseBeakerY, beakerWidth, beakerHeight,
+        solidSize, sinkerSize, stringGap,
+        dragY, scaleTopY, scaleBottomY, waterTopCurrent
+      } = geom;
+
+      const solidX = centerX - solidSize / 2;
+      const sinkerX = centerX - sinkerSize / 2;
+      const sinkerY = dragY + solidSize + stringGap;
+
+      // Support Beam
+      ctx.strokeStyle = "#475569";
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(centerX - 95, scaleTopY - 10);
+      ctx.lineTo(centerX + 95, scaleTopY - 10);
+      ctx.stroke();
+
+      // Spring Balance Body
+      const scaleW = 118;
+      const scaleH = 78;
+      const scaleX = centerX - scaleW / 2;
+      const scaleY = scaleTopY;
+
+      ctx.fillStyle = "#e2e8f0";
+      ctx.strokeStyle = "#475569";
+      ctx.lineWidth = 2;
+      roundRect(ctx, scaleX, scaleY, scaleW, scaleH, 10, true, true);
+
+      // Spring Balance Readout Window
+      const dispX = scaleX + 10;
+      const dispY = scaleY + 16;
+      const dispW = scaleW - 20;
+      const dispH = 30;
+      ctx.fillStyle = "#0f172a";
+      roundRect(ctx, dispX, dispY, dispW, dispH, 6, true, false);
+
+      ctx.fillStyle = "#dcfce7";
+      ctx.font = "bold 18px monospace";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(`${apparentWeight.toFixed(2)} N`, centerX, dispY + dispH / 2);
+
+      ctx.fillStyle = "#334155";
+      ctx.font = "11px sans-serif";
+      ctx.fillText("SPRING BALANCE", centerX, scaleY + scaleH - 14);
+      ctx.textBaseline = "alphabetic"; 
+
+      // Hooks & Main String
+      ctx.strokeStyle = "#334155";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(centerX, scaleY - 10);
+      ctx.lineTo(centerX, scaleY);
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.moveTo(centerX, scaleBottomY);
+      ctx.lineTo(centerX, dragY); // String to light solid
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.moveTo(centerX, dragY + solidSize);
+      ctx.lineTo(centerX, sinkerY); // String between solid and sinker
+      ctx.stroke();
+
+      // Beaker Back Wall
+      ctx.fillStyle = "rgba(255,255,255,0.65)";
+      ctx.fillRect(centerX - beakerWidth / 2, baseBeakerY - beakerHeight, beakerWidth, beakerHeight);
+
+      // Water Volume
+      ctx.fillStyle = "rgba(56, 189, 248, 0.38)";
+      ctx.fillRect(centerX - beakerWidth / 2, waterTopCurrent, beakerWidth, baseBeakerY - waterTopCurrent);
+
+      // Water Surface Line
+      ctx.strokeStyle = "rgba(2, 132, 199, 0.65)";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(centerX - beakerWidth / 2, waterTopCurrent);
+      ctx.lineTo(centerX + beakerWidth / 2, waterTopCurrent);
+      ctx.stroke();
+
+      // Draw Heavy Sinker
+      ctx.fillStyle = sinkerColor;
+      ctx.strokeStyle = "#1e293b";
+      ctx.fillRect(sinkerX, sinkerY, sinkerSize, sinkerSize);
+      ctx.strokeRect(sinkerX, sinkerY, sinkerSize, sinkerSize);
+      
+      // Draw Light Solid
+      ctx.fillStyle = currentColor;
+      ctx.strokeStyle = "#475569";
+      ctx.fillRect(solidX, dragY, solidSize, solidSize);
+      ctx.strokeRect(solidX, dragY, solidSize, solidSize);
+
+      // Labels on blocks
+      ctx.fillStyle = "#ffffff";
+      ctx.font = "bold 11px sans-serif";
+      ctx.textAlign = "center";
+      ctx.fillText("Sinker", centerX, sinkerY + sinkerSize/2 + 4);
+      ctx.fillStyle = "#1e293b";
+      ctx.fillText("Light Solid", centerX, dragY + solidSize/2 + 4);
+
+      // --- ADD THIS NEW BLOCK ---
+     if (geom.sinkerSubFraction === 0) {
+        ctx.fillStyle = "#1e293b";
+        ctx.font = "bold 14px sans-serif";
+        ctx.textAlign = "left";
+        
+        // Calculate exact weights
+        const wSolid = (currentMass * g).toFixed(2) + " N";
+        const wSinker = (sinkerMass * g).toFixed(2) + " N";
+        
+        // Draw beside Light Solid
+        ctx.fillText(wSolid, solidX + solidSize + 12, dragY + solidSize / 2 + 5);
+        
+        // Draw beside Sinker
+        ctx.fillText(wSinker, sinkerX + sinkerSize + 12, sinkerY + sinkerSize / 2 + 5);
+      }
+      // --------------------------
+      // Underwater Shading - Sinker
+      const sinkerBottom = sinkerY + sinkerSize;
+      const sinkerSubH = Math.max(0, Math.min(sinkerBottom - waterTopCurrent, sinkerSize));
+      if (sinkerSubH > 0) {
+        ctx.fillStyle = "rgba(0,0,0,0.2)";
+        ctx.fillRect(sinkerX, sinkerY + (sinkerSize - sinkerSubH), sinkerSize, sinkerSubH);
+      }
+
+      // Underwater Shading - Light Solid
+      const solidBottom = dragY + solidSize;
+      const solidSubH = Math.max(0, Math.min(solidBottom - waterTopCurrent, solidSize));
+      if (solidSubH > 0) {
+        ctx.fillStyle = "rgba(0,0,0,0.15)";
+        ctx.fillRect(solidX, dragY + (solidSize - solidSubH), solidSize, solidSubH);
+      }
+
+      // Beaker Front Outline
+      ctx.strokeStyle = "#94a3b8";
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(centerX - beakerWidth / 2, baseBeakerY - beakerHeight);
+      ctx.lineTo(centerX - beakerWidth / 2, baseBeakerY);
+      ctx.lineTo(centerX + beakerWidth / 2, baseBeakerY);
+      ctx.lineTo(centerX + beakerWidth / 2, baseBeakerY - beakerHeight);
+      ctx.stroke();
+
+      // UI Hints on Canvas
+      ctx.fillStyle = "rgba(15,23,42,0.75)";
+      ctx.font = "13px sans-serif";
+      ctx.textAlign = "center";
+      ctx.fillText("↕ Drag assembly up and down ↕", centerX, 510);
+    }
+
+    // Helper: Draw Rounded Rectangle
+    function roundRect(ctx, x, y, w, h, r, fill, stroke) {
+      const radius = Math.min(r, w / 2, h / 2);
+      ctx.beginPath();
+      ctx.moveTo(x + radius, y);
+      ctx.lineTo(x + w - radius, y);
+      ctx.quadraticCurveTo(x + w, y, x + w, y + radius);
+      ctx.lineTo(x + w, y + h - radius);
+      ctx.quadraticCurveTo(x + w, y + h, x + w - radius, y + h);
+      ctx.lineTo(x + radius, y + h);
+      ctx.quadraticCurveTo(x, y + h, x, y + h - radius);
+      ctx.lineTo(x, y + radius);
+      ctx.quadraticCurveTo(x, y, x + radius, y);
+      ctx.closePath();
+      if (fill) ctx.fill();
+      if (stroke) ctx.stroke();
+    }
+
+    // ---------- Initialization ----------
+    resetAssembly();
+    updatePhysics();
+  </script>
+</body>
+</html>
