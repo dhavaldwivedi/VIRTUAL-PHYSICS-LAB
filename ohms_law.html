@@ -661,13 +661,8 @@
       const dt = now - lastTime;
       lastTime = now;
 
-      cx = canvas.clientWidth / 2;
-      cy = canvas.clientHeight / 2;
-      startX = cx - (circWidth / 2) + 20; 
-      startY = cy - (circHeight / 2);
-
+      // Update particle positions
       const baseSpeed = 150; 
-      // Speed is 0 if switch is off
       const currentSpeed = state.switchOn ? (state.I * baseSpeed * state.flowDir) : 0;
 
       for (let p of particles) {
@@ -677,8 +672,26 @@
 
       ctx.clearRect(0, 0, canvas.clientWidth, canvas.clientHeight);
       
+      // --- RESPONSIVE SCALING FIX ---
+      // 620px is the safe width needed to show the voltmeter (left) and resistor labels (right)
+      const safeWidth = 620; 
+      const scale = canvas.clientWidth < safeWidth ? canvas.clientWidth / safeWidth : 1;
+
+      ctx.save();
+      ctx.scale(scale, scale); // Zooms out the canvas if the screen is too small
+
+      // Adjust center points based on the new scale
+      cx = (canvas.clientWidth / scale) / 2;
+      cy = (canvas.clientHeight / scale) / 2;
+      
+      // +15 offsets the circuit slightly to balance the wide voltmeter on the left
+      startX = cx - (circWidth / 2) + 15; 
+      startY = cy - (circHeight / 2);
+
       drawCircuitBase();
       drawParticles();
+
+      ctx.restore();
 
       requestAnimationFrame(animate);
     }
