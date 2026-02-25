@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Atmospheric Pressure & Barometer Lab</title>
+  <style>
+    /* ======== CSS STYLES ======== */
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: #0f172a;
+      color: #e2e8f0;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 16px;
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 16px;
+    }
+
+    .panel {
+      background: #1e293b;
+      border-radius: 14px;
+      padding: 20px;
+      box-shadow: 0 6px 20px rgba(0,0,0,0.3);
+    }
+
+    .title {
+      margin: 0 0 16px;
+      font-size: 1.4rem; 
+      font-weight: 700;
+      color: #f8fafc;
+      border-bottom: 2px solid #334155;
+      padding-bottom: 10px;
+    }
+
+    .controls {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .control-group {
+      background: #0f172a;
+      border: 1px solid #334155;
+      border-radius: 10px;
+      padding: 16px;
+    }
+
+    .control-group label {
+      display: block;
+      font-size: 1.05rem; 
+      margin-bottom: 10px;
+      color: #93c5fd;
+      font-weight: 600;
+    }
+
+    select {
+      width: 100%;
+      padding: 10px;
+      border-radius: 8px;
+      border: 1px solid #475569;
+      background: #020617;
+      color: #e2e8f0;
+      font-size: 1.05rem;
+      cursor: pointer;
+      margin-bottom: 10px;
+    }
+
+    .input-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+
+    .input-row .val-display {
+      font-family: monospace;
+      font-size: 1.1rem;
+      color: #86efac;
+      background: #020617;
+      padding: 4px 8px;
+      border-radius: 4px;
+      border: 1px solid #334155;
+    }
+
+    input[type="range"] {
+      width: 100%;
+      height: 20px;
+      background: transparent;
+      cursor: pointer;
+    }
+
+    .canvas-wrap {
+      width: 100%;
+      border-radius: 12px;
+      border: 1px solid #334155;
+      background: #020617;
+      overflow: hidden;
+      position: relative;
+    }
+
+    canvas { 
+      display: block; 
+      width: 100%;
+      height: 400px; /* Taller by default */
+    }
+
+    .calc-panel {
+      margin-top: 16px;
+      background: #0f172a;
+      border: 1px solid #334155;
+      border-radius: 12px;
+      padding: 20px;
+    }
+
+    .calc-panel h3 { margin: 0 0 12px 0; color: #f8fafc; font-size: 1.25rem; }
+
+    .eq-block {
+      background: #020617;
+      border: 1px solid #1e293b;
+      border-radius: 8px;
+      padding: 16px;
+      font-size: 1.1rem;
+      line-height: 1.6;
+    }
+
+    .eq-formula { color: #93c5fd; font-weight: bold; font-size: 1.2rem; margin-bottom: 8px; }
+    .eq-sub { color: #cbd5e1; font-family: monospace; }
+    .eq-ans { color: #86efac; font-weight: bold; font-size: 1.25rem; display: block; margin-top: 8px; padding-top: 8px; border-top: 1px dashed #334155;}
+
+    .note { font-size: 0.9rem; color: #64748b; margin-top: 10px; line-height: 1.4; }
+
+    @media (min-width: 900px) {
+      .container { grid-template-columns: 340px 1fr; align-items: start; }
+      canvas { height: 500px; } /* Much taller on desktop */
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <section class="panel">
+      <h2 class="title">Simulation Controls</h2>
+      <div class="controls">
+
+        <div class="control-group">
+          <label>Fluid Type</label>
+          <select id="fluidSelect">
+            <option value="13600">Mercury (13,600 kg/m³)</option>
+            <option value="1000">Water (1,000 kg/m³)</option>
+            <option value="custom">Custom Fluid</option>
+          </select>
+
+          <div class="input-row">
+            <span style="color:#cbd5e1; font-size:0.95rem;">Density (&rho;)</span>
+            <span class="val-display" id="densityVal">13600 kg/m&sup3;</span>
+          </div>
+          <input type="range" id="densitySlider" min="1000" max="13600" step="50" value="13600">
+        </div>
+
+        <div class="control-group">
+          <label>Atmospheric Pressure (P_atm)</label>
+          <div class="input-row">
+            <span style="color:#cbd5e1; font-size:0.95rem;">Standard = 101,325 Pa</span>
+            <span class="val-display" id="pressureVal">101325 Pa</span>
+          </div>
+          <input type="range" id="pressureSlider" min="90000" max="110000" step="100" value="101325">
+          
+          <button id="btnReset" style="width: 100%; padding: 10px; border-radius: 8px; border: none; background: #3b82f6; color: white; font-weight: bold; cursor: pointer; margin-top: 12px; transition: background 0.2s;">
+            Reset to Standard Pressure
+          </button>
+        </div>
+
+        <div class="note">
+          <strong>Logic:</strong> Atmospheric pressure pushes down on the fluid in the open dish, forcing it up the evacuated tube until the hydrostatic pressure of the column equals the atmospheric pressure.
+        </div>
+
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2 class="title">Barometer</h2>
+      <div class="canvas-wrap">
+        <canvas id="simCanvas"></canvas>
+      </div>
+
+      <div class="calc-panel">
+        <h3>Real-Time Calculations</h3>
+        <div class="eq-block">
+          <div class="eq-formula">P = h &times; &rho; &times; g</div>
+          <div class="eq-sub" id="eqSub">101,325 Pa = 0.760 m &times; 13,600 kg/m&sup3; &times; 9.8 m/s&sup2;</div>
+          <div class="eq-ans" id="eqAns">h = 0.760 meters</div>
+          <div class="eq-ans" style="border-top: none; padding-top: 0; color: #fcd34d;" id="eqAtm">Current P_atm = 1.000 atm</div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <script>
+    // ======== PHYSICS & STATE ========
+    const g = 9.8; 
+    
+    const state = {
+      pressure: 101325, // Pascals (Pa)
+      density: 13600,   // kg/m^3
+      targetH: 0,       // Calculated target height in meters
+      displayH: 0,      // Animated height for visual rendering
+      viewScale: 12.0   // FIXED at 12 meters so Water (10.3m) always fits
+    };
+
+    // Calculate initial target height: h = P / (rho * g)
+    state.targetH = state.pressure / (state.density * g);
+    state.displayH = state.targetH; // Start at target immediately
+
+    // ======== DOM ELEMENTS ========
+    const els = {
+      fluidSelect: document.getElementById('fluidSelect'),
+      densitySlider: document.getElementById('densitySlider'),
+      densityVal: document.getElementById('densityVal'),
+      pressureSlider: document.getElementById('pressureSlider'),
+      pressureVal: document.getElementById('pressureVal'),
+      btnReset: document.getElementById('btnReset'), // Button added to DOM elements
+      eqSub: document.getElementById('eqSub'),
+      eqAns: document.getElementById('eqAns'),
+      eqAtm: document.getElementById('eqAtm'),
+      canvas: document.getElementById('simCanvas')
+    };
+    const ctx = els.canvas.getContext('2d');
+
+    // ======== LOGIC & UI UPDATES ========
+    function updatePhysics() {
+      // Calculate physics
+      state.targetH = state.pressure / (state.density * g);
+
+      // Update UI Text
+      els.densityVal.innerHTML = `${state.density} kg/m&sup3;`;
+      els.pressureVal.innerHTML = `${state.pressure.toLocaleString()} Pa`;
+
+      // Update Equations Panel
+      els.eqSub.innerHTML = `${state.pressure.toLocaleString()} Pa = <b>${state.targetH.toFixed(3)} m</b> &times; ${state.density.toLocaleString()} kg/m&sup3; &times; 9.8 m/s&sup2;`;
+      els.eqAns.innerHTML = `Height of Column (h) = <b>${state.targetH.toFixed(3)} meters</b>`;
+      
+      const atm = state.pressure / 101325;
+      els.eqAtm.innerHTML = `Equivalent Pressure = <b>${atm.toFixed(3)} atm</b>`;
+
+      // Manage fluid dropdown sync
+      if (state.density === 13600) els.fluidSelect.value = "13600";
+      else if (state.density === 1000) els.fluidSelect.value = "1000";
+      else els.fluidSelect.value = "custom";
+    }
+
+    // Event Listeners
+    els.densitySlider.addEventListener('input', (e) => {
+      state.density = parseFloat(e.target.value);
+      updatePhysics();
+    });
+
+    els.pressureSlider.addEventListener('input', (e) => {
+      state.pressure = parseFloat(e.target.value);
+      updatePhysics();
+    });
+
+    els.fluidSelect.addEventListener('change', (e) => {
+      if (e.target.value !== "custom") {
+        state.density = parseFloat(e.target.value);
+        els.densitySlider.value = state.density;
+        updatePhysics();
+      }
+    });
+
+    // Reset Button Logic
+    els.btnReset.addEventListener('click', () => {
+      state.pressure = 101325;
+      els.pressureSlider.value = 101325;
+      updatePhysics();
+    });
+
+    // Hover effect for reset button
+    els.btnReset.addEventListener('mouseenter', () => els.btnReset.style.background = '#2563eb');
+    els.btnReset.addEventListener('mouseleave', () => els.btnReset.style.background = '#3b82f6');
+
+    // ======== CANVAS RENDERING ========
+    // Helper to resize canvas
+    function resizeCanvas() {
+      const rect = els.canvas.parentElement.getBoundingClientRect();
+      els.canvas.width = rect.width;
+      els.canvas.height = rect.height;
+    }
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas();
+
+    function getFluidColor() {
+      if (state.density < 2000) return "rgba(59, 130, 246, 0.8)"; // Blue
+      if (state.density > 12000) return "rgba(148, 163, 184, 0.9)"; // Silver
+      return "rgba(168, 85, 247, 0.8)"; // Purple
+    }
+
+    let lastTime = 0;
+
+    function render(nowMs) {
+      const dt = (nowMs - lastTime) / 1000 || 0;
+      lastTime = nowMs;
+
+      // 1. Smoothly animate height
+      state.displayH += (state.targetH - state.displayH) * 8 * dt;
+      // Note: Dynamic zoom (state.viewScale) logic has been completely removed to keep scale static.
+
+      // 2. Clear canvas
+      const width = els.canvas.width;
+      const height = els.canvas.height;
+      ctx.clearRect(0, 0, width, height);
+
+      // 3. Coordinate System Math
+      const dishLiquidY = height - 90; 
+      // Pixels per meter using the fixed 12.0m viewScale
+      const pxPerMeter = (height - 100) / state.viewScale; 
+      
+      const cx = width / 2;
+      const fluidColor = getFluidColor();
+
+      // --- Draw Grid/Scale Background ---
+      ctx.strokeStyle = "#334155";
+      ctx.fillStyle = "#64748b";
+      ctx.font = "12px Arial";
+      ctx.textAlign = "right";
+      ctx.textBaseline = "middle";
+
+      // Fixed grid spacing of 1.0 meters
+      let step = 1.0; 
+
+      for (let m = 0; m <= state.viewScale; m += step) {
+        let y = dishLiquidY - (m * pxPerMeter);
+        if (y < 20) break; // Don't draw off top
+        
+        ctx.beginPath();
+        ctx.moveTo(cx - 150, y);
+        ctx.lineTo(cx + 150, y);
+        ctx.lineWidth = 1;
+        ctx.stroke();
+        
+        // Label
+        ctx.fillText(m.toFixed(1) + "m", cx - 155, y);
+      }
+
+      // --- Draw Tube (Glass) ---
+      const tubeRadius = 20;
+      // Tube is drawn slightly taller than maximum possible fluid height (12m)
+      const tubeTopY = dishLiquidY - (11.8 * pxPerMeter); 
+      
+      ctx.fillStyle = "rgba(255, 255, 255, 0.05)";
+      ctx.strokeStyle = "#94a3b8";
+      ctx.lineWidth = 3;
+      
+      // Tube body
+      ctx.beginPath();
+      ctx.moveTo(cx - tubeRadius, dishLiquidY + 30);
+      ctx.lineTo(cx - tubeRadius, Math.max(20, tubeTopY));
+      ctx.arc(cx, Math.max(20, tubeTopY), tubeRadius, Math.PI, 0);
+      ctx.lineTo(cx + tubeRadius, dishLiquidY + 30);
+      ctx.fill();
+      ctx.stroke();
+
+      // --- Draw Fluid Inside Tube ---
+      const fluidTopY = dishLiquidY - (state.displayH * pxPerMeter);
+      
+      ctx.fillStyle = fluidColor;
+      ctx.fillRect(cx - tubeRadius + 1.5, fluidTopY, tubeRadius * 2 - 3, dishLiquidY - fluidTopY + 30);
+      
+      // Meniscus (slight curve at top of fluid)
+      ctx.beginPath();
+      ctx.ellipse(cx, fluidTopY, tubeRadius - 1.5, 4, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      // --- Draw Reservoir (Dish) ---
+      const dishWidth = 160;
+      const dishHeight = 80;
+      
+      ctx.fillStyle = fluidColor;
+      ctx.fillRect(cx - dishWidth/2, dishLiquidY, dishWidth, dishHeight);
+      
+      ctx.strokeStyle = "#cbd5e1";
+      ctx.lineWidth = 4;
+      ctx.beginPath();
+      ctx.moveTo(cx - dishWidth/2 - 5, dishLiquidY - 10);
+      ctx.lineTo(cx - dishWidth/2, dishLiquidY + dishHeight);
+      ctx.lineTo(cx + dishWidth/2, dishLiquidY + dishHeight);
+      ctx.lineTo(cx + dishWidth/2 + 5, dishLiquidY - 10);
+      ctx.stroke();
+
+      // --- Annotations & Arrows ---
+      // Vacuum Text (only show if there is room above the fluid)
+      if (fluidTopY > tubeTopY + 30) {
+        ctx.fillStyle = "#f8fafc";
+        ctx.textAlign = "center";
+        ctx.font = "bold 13px Arial";
+        ctx.fillText("Vacuum", cx, tubeTopY + 25);
+        ctx.font = "11px Arial";
+        ctx.fillText("(P = 0)", cx, tubeTopY + 40);
+      }
+
+      // Height Bracket
+      const bX = cx + tubeRadius + 20;
+      ctx.strokeStyle = "#fcd34d";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(bX - 5, fluidTopY);
+      ctx.lineTo(bX + 15, fluidTopY);
+      ctx.moveTo(bX - 5, dishLiquidY);
+      ctx.lineTo(bX + 15, dishLiquidY);
+      ctx.moveTo(bX + 5, fluidTopY);
+      ctx.lineTo(bX + 5, dishLiquidY);
+      ctx.stroke();
+
+      // Height Label
+      ctx.fillStyle = "#fcd34d";
+      ctx.textAlign = "left";
+      ctx.font = "bold 15px Arial";
+      ctx.fillText(`h = ${state.displayH.toFixed(2)} m`, bX + 15, (fluidTopY + dishLiquidY) / 2);
+
+      // Atmospheric Pressure Arrows pushing down on dish
+      drawArrow(ctx, cx - 50, dishLiquidY - 40, cx - 50, dishLiquidY - 5);
+      drawArrow(ctx, cx + 50, dishLiquidY - 40, cx + 50, dishLiquidY - 5);
+      
+      ctx.fillStyle = "#ef4444";
+      ctx.textAlign = "center";
+      ctx.font = "bold 13px Arial";
+      ctx.fillText("P_atm", cx - 50, dishLiquidY - 45);
+      ctx.fillText("P_atm", cx + 50, dishLiquidY - 45);
+
+      requestAnimationFrame(render);
+    }
+
+    function drawArrow(context, fromx, fromy, tox, toy) {
+      const headlen = 8; 
+      const dx = tox - fromx;
+      const dy = toy - fromy;
+      const angle = Math.atan2(dy, dx);
+      
+      context.strokeStyle = "#ef4444";
+      context.lineWidth = 3;
+      context.beginPath();
+      context.moveTo(fromx, fromy);
+      context.lineTo(tox, toy);
+      context.lineTo(tox - headlen * Math.cos(angle - Math.PI / 6), toy - headlen * Math.sin(angle - Math.PI / 6));
+      context.moveTo(tox, toy);
+      context.lineTo(tox - headlen * Math.cos(angle + Math.PI / 6), toy - headlen * Math.sin(angle + Math.PI / 6));
+      context.stroke();
+    }
+
+    // ======== INIT ========
+    updatePhysics();
+    requestAnimationFrame(render);
+
+  </script>
+</body>
+</html>
