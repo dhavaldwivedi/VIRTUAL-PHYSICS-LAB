@@ -1,0 +1,696 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Transverse Wave Simulation</title>
+  <style>
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: #0f172a;
+      color: #e2e8f0;
+      min-height: 100vh;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 12px;
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 12px;
+    }
+
+    .panel {
+      background: #1e293b;
+      border-radius: 14px;
+      padding: 12px;
+      box-shadow: 0 6px 20px rgba(0,0,0,0.25);
+    }
+
+    .title {
+      margin: 0 0 10px;
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: #f8fafc;
+    }
+
+    .controls {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 10px;
+    }
+
+    .control {
+      background: #0f172a;
+      border: 1px solid #334155;
+      border-radius: 10px;
+      padding: 10px;
+    }
+
+    .control label {
+      display: block;
+      font-size: 0.9rem;
+      margin-bottom: 6px;
+      color: #cbd5e1;
+      font-weight: 600;
+    }
+
+    .input-row {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 8px;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+
+    .input-row input[type="number"] {
+      width: 100%;
+      padding: 10px;
+      border-radius: 8px;
+      border: 1px solid #475569;
+      background: #020617;
+      color: #e2e8f0;
+      font-size: 1rem;
+    }
+
+    .unit {
+      min-width: 52px;
+      text-align: center;
+      font-size: 0.85rem;
+      color: #94a3b8;
+    }
+
+    input[type="range"] {
+      width: 100%;
+      height: 26px;
+      background: transparent;
+      cursor: pointer;
+    }
+
+    .meta {
+      font-size: 0.85rem;
+      color: #94a3b8;
+      line-height: 1.45;
+    }
+
+    .btn-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 6px;
+    }
+
+    button {
+      border: none;
+      border-radius: 10px;
+      padding: 10px 14px;
+      font-size: 0.95rem;
+      font-weight: 600;
+      cursor: pointer;
+      color: white;
+      background: #2563eb;
+      min-height: 42px;
+      flex: 1;
+    }
+
+    button.success { background: #16a34a; }
+    button.secondary { background: #475569; }
+    button.danger { background: #dc2626; }
+    button:active { transform: scale(0.98); }
+
+    .canvas-wrap {
+      width: 100%;
+      overflow: hidden;
+      border-radius: 12px;
+      border: 1px solid #334155;
+      background: #020617;
+    }
+
+    canvas {
+      display: block;
+      width: 100%;
+      height: 320px;
+      touch-action: none;
+    }
+
+    .bottom-stack {
+      display: grid;
+      gap: 12px;
+      margin-top: 12px;
+    }
+
+    .equations-panel {
+      background: #0f172a;
+      border: 1px solid #334155;
+      border-radius: 12px;
+      padding: 10px;
+    }
+
+    .eq-title {
+      margin: 0 0 8px;
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: #f8fafc;
+    }
+
+    .eq-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 8px;
+    }
+
+    .eq-card {
+      background: #020617;
+      border: 1px solid #334155;
+      border-radius: 10px;
+      padding: 8px;
+      font-size: 0.88rem;
+      line-height: 1.35;
+    }
+
+    .eq-card .formula {
+      color: #93c5fd;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+
+    .eq-card .sub {
+      color: #cbd5e1;
+    }
+
+    .eq-card .ans {
+      color: #86efac;
+      font-weight: 700;
+      margin-top: 3px;
+    }
+
+    @media (min-width: 860px) {
+      .container {
+        grid-template-columns: 360px 1fr;
+        align-items: start;
+      }
+
+      canvas {
+        height: 460px;
+      }
+
+      .controls {
+        max-height: 78vh;
+        overflow: auto;
+        padding-right: 4px;
+      }
+
+      .eq-grid {
+        grid-template-columns: 1fr 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <section class="panel">
+      <h2 class="title">Wave Controls</h2>
+      <div class="controls">
+
+        <div class="btn-row">
+          <button id="startBtn" class="success">Start</button>
+          <button id="pauseBtn" class="secondary">Pause</button>
+          <button id="resetBtn" class="danger">Reset</button>
+        </div>
+
+        <div class="control">
+          <label for="periodInput">Time Period (T)</label>
+          <div class="input-row">
+            <input type="number" id="periodInput" min="0.1" max="10" step="0.01" value="2.00">
+            <span class="unit">s</span>
+          </div>
+          <input type="range" id="periodSlider" min="0.1" max="10" step="0.01" value="2.00">
+        </div>
+
+        <div class="control">
+          <label for="freqInput">Frequency (f)</label>
+          <div class="input-row">
+            <input type="number" id="freqInput" min="0.1" max="10" step="0.01" value="0.50">
+            <span class="unit">Hz</span>
+          </div>
+          <input type="range" id="freqSlider" min="0.1" max="10" step="0.01" value="0.50">
+        </div>
+
+        <div class="control">
+          <label for="lambdaInput">Wavelength (λ)</label>
+          <div class="input-row">
+            <input type="number" id="lambdaInput" min="0.2" max="4.0" step="0.01" value="1.60">
+            <span class="unit">m</span>
+          </div>
+          <input type="range" id="lambdaSlider" min="0.2" max="4.0" step="0.01" value="1.60">
+        </div>
+
+        <div class="control">
+          <label for="velocityInput">Wave Velocity (v)</label>
+          <div class="input-row">
+            <input type="number" id="velocityInput" min="0.1" max="20.0" step="0.01" value="0.80">
+            <span class="unit">m/s</span>
+          </div>
+          <input type="range" id="velocitySlider" min="0.1" max="20.0" step="0.01" value="0.80">
+        </div>
+
+        <div class="control">
+          <label for="amplitudeInput">Amplitude (A)</label>
+          <div class="input-row">
+            <input type="number" id="amplitudeInput" min="0.1" max="1.4" step="0.01" value="0.60">
+            <span class="unit">m</span>
+          </div>
+          <input type="range" id="amplitudeSlider" min="0.1" max="1.4" step="0.01" value="0.60">
+        </div>
+
+        <div class="meta">
+          Editing logic:
+          <br>• Changing <b>T</b> updates <b>f</b> and recalculates <b>v = fλ</b>
+          <br>• Changing <b>f</b> updates <b>T</b> and recalculates <b>v = fλ</b>
+          <br>• Changing <b>λ</b> recalculates <b>v = fλ</b>
+          <br>• Changing <b>v</b> recalculates <br> <b>λ = v/f</b>
+          <br>• Center vertical line is used to count waves crossing one point
+          <br>• Stopwatch and count are shown inside the graph (top-right)
+        </div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2 class="title">Transverse Wave Simulation</h2>
+      <div class="canvas-wrap">
+        <canvas id="waveCanvas"></canvas>
+      </div>
+
+      <div class="bottom-stack">
+        <div class="equations-panel">
+          <h3 class="eq-title">Wave Relations (with substitution and answers)</h3>
+          <div class="eq-grid">
+            <div class="eq-card">
+              <div class="formula">1) Frequency from Time Period:  f = 1 / T</div>
+              <div class="sub" id="eqFTSub">f = 1 / 2.00</div>
+              <div class="ans" id="eqFTAns">f = 0.50 Hz</div>
+            </div>
+
+            <div class="eq-card">
+              <div class="formula">2) Time Period from Frequency:  T = 1 / f</div>
+              <div class="sub" id="eqTFSub">T = 1 / 0.50</div>
+              <div class="ans" id="eqTFAns">T = 2.00 s</div>
+            </div>
+
+            <div class="eq-card">
+              <div class="formula">3) Wave Speed:  v = fλ</div>
+              <div class="sub" id="eqVSub">v = 0.50 × 1.60</div>
+              <div class="ans" id="eqVAns">v = 0.80 m/s</div>
+            </div>
+
+            <div class="eq-card">
+              <div class="formula">4) Wavelength from Speed & Frequency: <b>λ = v / f</b></div>
+              <div class="sub" id="eqLSub">λ = 0.80 / 0.50</div>
+              <div class="ans" id="eqLAns">λ = 1.60 m</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <script>
+    // ======== CONFIG ========
+    // Scale factor to convert meters to visual pixels on canvas
+    const pxPerM = 100;
+
+    // ======== STATE ========
+    const state = {
+      T: 2.0,      // s
+      f: 0.5,      // Hz
+      lambda: 1.6, // m
+      v: 0.8,      // m/s
+      A: 0.6,      // m
+      paused: true // starts paused
+    };
+
+    const defaults = { ...state };
+
+    // Stopwatch (auto runs with wave)
+    const stopwatch = {
+      elapsed: 0
+    };
+
+    // wave counting state (center line)
+    const counter = {
+      count: 0,
+      prevYRel: null
+    };
+
+    // ======== DOM ========
+    const canvas = document.getElementById("waveCanvas");
+    const ctx = canvas.getContext("2d");
+
+    const els = {
+      periodInput: document.getElementById("periodInput"),
+      periodSlider: document.getElementById("periodSlider"),
+      freqInput: document.getElementById("freqInput"),
+      freqSlider: document.getElementById("freqSlider"),
+      lambdaInput: document.getElementById("lambdaInput"),
+      lambdaSlider: document.getElementById("lambdaSlider"),
+      velocityInput: document.getElementById("velocityInput"),
+      velocitySlider: document.getElementById("velocitySlider"),
+      amplitudeInput: document.getElementById("amplitudeInput"),
+      amplitudeSlider: document.getElementById("amplitudeSlider"),
+      
+      startBtn: document.getElementById("startBtn"),
+      pauseBtn: document.getElementById("pauseBtn"),
+      resetBtn: document.getElementById("resetBtn"),
+
+      // equations block
+      eqFTSub: document.getElementById("eqFTSub"),
+      eqFTAns: document.getElementById("eqFTAns"),
+      eqTFSub: document.getElementById("eqTFSub"),
+      eqTFAns: document.getElementById("eqTFAns"),
+      eqVSub: document.getElementById("eqVSub"),
+      eqVAns: document.getElementById("eqVAns"),
+      eqLSub: document.getElementById("eqLSub"),
+      eqLAns: document.getElementById("eqLAns")
+    };
+
+    // ======== HELPERS ========
+    function clamp(val, min, max) {
+      return Math.min(max, Math.max(min, val));
+    }
+
+    function resizeCanvas() {
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      const rect = canvas.getBoundingClientRect();
+      canvas.width = Math.floor(rect.width * dpr);
+      canvas.height = Math.floor(rect.height * dpr);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    }
+
+    function formatStopwatch(sec) {
+      const totalMs = Math.floor(sec * 1000);
+      const minutes = Math.floor(totalMs / 60000);
+      const seconds = Math.floor((totalMs % 60000) / 1000);
+      const centi = Math.floor((totalMs % 1000) / 10);
+
+      const mm = String(minutes).padStart(2, "0");
+      const ss = String(seconds).padStart(2, "0");
+      const cc = String(centi).padStart(2, "0");
+      return `${mm}:${ss}.${cc}`;
+    }
+
+    function syncUI() {
+      els.periodInput.value = state.T.toFixed(2);
+      els.periodSlider.value = state.T;
+
+      els.freqInput.value = state.f.toFixed(2);
+      els.freqSlider.value = state.f;
+
+      els.lambdaInput.value = state.lambda.toFixed(2);
+      els.lambdaSlider.value = state.lambda;
+
+      els.velocityInput.value = state.v.toFixed(2);
+      els.velocitySlider.value = state.v;
+
+      els.amplitudeInput.value = state.A.toFixed(2);
+      els.amplitudeSlider.value = state.A;
+
+      // equations
+      els.eqFTSub.textContent = `f = 1 / ${state.T.toFixed(2)}`;
+      els.eqFTAns.textContent = `f = ${(1 / state.T).toFixed(2)} Hz`;
+
+      els.eqTFSub.textContent = `T = 1 / ${state.f.toFixed(2)}`;
+      els.eqTFAns.textContent = `T = ${(1 / state.f).toFixed(2)} s`;
+
+      els.eqVSub.textContent = `v = ${state.f.toFixed(2)} × ${state.lambda.toFixed(2)}`;
+      els.eqVAns.textContent = `v = ${(state.f * state.lambda).toFixed(2)} m/s`;
+
+      els.eqLSub.textContent = `λ = ${state.v.toFixed(2)} / ${state.f.toFixed(2)}`;
+      els.eqLAns.textContent = `λ = ${(state.v / state.f).toFixed(2)} m`;
+    }
+
+    // ======== PHYSICS CONSISTENCY ========
+    function updateFromPeriod(T) {
+      state.T = clamp(T, 0.1, 10);
+      state.f = 1 / state.T;
+      state.v = state.f * state.lambda;
+      state.v = clamp(state.v, 0.1, 20.0);
+      state.lambda = clamp(state.v / state.f, 0.2, 4.0);
+      state.v = state.f * state.lambda;
+    }
+
+    function updateFromFrequency(f) {
+      state.f = clamp(f, 0.1, 10);
+      state.T = 1 / state.f;
+      state.v = state.f * state.lambda;
+      state.v = clamp(state.v, 0.1, 20.0);
+      state.lambda = clamp(state.v / state.f, 0.2, 4.0);
+      state.v = state.f * state.lambda;
+    }
+
+    function updateFromLambda(lambda) {
+      state.lambda = clamp(lambda, 0.2, 4.0);
+      state.v = clamp(state.f * state.lambda, 0.1, 20.0);
+      state.lambda = state.v / state.f;
+    }
+
+    function updateFromVelocity(v) {
+      state.v = clamp(v, 0.1, 20.0);
+      state.lambda = clamp(state.v / state.f, 0.2, 4.0);
+      state.v = state.f * state.lambda;
+    }
+
+    function updateAmplitude(A) {
+      state.A = clamp(A, 0.1, 1.4);
+    }
+
+    // ======== INPUT BINDING ========
+    function bindPair(inputEl, sliderEl, callback) {
+      const apply = (raw) => {
+        const val = parseFloat(raw);
+        if (!isFinite(val)) return;
+        callback(val);
+        syncUI();
+      };
+      inputEl.addEventListener("input", e => apply(e.target.value));
+      sliderEl.addEventListener("input", e => apply(e.target.value));
+    }
+
+    bindPair(els.periodInput, els.periodSlider, updateFromPeriod);
+    bindPair(els.freqInput, els.freqSlider, updateFromFrequency);
+    bindPair(els.lambdaInput, els.lambdaSlider, updateFromLambda);
+    bindPair(els.velocityInput, els.velocitySlider, updateFromVelocity);
+    bindPair(els.amplitudeInput, els.amplitudeSlider, updateAmplitude);
+
+    // ======== BUTTONS ========
+    els.startBtn.addEventListener("click", () => {
+      state.paused = false;
+    });
+
+    els.pauseBtn.addEventListener("click", () => {
+      state.paused = true;
+    });
+
+    els.resetBtn.addEventListener("click", () => {
+      Object.assign(state, defaults);
+      simTime = 0;
+      stopwatch.elapsed = 0;
+      counter.count = 0;
+      counter.prevYRel = null;
+      syncUI();
+    });
+
+    // ======== DRAW ========
+    function drawGrid(w, h) {
+      ctx.strokeStyle = "rgba(148,163,184,0.15)";
+      ctx.lineWidth = 1;
+
+      for (let x = 0; x <= w; x += 40) {
+        ctx.beginPath();
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, h);
+        ctx.stroke();
+      }
+
+      for (let y = 0; y <= h; y += 40) {
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(w, y);
+        ctx.stroke();
+      }
+
+      ctx.strokeStyle = "rgba(226,232,240,0.5)";
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(0, h / 2);
+      ctx.lineTo(w, h / 2);
+      ctx.stroke();
+    }
+
+    function drawCenterReferenceLine(w, h) {
+      const cx = w / 2;
+
+      ctx.strokeStyle = "rgba(248,113,113,0.95)";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(cx, 0);
+      ctx.lineTo(cx, h);
+      ctx.stroke();
+
+      ctx.fillStyle = "rgba(248,113,113,0.95)";
+      ctx.font = "12px Arial";
+      ctx.fillText("Reference point", cx - 42, 16);
+
+      ctx.beginPath();
+      ctx.arc(cx, h / 2, 4, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    function drawWave(t, w, h) {
+      const k = (2 * Math.PI) / state.lambda; // rad / m
+      const omega = 2 * Math.PI * state.f;    // rad / s
+      const centerY = h / 2;
+      const cx = w / 2;
+
+      // wave
+      ctx.beginPath();
+      ctx.lineWidth = 2.5;
+      ctx.strokeStyle = "#38bdf8";
+
+      for (let x = 0; x <= w; x += 2) {
+        const x_m = x / pxPerM; // convert pixel position to meters
+        const y_m = state.A * Math.sin(k * x_m - omega * t);
+        const y = centerY + y_m * pxPerM; // convert meters back to visual pixels
+        
+        if (x === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      }
+      ctx.stroke();
+
+      // left particle marker
+      const px = Math.min(80, w - 20);
+      const px_m = px / pxPerM;
+      const py = centerY + (state.A * pxPerM) * Math.sin(k * px_m - omega * t);
+
+      ctx.beginPath();
+      ctx.arc(px, py, 6, 0, Math.PI * 2);
+      ctx.fillStyle = "#f59e0b";
+      ctx.fill();
+
+      ctx.beginPath();
+      ctx.moveTo(px, centerY);
+      ctx.lineTo(px, py);
+      ctx.strokeStyle = "rgba(245,158,11,0.6)";
+      ctx.lineWidth = 2;
+      ctx.stroke();
+
+      // center reference point marker (counting point)
+      const cx_m = cx / pxPerM;
+      const yCenterPoint = centerY + (state.A * pxPerM) * Math.sin(k * cx_m - omega * t);
+
+      ctx.beginPath();
+      ctx.arc(cx, yCenterPoint, 5, 0, Math.PI * 2);
+      ctx.fillStyle = "#22c55e";
+      ctx.fill();
+
+      // counting logic: upward zero crossing at center line
+      const yRel = yCenterPoint - centerY;
+
+      if (!state.paused) {
+        if (counter.prevYRel !== null && counter.prevYRel < 0 && yRel >= 0) {
+          counter.count += 1;
+        }
+      }
+      counter.prevYRel = yRel;
+
+      // axis labels
+      ctx.fillStyle = "rgba(226,232,240,0.9)";
+      ctx.font = "12px Arial";
+      ctx.fillText("x", w - 14, centerY - 6);
+      ctx.fillText("y", 8, 14);
+      ctx.fillText("Particle motion", px + 10, py - 10);
+    }
+
+    function drawInfoOverlay(w, h, t) {
+      const text = `T=${state.T.toFixed(2)} s   f=${state.f.toFixed(2)} Hz   λ=${state.lambda.toFixed(2)} m   v=${state.v.toFixed(2)} m/s   t=${t.toFixed(2)} s`;
+      ctx.fillStyle = "rgba(15,23,42,0.78)";
+      ctx.fillRect(8, h - 30, Math.min(w - 16, 800), 22);
+      ctx.fillStyle = "#e2e8f0";
+      ctx.font = "12px Arial";
+      ctx.fillText(text, 14, h - 15);
+    }
+
+    // stopwatch + count box inside graph at top-right
+    function drawTopRightStopwatchBox(w, h) {
+      const boxW = 180;
+      const boxH = 54;
+      const x = w - boxW - 10;
+      const y = 10;
+
+      // box
+      ctx.fillStyle = "rgba(15,23,42,0.88)";
+      ctx.fillRect(x, y, boxW, boxH);
+      ctx.strokeStyle = "rgba(148,163,184,0.45)";
+      ctx.lineWidth = 1;
+      ctx.strokeRect(x, y, boxW, boxH);
+
+      // text
+      ctx.fillStyle = "#e2e8f0";
+      ctx.font = "bold 12px Arial";
+      ctx.fillText("Stopwatch", x + 8, y + 16);
+
+      ctx.font = "bold 16px Arial";
+      ctx.fillStyle = "#86efac";
+      ctx.fillText(formatStopwatch(stopwatch.elapsed), x + 8, y + 34);
+
+      ctx.font = "12px Arial";
+      ctx.fillStyle = "#cbd5e1";
+      ctx.fillText(`Waves: ${counter.count}`, x + 8, y + 49);
+    }
+
+    // ======== ANIMATION ========
+    let lastTime = 0;
+    let simTime = 0;
+
+    function animate(nowMs) {
+      const now = nowMs / 1000;
+      if (!lastTime) lastTime = now;
+      const dt = now - lastTime;
+      lastTime = now;
+
+      // step time only if not paused
+      if (!state.paused) {
+        simTime += dt;
+        stopwatch.elapsed += dt;
+      }
+
+      const w = canvas.clientWidth;
+      const h = canvas.clientHeight;
+
+      ctx.clearRect(0, 0, w, h);
+      drawGrid(w, h);
+      drawCenterReferenceLine(w, h);
+      drawWave(simTime, w, h);
+      drawTopRightStopwatchBox(w, h);
+      drawInfoOverlay(w, h, simTime);
+
+      syncUI();
+      requestAnimationFrame(animate);
+    }
+
+    // ======== INIT ========
+    window.addEventListener("resize", () => {
+      resizeCanvas();
+      syncUI();
+    });
+
+    resizeCanvas();
+    syncUI();
+    requestAnimationFrame(animate);
+  </script>
+</body>
+</html>
