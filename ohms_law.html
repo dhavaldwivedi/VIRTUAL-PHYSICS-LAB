@@ -1,0 +1,693 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Ohm's Law Simulation</title>
+  <style>
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: #0f172a;
+      color: #e2e8f0;
+      min-height: 100vh;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 12px;
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 12px;
+    }
+
+    .panel {
+      background: #1e293b;
+      border-radius: 14px;
+      padding: 12px;
+      box-shadow: 0 6px 20px rgba(0,0,0,0.25);
+    }
+
+    .title {
+      margin: 0 0 10px;
+      font-size: 1.3rem; 
+      font-weight: 700;
+      color: #f8fafc;
+    }
+
+    .controls {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 12px;
+    }
+
+    .control {
+      background: #0f172a;
+      border: 1px solid #334155;
+      border-radius: 10px;
+      padding: 12px;
+    }
+
+    .control label {
+      display: block;
+      font-size: 1.1rem; 
+      margin-bottom: 8px;
+      color: #cbd5e1;
+      font-weight: 600;
+    }
+
+    .input-row {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 10px;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+
+    .input-row input[type="number"] {
+      width: 100%;
+      padding: 12px;
+      border-radius: 8px;
+      border: 1px solid #475569;
+      background: #020617;
+      color: #e2e8f0;
+      font-size: 1.2rem; 
+    }
+
+    .unit {
+      min-width: 52px;
+      text-align: center;
+      font-size: 1.1rem; 
+      color: #94a3b8;
+      font-weight: bold;
+    }
+
+    input[type="range"] {
+      width: 100%;
+      height: 28px;
+      background: transparent;
+      cursor: pointer;
+    }
+
+    .meta {
+      font-size: 1.05rem; 
+      color: #94a3b8;
+      line-height: 1.5;
+    }
+
+    .btn-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    button {
+      border: none;
+      border-radius: 10px;
+      padding: 12px 14px;
+      font-size: 1.05rem;
+      font-weight: 600;
+      cursor: pointer;
+      color: white;
+      background: #2563eb;
+      min-height: 44px;
+      transition: background 0.2s, transform 0.1s;
+    }
+
+    button.success { background: #16a34a; }
+    button.secondary { background: #475569; }
+    button.danger { background: #dc2626; }
+    button:active { transform: scale(0.98); }
+
+    .canvas-wrap {
+      width: 100%;
+      overflow: hidden;
+      border-radius: 12px;
+      border: 1px solid #334155;
+      background: #020617;
+      position: relative;
+    }
+
+    canvas {
+      display: block;
+      width: 100%;
+      height: 360px;
+      touch-action: none;
+    }
+
+    .bottom-stack {
+      display: grid;
+      gap: 12px;
+      margin-top: 12px;
+    }
+
+    .equations-panel {
+      background: #0f172a;
+      border: 1px solid #334155;
+      border-radius: 12px;
+      padding: 12px;
+    }
+
+    .eq-title {
+      margin: 0 0 10px;
+      font-size: 1.15rem; 
+      font-weight: 700;
+      color: #f8fafc;
+    }
+
+    .eq-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 10px;
+    }
+
+    .eq-card {
+      background: #020617;
+      border: 1px solid #334155;
+      border-radius: 10px;
+      padding: 12px;
+      font-size: 1.1rem; 
+      line-height: 1.45;
+      min-height: 90px;
+    }
+
+    .eq-card .formula {
+      color: #93c5fd;
+      font-weight: 700;
+      margin-bottom: 6px;
+    }
+
+    .eq-card .sub {
+      color: #cbd5e1;
+    }
+
+    .eq-card .ans {
+      color: #86efac;
+      font-weight: 700;
+      margin-top: 6px;
+      font-size: 1.25rem; 
+    }
+
+    .eq-card .off-text {
+      color: #ef4444;
+    }
+
+    @media (min-width: 860px) {
+      .container {
+        grid-template-columns: 380px 1fr;
+        align-items: start;
+      }
+
+      canvas {
+        height: 420px;
+      }
+
+      .controls {
+        max-height: 82vh;
+        overflow: auto;
+        padding-right: 4px;
+      }
+
+      .eq-grid {
+        grid-template-columns: 1fr 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <section class="panel">
+      <h2 class="title">Circuit Controls</h2>
+      <div class="controls">
+
+        <div class="control">
+          <label>Main Switch</label>
+          <button id="switchBtn" class="danger" style="width: 100%;">Turn Circuit ON</button>
+        </div>
+
+        <div class="control">
+          <label>Flow Direction</label>
+          <div class="btn-row" style="margin-top: 0;">
+            <button id="convBtn" class="success" style="flex:1">Conventional</button>
+            <button id="elecBtn" class="secondary" style="flex:1">Electron</button>
+          </div>
+        </div>
+
+        <div class="control">
+          <label for="voltageInput">Voltage Source (V)</label>
+          <div class="input-row">
+            <input type="number" id="voltageInput" min="0.1" max="24.0" step="0.1" value="9.0">
+            <span class="unit">V</span>
+          </div>
+          <input type="range" id="voltageSlider" min="0.1" max="24.0" step="0.1" value="9.0">
+        </div>
+
+        <div class="control">
+          <label for="currentInput">Target Current (I)</label>
+          <div class="input-row">
+            <input type="number" id="currentInput" min="0.1" max="5.0" step="0.1" value="0.9">
+            <span class="unit">A</span>
+          </div>
+          <input type="range" id="currentSlider" min="0.1" max="5.0" step="0.1" value="0.9">
+        </div>
+
+        <div class="meta">
+          <strong>Logic:</strong>
+          <br>• The circuit must be <b>ON</b> for current to flow.
+          <br>• Changing <b>Voltage (V)</b> or <b>Current (I)</b> recalculates the needed <b>Resistance (R = V/I)</b>.
+          <br>• Higher current forces charges to flow faster and makes the resistor glow warmer.
+          <br>• <b>Conventional</b> flows + to -. <b>Electron</b> flows - to +.
+        </div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2 class="title">Ohm's Law Simulation</h2>
+      <div class="canvas-wrap">
+        <canvas id="circuitCanvas"></canvas>
+      </div>
+
+      <div class="bottom-stack">
+        <div class="equations-panel">
+          <h3 class="eq-title">Real-Time Calculations</h3>
+          <div class="eq-grid">
+            <div class="eq-card">
+              <div class="formula">1) Resistance Formula</div>
+              <div class="ans">R = V / I</div>
+              <div class="sub" style="margin-top: 4px; font-size: 0.9em;">Derived from Ohm's Law (V = IR)</div>
+            </div>
+
+            <div class="eq-card">
+              <div class="formula">2) Resistance Calculation</div>
+              <div class="sub" id="eqRSub">Switch is Open</div>
+              <div class="ans off-text" id="eqRAns">Current (I) = 0 A</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <script>
+    // ======== STATE ========
+    const state = {
+      V: 9.0,        // Volts
+      I: 0.9,        // Amperes
+      R: 10.0,       // Ohms (Calculated)
+      flowDir: 1,    // 1 for Conventional, -1 for Electron
+      switchOn: false // Starts OFF
+    };
+
+    // ======== DOM ELEMENTS ========
+    const canvas = document.getElementById("circuitCanvas");
+    const ctx = canvas.getContext("2d");
+
+    const els = {
+      switchBtn: document.getElementById("switchBtn"),
+
+      vInput: document.getElementById("voltageInput"),
+      vSlider: document.getElementById("voltageSlider"),
+      iInput: document.getElementById("currentInput"),
+      iSlider: document.getElementById("currentSlider"),
+      
+      convBtn: document.getElementById("convBtn"),
+      elecBtn: document.getElementById("elecBtn"),
+
+      eqRSub: document.getElementById("eqRSub"),
+      eqRAns: document.getElementById("eqRAns")
+    };
+
+    // ======== HELPERS ========
+    function clamp(val, min, max) {
+      return Math.min(max, Math.max(min, val));
+    }
+
+    function resizeCanvas() {
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      const rect = canvas.getBoundingClientRect();
+      canvas.width = Math.floor(rect.width * dpr);
+      canvas.height = Math.floor(rect.height * dpr);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    }
+
+    function syncUI() {
+      // Calculate Resistance
+      state.R = state.V / state.I;
+
+      // Update Inputs/Sliders
+      els.vInput.value = state.V.toFixed(1);
+      els.vSlider.value = state.V;
+      els.iInput.value = state.I.toFixed(1);
+      els.iSlider.value = state.I;
+
+      // Update Switch Button
+      if (state.switchOn) {
+        els.switchBtn.className = "success";
+        els.switchBtn.textContent = "Circuit is ON (Close Switch)";
+      } else {
+        els.switchBtn.className = "danger";
+        els.switchBtn.textContent = "Circuit is OFF (Open Switch)";
+      }
+
+      // Update Flow Direction Buttons
+      if (state.flowDir === 1) {
+        els.convBtn.className = "success";
+        els.elecBtn.className = "secondary";
+      } else {
+        els.convBtn.className = "secondary";
+        els.elecBtn.className = "success";
+      }
+
+      // Update Equations Based on Switch State
+      if (state.switchOn) {
+        els.eqRSub.textContent = `R = ${state.V.toFixed(1)} V / ${state.I.toFixed(1)} A`;
+        els.eqRAns.textContent = `R = ${state.R.toFixed(1)} Ω`;
+        els.eqRAns.className = "ans"; // Standard color
+      } else {
+        els.eqRSub.textContent = `Switch is Open. No path for electrons.`;
+        els.eqRAns.textContent = `Current (I) = 0.0 A`;
+        els.eqRAns.className = "ans off-text"; // Red text
+      }
+    }
+
+    function updateVoltage(val) {
+      state.V = clamp(val, 0.1, 24.0);
+    }
+
+    function updateCurrent(val) {
+      state.I = clamp(val, 0.1, 5.0);
+    }
+
+    function bindPair(inputEl, sliderEl, callback) {
+      const apply = (raw) => {
+        const val = parseFloat(raw);
+        if (!isFinite(val)) return;
+        callback(val);
+        syncUI();
+      };
+      inputEl.addEventListener("input", e => apply(e.target.value));
+      sliderEl.addEventListener("input", e => apply(e.target.value));
+    }
+
+    els.switchBtn.addEventListener("click", () => {
+      state.switchOn = !state.switchOn;
+      syncUI();
+    });
+
+    bindPair(els.vInput, els.vSlider, updateVoltage);
+    bindPair(els.iInput, els.iSlider, updateCurrent);
+
+    els.convBtn.addEventListener("click", () => {
+      state.flowDir = 1;
+      syncUI();
+    });
+
+    els.elecBtn.addEventListener("click", () => {
+      state.flowDir = -1;
+      syncUI();
+    });
+
+    // ======== CIRCUIT DRAWING CONFIG ========
+    const circWidth = 400;
+    const circHeight = 220;
+    let cx, cy, startX, startY;
+    const pathLength = (circWidth * 2) + (circHeight * 2);
+
+    const numParticles = 35;
+    const particles = Array.from({ length: numParticles }, (_, i) => ({
+      d: (i / numParticles) * pathLength
+    }));
+
+    // ======== DRAW FUNCTIONS ========
+    function getPointOnCircuit(d) {
+   d = d % pathLength;
+      if (d < 0) d += pathLength;
+
+      if (d <= circWidth) {
+        // Top wire
+        return { x: startX + d, y: startY };
+      } else if (d <= circWidth + circHeight) {
+        // Right wire (Contains the resistor)
+        let x = startX + circWidth;
+        let y = startY + (d - circWidth);
+        
+        // --- ZIGZAG PATH LOGIC ---
+        let resY = startY + circHeight / 2;
+        // Check if particle is inside the resistor's Y-bounds
+        if (y >= resY - 40 && y <= resY + 40) {
+          let localY = y - (resY - 40); // Ranges from 0 to 80
+          let xOffset = 0;
+          
+          // Map the Y position to the corresponding X offset of the zigzag
+          if (localY <= 10) {
+            xOffset = (localY / 10) * 18;
+          } else if (localY <= 30) {
+            xOffset = 18 - ((localY - 10) / 20) * 36;
+          } else if (localY <= 50) {
+            xOffset = -18 + ((localY - 30) / 20) * 36;
+          } else if (localY <= 70) {
+            xOffset = 18 - ((localY - 50) / 20) * 36;
+          } else {
+            xOffset = -18 + ((localY - 70) / 10) * 18;
+          }
+          x += xOffset;
+        }
+        
+        return { x: x, y: y };
+      } else if (d <= (circWidth * 2) + circHeight) {
+        // Bottom wire
+        return { x: startX + circWidth - (d - circWidth - circHeight), y: startY + circHeight };
+      } else {
+        // Left wire
+        return { x: startX, y: startY + circHeight - (d - (circWidth * 2) - circHeight) };
+      }
+    }
+
+    function drawCircuitBase() {
+      ctx.strokeStyle = "#475569";
+      ctx.lineWidth = 4;
+      ctx.lineJoin = "round";
+
+      ctx.beginPath();
+      ctx.rect(startX, startY, circWidth, circHeight);
+      ctx.stroke();
+
+      // --- Switch (Bottom Wire) ---
+      const swX = startX + circWidth / 2;
+      const swY = startY + circHeight;
+
+      // Clear space for the switch
+      ctx.clearRect(swX - 25, swY - 20, 50, 40);
+
+      // Switch Contact Terminals
+      ctx.fillStyle = "#94a3b8";
+      ctx.beginPath();
+      ctx.arc(swX - 18, swY, 5, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(swX + 18, swY, 5, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Switch Arm
+      ctx.strokeStyle = "#cbd5e1";
+      ctx.lineWidth = 4;
+      ctx.lineCap = "round";
+      ctx.beginPath();
+      ctx.moveTo(swX - 18, swY);
+      
+      if (state.switchOn) {
+        ctx.lineTo(swX + 18, swY); // Closed position
+      } else {
+        ctx.lineTo(swX + 12, swY - 22); // Open position
+      }
+      ctx.stroke();
+      ctx.lineCap = "butt"; // Reset
+
+      // --- Battery (Left Side) ---
+      const batY = startY + circHeight / 2;
+      ctx.clearRect(startX - 5, batY - 25, 10, 50);
+      
+      ctx.strokeStyle = "#ef4444";
+      ctx.lineWidth = 4;
+      ctx.beginPath();
+      ctx.moveTo(startX - 24, batY - 12);
+      ctx.lineTo(startX + 24, batY - 12);
+      ctx.stroke();
+      
+      ctx.strokeStyle = "#3b82f6";
+      ctx.lineWidth = 10;
+      ctx.beginPath();
+      ctx.moveTo(startX - 12, batY + 12);
+      ctx.lineTo(startX + 12, batY + 12);
+      ctx.stroke();
+
+      ctx.fillStyle = "#ef4444";
+      ctx.font = "bold 18px Arial";
+      ctx.fillText("+", startX - 35, batY - 6);
+      
+      ctx.fillStyle = "#3b82f6";
+      ctx.font = "bold 20px Arial";
+      ctx.fillText("-", startX - 35, batY + 18);
+
+      // --- Resistor (Right Side) ---
+      const resY = startY + circHeight / 2;
+      
+      // If switch is off, it doesn't glow at all
+      const glowIntensity = state.switchOn ? Math.min(1, state.I / 3.0) : 0; 
+      
+      const rColor = Math.round(56 + (249 - 56) * glowIntensity);
+      const gColor = Math.round(189 - (189 - 115) * glowIntensity);
+      const bColor = Math.round(248 - (248 - 22) * glowIntensity);
+      const resistorColor = `rgb(${rColor}, ${gColor}, ${bColor})`;
+
+      ctx.clearRect(startX + circWidth - 5, resY - 40, 10, 80);
+
+      ctx.strokeStyle = resistorColor;
+      ctx.lineWidth = 3 + (glowIntensity * 2); 
+      ctx.shadowColor = resistorColor;
+      ctx.shadowBlur = 12 * glowIntensity;
+
+      ctx.beginPath();
+      ctx.moveTo(startX + circWidth, resY - 40);
+      ctx.lineTo(startX + circWidth + 18, resY - 30);
+      ctx.lineTo(startX + circWidth - 18, resY - 10);
+      ctx.lineTo(startX + circWidth + 18, resY + 10);
+      ctx.lineTo(startX + circWidth - 18, resY + 30);
+      ctx.lineTo(startX + circWidth, resY + 40);
+      ctx.stroke();
+      ctx.shadowBlur = 0;
+
+      // --- Ammeter (Top Wire) ---
+      const amX = startX + circWidth / 2;
+      ctx.clearRect(amX - 25, startY - 25, 50, 50);
+      
+      ctx.beginPath();
+      ctx.arc(amX, startY, 24, 0, Math.PI * 2);
+      ctx.fillStyle = "#1e293b";
+      ctx.fill();
+      ctx.strokeStyle = "#10b981";
+      ctx.lineWidth = 3;
+      ctx.stroke();
+
+      ctx.fillStyle = "#10b981";
+      ctx.font = "bold 22px Arial"; 
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText("A", amX, startY - 2);
+
+      // If switch is off, read 0.0 A. If on, read state.I
+      const displayI = state.switchOn ? state.I : 0.0;
+      ctx.font = "bold 16px Arial"; 
+      ctx.fillText(`${displayI.toFixed(1)} A`, amX, startY - 42);
+
+      // --- Voltmeter (Parallel to Battery) ---
+      const vmX = startX - 70;
+      const vmY = batY;
+
+      ctx.strokeStyle = "#94a3b8";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(startX, batY - 45);
+      ctx.lineTo(vmX, batY - 45);
+      ctx.lineTo(vmX, vmY - 24);
+      
+      ctx.moveTo(startX, batY + 45);
+      ctx.lineTo(vmX, batY + 45);
+      ctx.lineTo(vmX, vmY + 24);
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.arc(vmX, vmY, 24, 0, Math.PI * 2);
+      ctx.fillStyle = "#1e293b";
+      ctx.fill();
+      ctx.strokeStyle = "#eab308";
+      ctx.lineWidth = 3;
+      ctx.stroke();
+
+      ctx.fillStyle = "#eab308";
+      ctx.font = "bold 22px Arial"; 
+      ctx.fillText("V", vmX, vmY - 2);
+
+      // Voltmeter reads battery voltage even when switch is open
+      ctx.font = "bold 16px Arial"; 
+      ctx.textAlign = "right";
+      ctx.fillText(`${state.V.toFixed(1)} V`, vmX - 35, vmY);
+      
+      // Label Resistor
+      ctx.fillStyle = resistorColor;
+      ctx.textAlign = "left";
+      ctx.font = "bold 20px Arial"; 
+      
+      const displayR = state.switchOn ? `${state.R.toFixed(1)} Ω` : `--- Ω`;
+      ctx.fillText(displayR, startX + circWidth + 35, resY);
+    }
+
+    function drawParticles() {
+      // Dim particles when switch is off to show no current
+      if (!state.switchOn) {
+        ctx.fillStyle = "#475569"; 
+        ctx.shadowBlur = 0;
+      } else {
+        if (state.flowDir === 1) {
+          ctx.fillStyle = "#fbbf24"; 
+          ctx.shadowColor = "#f59e0b";
+        } else {
+          ctx.fillStyle = "#60a5fa"; 
+          ctx.shadowColor = "#3b82f6";
+        }
+        ctx.shadowBlur = 10;
+      }
+
+      for (let p of particles) {
+        const pos = getPointOnCircuit(p.d);
+        ctx.beginPath();
+        ctx.arc(pos.x, pos.y, 5, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      ctx.shadowBlur = 0;
+    }
+
+    // ======== ANIMATION ========
+    let lastTime = 0;
+
+    function animate(nowMs) {
+      const now = nowMs / 1000;
+      if (!lastTime) lastTime = now;
+      const dt = now - lastTime;
+      lastTime = now;
+
+      cx = canvas.clientWidth / 2;
+      cy = canvas.clientHeight / 2;
+      startX = cx - (circWidth / 2) + 20; 
+      startY = cy - (circHeight / 2);
+
+      const baseSpeed = 150; 
+      // Speed is 0 if switch is off
+      const currentSpeed = state.switchOn ? (state.I * baseSpeed * state.flowDir) : 0;
+
+      for (let p of particles) {
+        p.d = (p.d + currentSpeed * dt) % pathLength;
+        if (p.d < 0) p.d += pathLength;
+      }
+
+      ctx.clearRect(0, 0, canvas.clientWidth, canvas.clientHeight);
+      
+      drawCircuitBase();
+      drawParticles();
+
+      requestAnimationFrame(animate);
+    }
+
+    // ======== INIT ========
+    window.addEventListener("resize", resizeCanvas);
+    resizeCanvas();
+    syncUI();
+    requestAnimationFrame(animate);
+  </script>
+</body>
+</html>
