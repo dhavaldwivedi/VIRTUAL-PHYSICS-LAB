@@ -273,9 +273,9 @@
           <br>• Changing <b>T</b> updates <b>f</b> and recalculates <b>v = fλ</b>
           <br>• Changing <b>f</b> updates <b>T</b> and recalculates <b>v = fλ</b>
           <br>• Changing <b>λ</b> recalculates <b>v = fλ</b>
-          <br>• Changing <b>v</b> recalculates <br> <b>λ = v/f</b>
-          <br>• Center vertical line is used to count waves crossing one point
-          <br>• Stopwatch and count are shown inside the graph (top-right)
+          <br>• Changing <b>v</b> recalculates <br>&nbsp;&nbsp;&nbsp;<b>λ = v/f</b>
+          <br>• Reference line is on the left. Waves generate dynamically from equilibrium.
+          <br>• Stopwatch and wave count are shown inside the graph (top-right).
         </div>
       </div>
     </section>
@@ -291,25 +291,25 @@
           <h3 class="eq-title">Wave Relations (with substitution and answers)</h3>
           <div class="eq-grid">
             <div class="eq-card">
-              <div class="formula">1) Frequency from Time Period:  f = 1 / T</div>
+              <div class="formula">1) Frequency from Time Period:<br>&nbsp;&nbsp;&nbsp;<b>f = 1 / T</b></div>
               <div class="sub" id="eqFTSub">f = 1 / 2.00</div>
               <div class="ans" id="eqFTAns">f = 0.50 Hz</div>
             </div>
 
             <div class="eq-card">
-              <div class="formula">2) Time Period from Frequency:  T = 1 / f</div>
+              <div class="formula">2) Time Period from Frequency:<br>&nbsp;&nbsp;&nbsp;<b>T = 1 / f</b></div>
               <div class="sub" id="eqTFSub">T = 1 / 0.50</div>
               <div class="ans" id="eqTFAns">T = 2.00 s</div>
             </div>
 
             <div class="eq-card">
-              <div class="formula">3) Wave Speed:  v = fλ</div>
+              <div class="formula">3) Wave Speed:<br>&nbsp;&nbsp;&nbsp;<b>v = fλ</b></div>
               <div class="sub" id="eqVSub">v = 0.50 × 1.60</div>
               <div class="ans" id="eqVAns">v = 0.80 m/s</div>
             </div>
 
             <div class="eq-card">
-              <div class="formula">4) Wavelength from Speed & Frequency: <b>λ = v / f</b></div>
+              <div class="formula">4) Wavelength from Speed & Frequency:<br>&nbsp;&nbsp;&nbsp;<b>λ = v / f</b></div>
               <div class="sub" id="eqLSub">λ = 0.80 / 0.50</div>
               <div class="ans" id="eqLAns">λ = 1.60 m</div>
             </div>
@@ -321,8 +321,8 @@
 
   <script>
     // ======== CONFIG ========
-    // Scale factor to convert meters to visual pixels on canvas
     const pxPerM = 100;
+    const REF_X = 100; // Position of the left reference/source line
 
     // ======== STATE ========
     const state = {
@@ -336,15 +336,8 @@
 
     const defaults = { ...state };
 
-    // Stopwatch (auto runs with wave)
     const stopwatch = {
       elapsed: 0
-    };
-
-    // wave counting state (center line)
-    const counter = {
-      count: 0,
-      prevYRel: null
     };
 
     // ======== DOM ========
@@ -367,7 +360,6 @@
       pauseBtn: document.getElementById("pauseBtn"),
       resetBtn: document.getElementById("resetBtn"),
 
-      // equations block
       eqFTSub: document.getElementById("eqFTSub"),
       eqFTAns: document.getElementById("eqFTAns"),
       eqTFSub: document.getElementById("eqTFSub"),
@@ -419,7 +411,6 @@
       els.amplitudeInput.value = state.A.toFixed(2);
       els.amplitudeSlider.value = state.A;
 
-      // equations
       els.eqFTSub.textContent = `f = 1 / ${state.T.toFixed(2)}`;
       els.eqFTAns.textContent = `f = ${(1 / state.T).toFixed(2)} Hz`;
 
@@ -487,20 +478,13 @@
     bindPair(els.amplitudeInput, els.amplitudeSlider, updateAmplitude);
 
     // ======== BUTTONS ========
-    els.startBtn.addEventListener("click", () => {
-      state.paused = false;
-    });
-
-    els.pauseBtn.addEventListener("click", () => {
-      state.paused = true;
-    });
+    els.startBtn.addEventListener("click", () => { state.paused = false; });
+    els.pauseBtn.addEventListener("click", () => { state.paused = true; });
 
     els.resetBtn.addEventListener("click", () => {
       Object.assign(state, defaults);
       simTime = 0;
       stopwatch.elapsed = 0;
-      counter.count = 0;
-      counter.prevYRel = null;
       syncUI();
     });
 
@@ -523,6 +507,7 @@
         ctx.stroke();
       }
 
+      // Equilibrium line
       ctx.strokeStyle = "rgba(226,232,240,0.5)";
       ctx.lineWidth = 1.5;
       ctx.beginPath();
@@ -531,88 +516,112 @@
       ctx.stroke();
     }
 
-    function drawCenterReferenceLine(w, h) {
-      const cx = w / 2;
-
+    function drawLeftReferenceLine(w, h) {
       ctx.strokeStyle = "rgba(248,113,113,0.95)";
       ctx.lineWidth = 2;
       ctx.beginPath();
-      ctx.moveTo(cx, 0);
-      ctx.lineTo(cx, h);
+      ctx.moveTo(REF_X, 0);
+      ctx.lineTo(REF_X, h);
       ctx.stroke();
 
       ctx.fillStyle = "rgba(248,113,113,0.95)";
       ctx.font = "12px Arial";
-      ctx.fillText("Reference point", cx - 42, 16);
+      ctx.textAlign = "center";
+      ctx.fillText("Source", REF_X, 16);
 
+      // Simple equilibrium marker
       ctx.beginPath();
-      ctx.arc(cx, h / 2, 4, 0, Math.PI * 2);
+      ctx.arc(REF_X, h / 2, 4, 0, Math.PI * 2);
       ctx.fill();
     }
 
     function drawWave(t, w, h) {
-      const k = (2 * Math.PI) / state.lambda; // rad / m
-      const omega = 2 * Math.PI * state.f;    // rad / s
+      const k = (2 * Math.PI) / state.lambda; 
+      const omega = 2 * Math.PI * state.f;    
       const centerY = h / 2;
-      const cx = w / 2;
-
-      // wave
-      ctx.beginPath();
+      
+      const x_front = REF_X + (state.v * pxPerM * t);
+      
+      // 1. Draw undisturbed string lines (grey)
+      ctx.strokeStyle = "#475569";
       ctx.lineWidth = 2.5;
-      ctx.strokeStyle = "#38bdf8";
 
-      for (let x = 0; x <= w; x += 2) {
-        const x_m = x / pxPerM; // convert pixel position to meters
-        const y_m = state.A * Math.sin(k * x_m - omega * t);
-        const y = centerY + y_m * pxPerM; // convert meters back to visual pixels
-        
-        if (x === 0) ctx.moveTo(x, y);
-        else ctx.lineTo(x, y);
+      // Behind the source
+      ctx.beginPath();
+      ctx.moveTo(0, centerY);
+      ctx.lineTo(REF_X, centerY);
+      ctx.stroke();
+
+      // Ahead of the wave front
+      if (x_front < w) {
+        ctx.beginPath();
+        ctx.moveTo(Math.max(REF_X, x_front), centerY);
+        ctx.lineTo(w, centerY);
+        ctx.stroke();
       }
-      ctx.stroke();
 
-      // left particle marker
-      const px = Math.min(80, w - 20);
-      const px_m = px / pxPerM;
-      const py = centerY + (state.A * pxPerM) * Math.sin(k * px_m - omega * t);
+      // 2. Draw the dynamic alternating wave
+      const x_max = Math.min(w, x_front);
+      const waveColors = ["#38bdf8", "#f472b6"]; // Cyan, Pink
+      
+      ctx.lineWidth = 3.0;
+      let currentCycle = -1;
 
-      ctx.beginPath();
-      ctx.arc(px, py, 6, 0, Math.PI * 2);
-      ctx.fillStyle = "#f59e0b";
-      ctx.fill();
+      for (let x = REF_X; x <= x_max; x++) {
+        const x_m = (x - REF_X) / pxPerM;
+        const phase = omega * t - k * x_m;
+        
+        // Determine which cycle this point belongs to
+        const t_emit = t - (x_m / state.v);
+        let N = Math.floor(t_emit / state.T) + 1;
+        if (N < 1) N = 1;
 
-      ctx.beginPath();
-      ctx.moveTo(px, centerY);
-      ctx.lineTo(px, py);
-      ctx.strokeStyle = "rgba(245,158,11,0.6)";
-      ctx.lineWidth = 2;
-      ctx.stroke();
+        if (N !== currentCycle) {
+          if (currentCycle !== -1) ctx.stroke(); // finalize previous segment
+          ctx.beginPath();
+          ctx.strokeStyle = waveColors[(N - 1) % 2];
+          
+          if (x > REF_X) {
+            // Connect seamlessly to the previous pixel
+            const prev_x_m = (x - 1 - REF_X) / pxPerM;
+            const prev_phase = omega * t - k * prev_x_m;
+            ctx.moveTo(x - 1, centerY - (state.A * pxPerM) * Math.sin(prev_phase));
+          } else {
+            ctx.moveTo(x, centerY - (state.A * pxPerM) * Math.sin(phase));
+          }
+          currentCycle = N;
+        }
 
-      // center reference point marker (counting point)
-      const cx_m = cx / pxPerM;
-      const yCenterPoint = centerY + (state.A * pxPerM) * Math.sin(k * cx_m - omega * t);
+        const y = centerY - (state.A * pxPerM) * Math.sin(phase);
+        ctx.lineTo(x, y);
+      }
+      if (currentCycle !== -1) ctx.stroke();
 
-      ctx.beginPath();
-      ctx.arc(cx, yCenterPoint, 5, 0, Math.PI * 2);
-      ctx.fillStyle = "#22c55e";
-      ctx.fill();
+      // 3. Draw flashing "Wave N" labels hovering over the crests
+      const maxN = Math.floor(t / state.T) + 1;
+      ctx.textAlign = "center";
+      ctx.font = "bold 13px Arial";
 
-      // counting logic: upward zero crossing at center line
-      const yRel = yCenterPoint - centerY;
+      for (let N = 1; N <= maxN; N++) {
+        const t_mid = (N - 0.5) * state.T; // time when center of cycle N was emitted
+        if (t < t_mid) continue; 
+        
+        const x_mid_m = state.v * (t - t_mid);
+        const x_mid = REF_X + x_mid_m * pxPerM;
 
-      if (!state.paused) {
-        if (counter.prevYRel !== null && counter.prevYRel < 0 && yRel >= 0) {
-          counter.count += 1;
+        if (x_mid > REF_X && x_mid < w) {
+          ctx.fillStyle = waveColors[(N - 1) % 2];
+          const textY = centerY - (state.A * pxPerM) - 15;
+          ctx.fillText("Wave " + N, x_mid, textY);
         }
       }
-      counter.prevYRel = yRel;
 
-      // axis labels
+      // Axis labels
       ctx.fillStyle = "rgba(226,232,240,0.9)";
+      ctx.textAlign = "left";
       ctx.font = "12px Arial";
       ctx.fillText("x", w - 14, centerY - 6);
-      ctx.fillText("y", 8, 14);
-      ctx.fillText("Particle motion", px + 10, py - 10);
+      ctx.fillText("y", REF_X + 6, 14);
     }
 
     function drawInfoOverlay(w, h, t) {
@@ -624,22 +633,20 @@
       ctx.fillText(text, 14, h - 15);
     }
 
-    // stopwatch + count box inside graph at top-right
-    function drawTopRightStopwatchBox(w, h) {
+    function drawTopRightStopwatchBox(w, h, t) {
       const boxW = 180;
       const boxH = 54;
       const x = w - boxW - 10;
       const y = 10;
 
-      // box
       ctx.fillStyle = "rgba(15,23,42,0.88)";
       ctx.fillRect(x, y, boxW, boxH);
       ctx.strokeStyle = "rgba(148,163,184,0.45)";
       ctx.lineWidth = 1;
       ctx.strokeRect(x, y, boxW, boxH);
 
-      // text
       ctx.fillStyle = "#e2e8f0";
+      ctx.textAlign = "left";
       ctx.font = "bold 12px Arial";
       ctx.fillText("Stopwatch", x + 8, y + 16);
 
@@ -647,9 +654,11 @@
       ctx.fillStyle = "#86efac";
       ctx.fillText(formatStopwatch(stopwatch.elapsed), x + 8, y + 34);
 
+      // Count is number of full cycles that have been completely generated
+      const wavesGenerated = Math.floor(t / state.T);
       ctx.font = "12px Arial";
       ctx.fillStyle = "#cbd5e1";
-      ctx.fillText(`Waves: ${counter.count}`, x + 8, y + 49);
+      ctx.fillText(`Waves: ${wavesGenerated}`, x + 8, y + 49);
     }
 
     // ======== ANIMATION ========
@@ -662,7 +671,6 @@
       const dt = now - lastTime;
       lastTime = now;
 
-      // step time only if not paused
       if (!state.paused) {
         simTime += dt;
         stopwatch.elapsed += dt;
@@ -673,9 +681,9 @@
 
       ctx.clearRect(0, 0, w, h);
       drawGrid(w, h);
-      drawCenterReferenceLine(w, h);
+      drawLeftReferenceLine(w, h);
       drawWave(simTime, w, h);
-      drawTopRightStopwatchBox(w, h);
+      drawTopRightStopwatchBox(w, h, simTime);
       drawInfoOverlay(w, h, simTime);
 
       syncUI();
