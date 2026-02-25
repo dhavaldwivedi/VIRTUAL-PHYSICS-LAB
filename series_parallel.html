@@ -1,0 +1,759 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Series and Parallel Circuits Lab</title>
+  <style>
+    /* ======== CSS STYLES ======== */
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: #0f172a;
+      color: #e2e8f0;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 1300px;
+      margin: 0 auto;
+      padding: 16px;
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 16px;
+    }
+
+    .panel {
+      background: #1e293b;
+      border-radius: 14px;
+      padding: 16px;
+      box-shadow: 0 6px 20px rgba(0,0,0,0.3);
+    }
+
+    .title {
+      margin: 0 0 16px;
+      font-size: 1.4rem; 
+      font-weight: 700;
+      color: #f8fafc;
+      border-bottom: 2px solid #334155;
+      padding-bottom: 10px;
+    }
+
+    .controls {
+      display: grid;
+      gap: 14px;
+      max-height: 85vh;
+      overflow-y: auto;
+      padding-right: 8px;
+    }
+
+    /* Scrollbar styling */
+    .controls::-webkit-scrollbar { width: 6px; }
+    .controls::-webkit-scrollbar-thumb { background: #475569; border-radius: 4px; }
+
+    .control-group {
+      background: #0f172a;
+      border: 1px solid #334155;
+      border-radius: 10px;
+      padding: 14px;
+    }
+
+    .control-group label {
+      display: block;
+      font-size: 1.05rem; 
+      margin-bottom: 8px;
+      color: #93c5fd;
+      font-weight: 600;
+    }
+
+    .btn-row { display: flex; gap: 8px; flex-wrap: wrap; }
+    .btn-row button { flex: 1; }
+
+    button {
+      border: none;
+      border-radius: 8px;
+      padding: 10px 14px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      color: white;
+      background: #2563eb;
+      transition: background 0.2s, transform 0.1s;
+    }
+
+    button:hover { filter: brightness(1.1); }
+    button:active { transform: scale(0.97); }
+    button:disabled { background: #334155; color: #64748b; cursor: not-allowed; transform: none; }
+
+    .btn-success { background: #16a34a; }
+    .btn-danger { background: #dc2626; }
+    .btn-secondary { background: #475569; }
+    .btn-active { background: #f59e0b; color: #000; }
+
+    .input-row {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 10px;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+
+    .input-row input[type="number"] {
+      width: 100%;
+      padding: 10px;
+      border-radius: 6px;
+      border: 1px solid #475569;
+      background: #020617;
+      color: #e2e8f0;
+      font-size: 1.1rem; 
+    }
+
+    input[type="range"] {
+      width: 100%;
+      height: 20px;
+      background: transparent;
+      cursor: pointer;
+    }
+
+    .unit { min-width: 30px; text-align: right; color: #94a3b8; font-weight: bold; }
+
+    .bulb-controls-container {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .bulb-card {
+      background: #1e293b;
+      border-left: 4px solid #fcd34d;
+      padding: 10px;
+      border-radius: 6px;
+    }
+
+    .bulb-card h4 { margin: 0 0 8px 0; font-size: 0.95rem; color: #cbd5e1; }
+
+    .canvas-wrap {
+      width: 100%;
+      border-radius: 12px;
+      border: 1px solid #334155;
+      background: #020617;
+      overflow: hidden;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    canvas { display: block; max-width: 100%; }
+
+    .stats-panel {
+      margin-top: 16px;
+      background: #0f172a;
+      border: 1px solid #334155;
+      border-radius: 12px;
+      padding: 16px;
+      display: flex;
+      justify-content: space-around;
+      flex-wrap: wrap;
+      gap: 16px;
+    }
+
+    .stat-box { text-align: center; }
+    .stat-box .lbl { font-size: 0.9rem; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; }
+    .stat-box .val { font-size: 1.5rem; font-weight: 700; color: #86efac; margin-top: 4px; }
+
+    /* NEW CALCULATIONS PANEL STYLES */
+    .calc-panel {
+      margin-top: 16px;
+      background: #020617;
+      border: 1px solid #334155;
+      border-radius: 12px;
+      padding: 16px;
+      font-size: 1.05rem;
+      line-height: 1.6;
+    }
+    
+    .calc-panel h3 { margin: 0 0 12px 0; color: #93c5fd; font-size: 1.2rem; }
+    .calc-panel h4 { margin: 16px 0 8px 0; color: #cbd5e1; border-bottom: 1px solid #1e293b; padding-bottom: 4px; }
+    
+    .calc-line {
+      display: flex;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      padding: 6px 0;
+      border-bottom: 1px dashed #1e293b;
+    }
+    .calc-line:last-child { border-bottom: none; }
+    .calc-math { color: #f8fafc; font-family: monospace; font-size: 1.15rem; }
+    .calc-ans { color: #86efac; font-weight: bold; }
+
+    @media (min-width: 950px) {
+      .container { grid-template-columns: 320px 1fr; align-items: start; }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <section class="panel">
+      <h2 class="title">Circuit Controls</h2>
+      <div class="controls">
+
+        <div class="control-group">
+          <label>Main Switch</label>
+          <button id="btnSwitch" class="btn-danger" style="width: 100%;">Turn ON</button>
+        </div>
+
+        <div class="control-group">
+          <label>Circuit Type</label>
+          <div class="btn-row">
+            <button id="btnSeries" class="btn-active">Series</button>
+            <button id="btnParallel" class="btn-secondary">Parallel</button>
+          </div>
+        </div>
+
+        <div class="control-group">
+          <label>Flow Direction</label>
+          <div class="btn-row">
+            <button id="btnConv" class="btn-success">Conventional</button>
+            <button id="btnElec" class="btn-secondary">Electron</button>
+          </div>
+        </div>
+
+        <div class="control-group">
+          <label>Battery Voltage (V)</label>
+          <div class="input-row">
+            <input type="number" id="vInp" min="1" max="24" step="0.5" value="12">
+            <span class="unit">V</span>
+          </div>
+          <input type="range" id="vSld" min="1" max="24" step="0.5" value="12">
+        </div>
+
+        <div class="control-group">
+          <label>Bulbs (Max 4)</label>
+          <div class="btn-row" style="margin-bottom: 12px;">
+            <button id="btnAddBulb" class="btn-success">+ Add Bulb</button>
+            <button id="btnRemBulb" class="btn-danger">- Remove</button>
+          </div>
+          <div id="bulbControls" class="bulb-controls-container">
+            </div>
+        </div>
+
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2 class="title">Series / Parallel Circuit </h2>
+      <div class="canvas-wrap">
+        <canvas id="circuitCanvas" width="900" height="550"></canvas>
+      </div>
+
+      <div class="stats-panel">
+        <div class="stat-box">
+          <div class="lbl">Total Resistance (R_eq)</div>
+          <div class="val" id="valReq">0.00 Ω</div>
+        </div>
+        <div class="stat-box">
+          <div class="lbl">Total Current (I)</div>
+          <div class="val" id="valI">0.00 A</div>
+        </div>
+        <div class="stat-box">
+          <div class="lbl">Total Power (P)</div>
+          <div class="val" id="valP">0.00 W</div>
+        </div>
+      </div>
+
+      <div class="calc-panel" id="calcPanel">
+        </div>
+    </section>
+  </div>
+
+  <script>
+    // ======== APPLICATION STATE ========
+    const state = {
+      switchOn: false,
+      mode: 'series', // 'series' or 'parallel'
+      flowDir: 1,     // 1 for Conventional (+ to -), -1 for Electron (- to +)
+      V: 12.0,        // Main Voltage
+      I_total: 0,
+      R_eq: 0,
+      P_total: 0,
+      bulbs: [
+        { id: 1, R: 10, I: 0, V: 0, P: 0 },
+        { id: 2, R: 10, I: 0, V: 0, P: 0 }
+      ]
+    };
+
+    const MAX_BULBS = 4;
+
+    // ======== DOM ELEMENTS ========
+    const els = {
+      btnSwitch: document.getElementById('btnSwitch'),
+      btnSeries: document.getElementById('btnSeries'),
+      btnParallel: document.getElementById('btnParallel'),
+      btnConv: document.getElementById('btnConv'),
+      btnElec: document.getElementById('btnElec'),
+      vInp: document.getElementById('vInp'),
+      vSld: document.getElementById('vSld'),
+      btnAddBulb: document.getElementById('btnAddBulb'),
+      btnRemBulb: document.getElementById('btnRemBulb'),
+      bulbControls: document.getElementById('bulbControls'),
+      valReq: document.getElementById('valReq'),
+      valI: document.getElementById('valI'),
+      valP: document.getElementById('valP'),
+      calcPanel: document.getElementById('calcPanel'),
+      canvas: document.getElementById('circuitCanvas')
+    };
+    const ctx = els.canvas.getContext('2d');
+
+    // ======== PHYSICS CALCULATIONS ========
+    function calculatePhysics() {
+      if (state.bulbs.length === 0) {
+        state.R_eq = 0; state.I_total = 0; state.P_total = 0;
+        return;
+      }
+
+      // 1. Calculate Equivalent Resistance (R_eq)
+      if (state.mode === 'series') {
+        state.R_eq = state.bulbs.reduce((sum, b) => sum + b.R, 0);
+      } else { // parallel
+        let invReq = state.bulbs.reduce((sum, b) => sum + (1 / b.R), 0);
+        state.R_eq = 1 / invReq;
+      }
+
+      // 2. Calculate Total Current (Ohm's Law: I = V / R)
+      state.I_total = state.switchOn ? (state.V / state.R_eq) : 0;
+      state.P_total = state.V * state.I_total;
+
+      // 3. Calculate Individual Bulb Stats
+      state.bulbs.forEach(b => {
+        if (!state.switchOn) {
+          b.I = 0; b.V = 0; b.P = 0;
+        } else {
+          if (state.mode === 'series') {
+            b.I = state.I_total;           
+            b.V = b.I * b.R;               
+          } else { // parallel
+            b.V = state.V;                 
+            b.I = b.V / b.R;               
+          }
+          b.P = b.I * b.V;                 
+        }
+      });
+    }
+
+    // ======== UI UPDATES ========
+    function buildBulbUI() {
+      els.bulbControls.innerHTML = '';
+      state.bulbs.forEach((b, index) => {
+        const div = document.createElement('div');
+        div.className = 'bulb-card';
+        div.innerHTML = `
+          <h4>Bulb ${index + 1} Resistance (Ω)</h4>
+          <div class="input-row">
+            <input type="number" id="bRInp${b.id}" min="1" max="100" step="1" value="${b.R}">
+            <span class="unit">Ω</span>
+          </div>
+          <input type="range" id="bRSld${b.id}" min="1" max="100" step="1" value="${b.R}">
+        `;
+        els.bulbControls.appendChild(div);
+
+        const inp = document.getElementById(`bRInp${b.id}`);
+        const sld = document.getElementById(`bRSld${b.id}`);
+
+        const updateR = (val) => {
+          let r = Math.max(1, Math.min(100, parseFloat(val) || 1));
+          b.R = r; inp.value = r; sld.value = r;
+          updateAll();
+        };
+
+        inp.addEventListener('input', e => updateR(e.target.value));
+        sld.addEventListener('input', e => updateR(e.target.value));
+      });
+
+      els.btnAddBulb.disabled = state.bulbs.length >= MAX_BULBS;
+      els.btnRemBulb.disabled = state.bulbs.length <= 2;
+    }
+
+    function updateLabels() {
+      els.valReq.textContent = `${state.R_eq.toFixed(2)} Ω`;
+      els.valI.textContent = `${state.I_total.toFixed(2)} A`;
+      els.valP.textContent = `${state.P_total.toFixed(2)} W`;
+
+      els.btnSwitch.textContent = state.switchOn ? "Turn OFF" : "Turn ON";
+      els.btnSwitch.className = state.switchOn ? "btn-success" : "btn-danger";
+
+      els.btnSeries.className = state.mode === 'series' ? "btn-active" : "btn-secondary";
+      els.btnParallel.className = state.mode === 'parallel' ? "btn-active" : "btn-secondary";
+
+      els.btnConv.className = state.flowDir === 1 ? "btn-success" : "btn-secondary";
+      els.btnElec.className = state.flowDir === -1 ? "btn-success" : "btn-secondary";
+    }
+
+    function updateCalculations() {
+      let html = `<h3>Equations & Breakdown</h3>`;
+      
+      if (!state.switchOn) {
+        html += `<p style="color: #ef4444; font-weight: bold;">Switch is Open (OFF). Current (I) = 0A. Power (P) = 0W.</p>`;
+      } else {
+        if (state.mode === 'series') {
+          let rMath = state.bulbs.map(b => `${b.R}Ω`).join(' + ');
+          html += `
+            <div class="calc-line">
+              <span><b>R<sub>eq</sub></b> = R<sub>1</sub> + R<sub>2</sub>...</span>
+              <span class="calc-math">${rMath} = <span class="calc-ans">${state.R_eq.toFixed(2)} Ω</span></span>
+            </div>
+            <div class="calc-line">
+              <span><b>Main Current (I)</b> = V / R<sub>eq</sub></span>
+              <span class="calc-math">${state.V.toFixed(1)}V / ${state.R_eq.toFixed(2)}Ω = <span class="calc-ans">${state.I_total.toFixed(2)} A</span></span>
+            </div>
+            <div class="calc-line">
+              <span><b>Total Power (P)</b> = V &times; I</span>
+              <span class="calc-math">${state.V.toFixed(1)}V &times; ${state.I_total.toFixed(2)}A = <span class="calc-ans">${state.P_total.toFixed(2)} W</span></span>
+            </div>
+            <h4>Bulb Voltage Drop & Power (V = I &times; R, P = V &times; I)</h4>
+          `;
+          state.bulbs.forEach((b, i) => {
+            html += `
+              <div class="calc-line">
+                <span><b>Bulb ${i+1}:</b> V = ${b.I.toFixed(2)}A &times; ${b.R}Ω = ${b.V.toFixed(1)}V</span>
+                <span class="calc-math">P = ${b.V.toFixed(1)}V &times; ${b.I.toFixed(2)}A = <span class="calc-ans">${b.P.toFixed(2)} W</span></span>
+              </div>
+            `;
+          });
+        } else {
+          let rMath = state.bulbs.map(b => `(1/${b.R})`).join(' + ');
+          html += `
+            <div class="calc-line">
+              <span><b>1 / R<sub>eq</sub></b> = 1/R<sub>1</sub> + 1/R<sub>2</sub>...</span>
+              <span class="calc-math">${rMath} &rarr; R<sub>eq</sub> = <span class="calc-ans">${state.R_eq.toFixed(2)} Ω</span></span>
+            </div>
+            <div class="calc-line">
+              <span><b>Total Current (I)</b> = V / R<sub>eq</sub></span>
+              <span class="calc-math">${state.V.toFixed(1)}V / ${state.R_eq.toFixed(2)}Ω = <span class="calc-ans">${state.I_total.toFixed(2)} A</span></span>
+            </div>
+            <div class="calc-line">
+              <span><b>Total Power (P)</b> = V &times; I</span>
+              <span class="calc-math">${state.V.toFixed(1)}V &times; ${state.I_total.toFixed(2)}A = <span class="calc-ans">${state.P_total.toFixed(2)} W</span></span>
+            </div>
+            <h4>Branch Currents & Power (I = V / R, P = V &times; I)</h4>
+          `;
+          state.bulbs.forEach((b, i) => {
+            html += `
+              <div class="calc-line">
+                <span><b>Bulb ${i+1}:</b> I = ${state.V.toFixed(1)}V / ${b.R}Ω = ${b.I.toFixed(2)}A</span>
+                <span class="calc-math">P = ${state.V.toFixed(1)}V &times; ${b.I.toFixed(2)}A = <span class="calc-ans">${b.P.toFixed(2)} W</span></span>
+              </div>
+            `;
+          });
+        }
+      }
+      els.calcPanel.innerHTML = html;
+    }
+
+    function updateAll() {
+      calculatePhysics();
+      updateLabels();
+      updateCalculations();
+      generatePaths(); 
+    }
+
+    // ======== EVENT LISTENERS ========
+    els.btnSwitch.addEventListener('click', () => { state.switchOn = !state.switchOn; updateAll(); });
+    els.btnSeries.addEventListener('click', () => { state.mode = 'series'; updateAll(); });
+    els.btnParallel.addEventListener('click', () => { state.mode = 'parallel'; updateAll(); });
+    els.btnConv.addEventListener('click', () => { state.flowDir = 1; updateAll(); });
+    els.btnElec.addEventListener('click', () => { state.flowDir = -1; updateAll(); });
+
+    const updateV = (val) => {
+      let v = Math.max(1, Math.min(24, parseFloat(val) || 1));
+      state.V = v; els.vInp.value = v; els.vSld.value = v;
+      updateAll();
+    };
+    els.vInp.addEventListener('input', e => updateV(e.target.value));
+    els.vSld.addEventListener('input', e => updateV(e.target.value));
+
+    els.btnAddBulb.addEventListener('click', () => {
+      if (state.bulbs.length < MAX_BULBS) {
+        state.bulbs.push({ id: Date.now(), R: 10, I: 0, V: 0, P: 0 });
+        buildBulbUI();
+        updateAll();
+      }
+    });
+
+    els.btnRemBulb.addEventListener('click', () => {
+      if (state.bulbs.length > 1) {
+        state.bulbs.pop();
+        buildBulbUI();
+        updateAll();
+      }
+    });
+
+    // ======== CANVAS RENDERING & PARTICLES ========
+    const canvasWidth = 900;
+    const canvasHeight = 550;
+    let paths = []; 
+    let particles = [];
+
+    function lerp(a, b, t) { return a + (b - a) * t; }
+    function dist(p1, p2) { return Math.hypot(p2.x - p1.x, p2.y - p1.y); }
+
+    function generatePaths() {
+      paths = [];
+      particles = [];
+      
+      const numBulbs = state.bulbs.length;
+      const batX = 150, batY = 275;
+      const topY = 100, botY = 450;
+      
+      if (state.mode === 'series') {
+        const rightX = 750;
+        let points = [
+          { x: batX, y: batY },
+          { x: batX, y: topY },
+          { x: rightX, y: topY },
+          { x: rightX, y: botY },
+          { x: batX, y: botY },
+          { x: batX, y: batY }
+        ];
+        
+        let bulbPositions = [];
+        let spacing = (rightX - batX) / (numBulbs + 1);
+        for(let i=0; i<numBulbs; i++) {
+          bulbPositions.push({ x: batX + spacing * (i+1), y: topY });
+        }
+
+        let totalLen = 0;
+        for(let i=0; i<points.length-1; i++) totalLen += dist(points[i], points[i+1]);
+
+        paths.push({ points, totalLen, currentRef: () => state.I_total, bulbs: bulbPositions });
+
+        for(let i=0; i<40; i++) particles.push({ pathIdx: 0, progress: i/40 });
+
+      } else {
+        let branchSpacing = 500 / numBulbs; 
+        let startBranchX = batX + 150;
+
+        for(let i=0; i<numBulbs; i++) {
+          let branchX = startBranchX + (i * branchSpacing);
+          
+          let points = [
+            { x: batX, y: batY },
+            { x: batX, y: topY },
+            { x: branchX, y: topY },
+            { x: branchX, y: botY },
+            { x: batX, y: botY },
+            { x: batX, y: batY }
+          ];
+
+          let totalLen = 0;
+          for(let j=0; j<points.length-1; j++) totalLen += dist(points[j], points[j+1]);
+
+          const bulbCurrentRef = ((idx) => () => state.bulbs[idx].I)(i);
+          paths.push({ points, totalLen, currentRef: bulbCurrentRef, branchX: branchX, bulb: state.bulbs[i] });
+
+          for(let p=0; p<20; p++) particles.push({ pathIdx: i, progress: p/20 });
+        }
+      }
+    }
+
+    function getPointOnPath(path, progress) {
+      let targetDist = progress * path.totalLen;
+      let currentDist = 0;
+      for (let i=0; i<path.points.length-1; i++) {
+        let p1 = path.points[i];
+        let p2 = path.points[i+1];
+        let segDist = dist(p1, p2);
+        
+        if (currentDist + segDist >= targetDist) {
+          let t = (targetDist - currentDist) / segDist;
+          return { x: lerp(p1.x, p2.x, t), y: lerp(p1.y, p2.y, t) };
+        }
+        currentDist += segDist;
+      }
+      return path.points[path.points.length-1];
+    }
+
+    function drawBattery(x, y) {
+      ctx.fillStyle = "#1e293b"; ctx.fillRect(x - 25, y - 40, 50, 80); 
+      ctx.strokeStyle = "#ef4444"; ctx.lineWidth = 6;
+      ctx.beginPath(); ctx.moveTo(x - 20, y - 10); ctx.lineTo(x + 20, y - 10); ctx.stroke();
+      ctx.strokeStyle = "#3b82f6"; ctx.lineWidth = 12;
+      ctx.beginPath(); ctx.moveTo(x - 12, y + 15); ctx.lineTo(x + 12, y + 15); ctx.stroke();
+      ctx.fillStyle = "#ef4444"; ctx.font = "bold 20px Arial"; ctx.fillText("+", x - 35, y - 3);
+      ctx.fillStyle = "#3b82f6"; ctx.fillText("-", x - 35, y + 22);
+      ctx.fillStyle = "#cbd5e1"; ctx.font = "bold 16px Arial"; ctx.fillText(`${state.V.toFixed(1)}V`, x - 55, y + 50);
+    }
+
+    function drawSwitch(x, y) {
+      ctx.fillStyle = "#020617"; ctx.fillRect(x - 25, y - 20, 50, 40);
+      ctx.fillStyle = "#94a3b8";
+      ctx.beginPath(); ctx.arc(x - 15, y, 5, 0, Math.PI*2); ctx.fill();
+      ctx.beginPath(); ctx.arc(x + 15, y, 5, 0, Math.PI*2); ctx.fill();
+      ctx.strokeStyle = "#e2e8f0"; ctx.lineWidth = 4; ctx.lineCap = "round";
+      ctx.beginPath(); ctx.moveTo(x - 15, y);
+      if (state.switchOn) ctx.lineTo(x + 15, y); 
+      else ctx.lineTo(x + 10, y - 20); 
+      ctx.stroke(); ctx.lineCap = "butt";
+      ctx.fillStyle = "#94a3b8"; ctx.font = "14px Arial"; ctx.fillText("SW1", x, y + 25);
+    }
+
+    function drawBulb(x, y, power, numLabel, resistance) {
+      const maxP = 20; 
+      const glowRatio = Math.min(1, power / maxP);
+      
+      ctx.fillStyle = "#020617"; ctx.fillRect(x - 15, y - 15, 30, 30);
+
+      if (glowRatio > 0 && state.switchOn) {
+        let grad = ctx.createRadialGradient(x, y, 10, x, y, 40 + (glowRatio * 30));
+        grad.addColorStop(0, `rgba(253, 224, 71, ${0.8 * glowRatio})`);
+        grad.addColorStop(1, "rgba(253, 224, 71, 0)");
+        ctx.fillStyle = grad;
+        ctx.beginPath(); ctx.arc(x, y, 70, 0, Math.PI*2); ctx.fill();
+      }
+
+      ctx.strokeStyle = state.switchOn && power > 0 ? "#fef08a" : "#64748b";
+      ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(x, y, 16, 0, Math.PI*2); ctx.stroke();
+      
+      ctx.strokeStyle = state.switchOn && power > 0 ? "#f59e0b" : "#475569";
+      ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(x - 8, y + 8); ctx.lineTo(x - 4, y - 4); 
+      ctx.lineTo(x + 4, y - 4); ctx.lineTo(x + 8, y + 8); ctx.stroke();
+
+      ctx.fillStyle = "#94a3b8"; ctx.font = "bold 14px Arial"; ctx.textAlign = "center";
+      ctx.fillText(`B${numLabel}`, x, y + 36);
+      
+      // NEW: Draw resistance value directly on canvas under bulb name
+      ctx.fillStyle = "#86efac"; ctx.font = "bold 13px Arial";
+      ctx.fillText(`${resistance} Ω`, x, y + 53);
+    }
+
+    function drawMeter(x, y, type, value, unit) {
+      ctx.fillStyle = "#020617"; ctx.beginPath(); ctx.arc(x, y, 22, 0, Math.PI*2); ctx.fill();
+      let color = type === 'A' ? "#10b981" : "#eab308";
+      ctx.strokeStyle = color; ctx.lineWidth = 3; ctx.stroke();
+      ctx.fillStyle = color; ctx.font = "bold 20px Arial"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+      ctx.fillText(type, x, y - 2);
+      ctx.font = "bold 13px Arial"; 
+      ctx.fillText(`${value.toFixed(2)}${unit}`, x, y - 36);
+    }
+
+    function drawVoltmeterParallel(x1, x2, baseY, value) {
+      const vmY = baseY - 50;
+      const midX = (x1 + x2) / 2;
+      ctx.strokeStyle = "#475569"; ctx.lineWidth = 2;
+      ctx.beginPath(); 
+      ctx.moveTo(x1, baseY); ctx.lineTo(x1, vmY); ctx.lineTo(x2, vmY); ctx.lineTo(x2, baseY);
+      ctx.stroke();
+      drawMeter(midX, vmY, 'V', value, 'V');
+    }
+
+    function drawVoltmeterVertical(x, y1, y2, value) {
+      const vmX = x + 50;
+      const midY = (y1 + y2) / 2;
+      ctx.strokeStyle = "#475569"; ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(x, y1); ctx.lineTo(vmX, y1); ctx.lineTo(vmX, y2); ctx.lineTo(x, y2);
+      ctx.stroke();
+      drawMeter(vmX, midY, 'V', value, 'V');
+    }
+
+    let lastTime = 0;
+    function render(nowMs) {
+      const dt = (nowMs - lastTime) / 1000 || 0;
+      lastTime = nowMs;
+
+      const displayWidth = els.canvas.clientWidth;
+      const displayHeight = els.canvas.clientHeight;
+      if (els.canvas.width !== displayWidth) els.canvas.width = displayWidth;
+      if (els.canvas.height !== displayHeight) els.canvas.height = displayHeight;
+      
+      const scale = Math.min(displayWidth / canvasWidth, displayHeight / canvasHeight);
+      const offsetX = (displayWidth - canvasWidth * scale) / 2;
+      const offsetY = (displayHeight - canvasHeight * scale) / 2;
+
+      ctx.clearRect(0, 0, displayWidth, displayHeight);
+      ctx.save();
+      ctx.translate(offsetX, offsetY);
+      ctx.scale(scale, scale);
+
+      ctx.strokeStyle = "#334155"; ctx.lineWidth = 4; ctx.lineJoin = "round";
+      
+      if (state.mode === 'series') {
+        ctx.beginPath(); ctx.rect(150, 100, 600, 350); ctx.stroke();
+      } else {
+        // FIXED: Stop drawing rails exactly at the last branch's X coordinate!
+        let lastBranchX = paths[paths.length - 1].branchX;
+        ctx.beginPath(); ctx.moveTo(150, 100); ctx.lineTo(lastBranchX, 100); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(150, 450); ctx.lineTo(lastBranchX, 450); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(150, 100); ctx.lineTo(150, 450); ctx.stroke();
+        
+        paths.forEach(p => {
+          ctx.beginPath(); ctx.moveTo(p.branchX, 100); ctx.lineTo(p.branchX, 450); ctx.stroke();
+        });
+      }
+
+      drawBattery(150, 275);
+      drawSwitch(150, 450);
+      drawMeter(220, 100, 'A', state.I_total, 'A');
+
+      if (state.mode === 'series') {
+        let pInfo = paths[0];
+        state.bulbs.forEach((b, i) => {
+          let pos = pInfo.bulbs[i];
+          drawBulb(pos.x, pos.y, b.P, i + 1, b.R);
+          drawVoltmeterParallel(pos.x - 30, pos.x + 30, pos.y, b.V);
+        });
+      } else {
+        paths.forEach((p, i) => {
+          let b = p.bulb;
+          drawBulb(p.branchX, 275, b.P, i + 1, b.R);
+          drawMeter(p.branchX, 170, 'A', b.I, 'A');
+          drawVoltmeterVertical(p.branchX, 220, 330, b.V);
+        });
+      }
+
+      const baseSpeed = 100; 
+      particles.forEach(p => {
+        let path = paths[p.pathIdx];
+        let current = path.currentRef();
+        
+        if (state.switchOn && current > 0) {
+           let distToMove = (current * baseSpeed * dt) * state.flowDir;
+           p.progress = (p.progress + (distToMove / path.totalLen)) % 1.0;
+           if (p.progress < 0) p.progress += 1.0;
+        }
+
+        let pos = getPointOnPath(path, p.progress);
+        
+        ctx.beginPath(); ctx.arc(pos.x, pos.y, 4, 0, Math.PI*2);
+        
+        if (!state.switchOn || current === 0) {
+          ctx.fillStyle = "#475569"; ctx.shadowBlur = 0;
+        } else {
+          if (state.flowDir === 1) {
+            ctx.fillStyle = "#fbbf24"; ctx.shadowColor = "#f59e0b";
+          } else {
+            ctx.fillStyle = "#60a5fa"; ctx.shadowColor = "#3b82f6";
+          }
+          ctx.shadowBlur = 8;
+        }
+        ctx.fill(); ctx.shadowBlur = 0;
+      });
+
+      ctx.restore();
+      requestAnimationFrame(render);
+    }
+
+    // ======== INITIALIZATION ========
+    buildBulbUI();
+    updateAll();
+    requestAnimationFrame(render);
+
+  </script>
+</body>
+</html>
