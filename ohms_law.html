@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Ohm's Law Simulation</title>
+  <title>Ohm's Law Unknown Resistance Experiment</title>
   <style>
     * { box-sizing: border-box; }
 
@@ -76,6 +76,22 @@
       background: #020617;
       color: #e2e8f0;
       font-size: 1.2rem; 
+    }
+
+    select {
+      width: 100%;
+      padding: 12px;
+      border-radius: 8px;
+      border: 1px solid #475569;
+      background: #020617;
+      color: #e2e8f0;
+      font-size: 1.1rem;
+      cursor: pointer;
+      outline: none;
+    }
+    
+    select:focus {
+      border-color: #3b82f6;
     }
 
     .unit {
@@ -196,6 +212,30 @@
       color: #ef4444;
     }
 
+    /* Observation Table Styles */
+    .obs-table-wrapper {
+      margin-top: 15px;
+      overflow-x: auto;
+    }
+    .obs-table {
+      width: 100%;
+      border-collapse: collapse;
+      color: #e2e8f0;
+      font-size: 1.05rem;
+    }
+    .obs-table th, .obs-table td {
+      border: 1px solid #334155;
+      padding: 10px;
+      text-align: center;
+    }
+    .obs-table th {
+      background: #020617;
+      color: #93c5fd;
+      font-weight: 600;
+    }
+    .obs-table tbody tr:nth-child(even) { background: #0f172a; }
+    .obs-table tbody tr:nth-child(odd) { background: #1e293b; }
+
     @media (min-width: 860px) {
       .container {
         grid-template-columns: 300px 1fr;
@@ -247,33 +287,35 @@
         </div>
 
         <div class="control">
-          <label for="currentInput">Target Current (I)</label>
-          <div class="input-row">
-            <input type="number" id="currentInput" min="0.1" max="5.0" step="0.1" value="0.9">
-            <span class="unit">A</span>
-          </div>
-          <input type="range" id="currentSlider" min="0.1" max="5.0" step="0.1" value="0.9">
+          <label for="resistorSelect">Resistor (R)</label>
+          <select id="resistorSelect">
+            <option value="5">Unknown Resistor 1</option>
+            <option value="10" selected>Unknown Resistor 2</option>
+            <option value="20">Unknown Resistor 3</option>
+            <option value="50">Unknown Resistor 4</option>
+            <option value="100">Unknown Resistor 5</option>
+          </select>
         </div>
 
         <div class="meta">
-          <strong>Logic:</strong>
-          <br>• The circuit must be <b>ON</b> for current to flow.
-          <br>• Changing <b>Voltage (V)</b> or <b>Current (I)</b> recalculates the needed <b>Resistance (R = V/I)</b>.
-          <br>• Higher current forces charges to flow faster and makes the resistor glow warmer.
-          <br>• <b>Conventional</b> flows + to -. <b>Electron</b> flows - to +.
+          <strong>Experiment Logic:</strong>
+          <br>• Turn the circuit <b>ON</b> to measure current.
+          <br>• Change <b>Voltage (V)</b> to see how it affects the flow of charge through the unknown resistor.
+          <br>• Record your readings to calculate the unknown resistance using Ohm's Law (<b>R = V / I</b>).
         </div>
       </div>
     </section>
 
     <section class="panel">
-      <h2 class="title">Ohm's Law Simulation</h2>
+      <h2 class="title">Ohm's Law Experiment</h2>
       <div class="canvas-wrap">
         <canvas id="circuitCanvas"></canvas>
       </div>
 
       <div class="bottom-stack">
         <div class="equations-panel">
-          <h3 class="eq-title">Real-Time Calculations</h3>
+          <h3 class="eq-title">Real-Time Calculations & Observations</h3>
+          
           <div class="eq-grid">
             <div class="eq-card">
               <div class="formula">1) Resistance Formula</div>
@@ -284,8 +326,30 @@
             <div class="eq-card">
               <div class="formula">2) Resistance Calculation</div>
               <div class="sub" id="eqRSub">Switch is Open</div>
-              <div class="ans off-text" id="eqRAns">Current (I) = 0 A</div>
+              <div class="ans off-text" id="eqRAns">Current is 0 A</div>
             </div>
+          </div>
+
+          <div class="obs-table-wrapper">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+              <h4 style="margin: 0; color: #cbd5e1;">Observation Log</h4>
+              <div style="display: flex; gap: 8px;">
+                <button id="clearBtn" class="secondary" style="min-height: 30px; padding: 6px 12px; font-size: 0.95rem;">Clear</button>
+                <button id="recordBtn" class="success" style="min-height: 30px; padding: 6px 12px; font-size: 0.95rem;">Record Reading</button>
+              </div>
+            </div>
+            <table id="obsTable" class="obs-table">
+              <thead>
+                <tr>
+                  <th>Resistor</th>
+                  <th>Voltage (V)</th>
+                  <th>Current (I)</th>
+                  <th>Calculated R (Ω)</th>
+                </tr>
+              </thead>
+              <tbody>
+                </tbody>
+            </table>
           </div>
         </div>
       </div>
@@ -296,8 +360,8 @@
     // ======== STATE ========
     const state = {
       V: 9.0,        // Volts
-      I: 0.9,        // Amperes
-      R: 10.0,       // Ohms (Calculated)
+      R: 10.0,       // Ohms (Selected)
+      I: 0.9,        // Amperes (Calculated)
       flowDir: 1,    // 1 for Conventional, -1 for Electron
       switchOn: false // Starts OFF
     };
@@ -311,14 +375,17 @@
 
       vInput: document.getElementById("voltageInput"),
       vSlider: document.getElementById("voltageSlider"),
-      iInput: document.getElementById("currentInput"),
-      iSlider: document.getElementById("currentSlider"),
+      rSelect: document.getElementById("resistorSelect"),
       
       convBtn: document.getElementById("convBtn"),
       elecBtn: document.getElementById("elecBtn"),
 
       eqRSub: document.getElementById("eqRSub"),
-      eqRAns: document.getElementById("eqRAns")
+      eqRAns: document.getElementById("eqRAns"),
+
+      recordBtn: document.getElementById("recordBtn"),
+      clearBtn: document.getElementById("clearBtn"),
+      obsTableBody: document.querySelector("#obsTable tbody")
     };
 
     // ======== HELPERS ========
@@ -335,14 +402,12 @@
     }
 
     function syncUI() {
-      // Calculate Resistance
-      state.R = state.V / state.I;
+      // Calculate Current based on V and R
+      state.I = state.V / state.R;
 
-      // Update Inputs/Sliders
+      // Update Voltage Inputs/Sliders
       els.vInput.value = state.V.toFixed(1);
       els.vSlider.value = state.V;
-      els.iInput.value = state.I.toFixed(1);
-      els.iSlider.value = state.I;
 
       // Update Switch Button
       if (state.switchOn) {
@@ -364,22 +429,18 @@
 
       // Update Equations Based on Switch State
       if (state.switchOn) {
-        els.eqRSub.textContent = `R = ${state.V.toFixed(1)} V / ${state.I.toFixed(1)} A`;
+        els.eqRSub.textContent = `R = ${state.V.toFixed(1)} V / ${state.I.toFixed(2)} A`;
         els.eqRAns.textContent = `R = ${state.R.toFixed(1)} Ω`;
-        els.eqRAns.className = "ans"; // Standard color
+        els.eqRAns.className = "ans"; 
       } else {
-        els.eqRSub.textContent = `Switch is Open. No path for electrons.`;
-        els.eqRAns.textContent = `Current (I) = 0.0 A`;
-        els.eqRAns.className = "ans off-text"; // Red text
+        els.eqRSub.textContent = `Switch is Open (I = 0.00 A)`;
+        els.eqRAns.textContent = `R = Undefined (Div by 0)`;
+        els.eqRAns.className = "ans off-text"; 
       }
     }
 
     function updateVoltage(val) {
       state.V = clamp(val, 0.1, 24.0);
-    }
-
-    function updateCurrent(val) {
-      state.I = clamp(val, 0.1, 5.0);
     }
 
     function bindPair(inputEl, sliderEl, callback) {
@@ -393,13 +454,18 @@
       sliderEl.addEventListener("input", e => apply(e.target.value));
     }
 
+    // ======== EVENT LISTENERS ========
     els.switchBtn.addEventListener("click", () => {
       state.switchOn = !state.switchOn;
       syncUI();
     });
 
     bindPair(els.vInput, els.vSlider, updateVoltage);
-    bindPair(els.iInput, els.iSlider, updateCurrent);
+    
+    els.rSelect.addEventListener("change", (e) => {
+      state.R = parseFloat(e.target.value);
+      syncUI();
+    });
 
     els.convBtn.addEventListener("click", () => {
       state.flowDir = 1;
@@ -409,6 +475,27 @@
     els.elecBtn.addEventListener("click", () => {
       state.flowDir = -1;
       syncUI();
+    });
+
+    els.recordBtn.addEventListener("click", () => {
+      if (!state.switchOn) {
+        alert("Please turn the circuit ON to record a reading.");
+        return;
+      }
+      const resName = els.rSelect.options[els.rSelect.selectedIndex].text;
+      
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td>${resName}</td>
+        <td>${state.V.toFixed(1)} V</td>
+        <td>${state.I.toFixed(2)} A</td>
+        <td style="color: #86efac; font-weight: bold;">${state.R.toFixed(1)} &Omega;</td>
+      `;
+      els.obsTableBody.appendChild(tr);
+    });
+
+    els.clearBtn.addEventListener("click", () => {
+      els.obsTableBody.innerHTML = '';
     });
 
     // ======== CIRCUIT DRAWING CONFIG ========
@@ -424,25 +511,20 @@
 
     // ======== DRAW FUNCTIONS ========
     function getPointOnCircuit(d) {
-   d = d % pathLength;
+      d = d % pathLength;
       if (d < 0) d += pathLength;
 
       if (d <= circWidth) {
-        // Top wire
         return { x: startX + d, y: startY };
       } else if (d <= circWidth + circHeight) {
-        // Right wire (Contains the resistor)
         let x = startX + circWidth;
         let y = startY + (d - circWidth);
         
-        // --- ZIGZAG PATH LOGIC ---
         let resY = startY + circHeight / 2;
-        // Check if particle is inside the resistor's Y-bounds
         if (y >= resY - 40 && y <= resY + 40) {
-          let localY = y - (resY - 40); // Ranges from 0 to 80
+          let localY = y - (resY - 40); 
           let xOffset = 0;
           
-          // Map the Y position to the corresponding X offset of the zigzag
           if (localY <= 10) {
             xOffset = (localY / 10) * 18;
           } else if (localY <= 30) {
@@ -456,13 +538,10 @@
           }
           x += xOffset;
         }
-        
         return { x: x, y: y };
       } else if (d <= (circWidth * 2) + circHeight) {
-        // Bottom wire
         return { x: startX + circWidth - (d - circWidth - circHeight), y: startY + circHeight };
       } else {
-        // Left wire
         return { x: startX, y: startY + circHeight - (d - (circWidth * 2) - circHeight) };
       }
     }
@@ -476,14 +555,12 @@
       ctx.rect(startX, startY, circWidth, circHeight);
       ctx.stroke();
 
-      // --- Switch (Bottom Wire) ---
+      // --- Switch ---
       const swX = startX + circWidth / 2;
       const swY = startY + circHeight;
 
-      // Clear space for the switch
       ctx.clearRect(swX - 25, swY - 20, 50, 40);
 
-      // Switch Contact Terminals
       ctx.fillStyle = "#94a3b8";
       ctx.beginPath();
       ctx.arc(swX - 18, swY, 5, 0, Math.PI * 2);
@@ -492,7 +569,6 @@
       ctx.arc(swX + 18, swY, 5, 0, Math.PI * 2);
       ctx.fill();
 
-      // Switch Arm
       ctx.strokeStyle = "#cbd5e1";
       ctx.lineWidth = 4;
       ctx.lineCap = "round";
@@ -500,14 +576,14 @@
       ctx.moveTo(swX - 18, swY);
       
       if (state.switchOn) {
-        ctx.lineTo(swX + 18, swY); // Closed position
+        ctx.lineTo(swX + 18, swY); 
       } else {
-        ctx.lineTo(swX + 12, swY - 22); // Open position
+        ctx.lineTo(swX + 12, swY - 22); 
       }
       ctx.stroke();
-      ctx.lineCap = "butt"; // Reset
+      ctx.lineCap = "butt"; 
 
-      // --- Battery (Left Side) ---
+      // --- Battery ---
       const batY = startY + circHeight / 2;
       ctx.clearRect(startX - 5, batY - 25, 10, 50);
       
@@ -533,11 +609,9 @@
       ctx.font = "bold 20px Arial";
       ctx.fillText("-", startX - 35, batY + 18);
 
-      // --- Resistor (Right Side) ---
+      // --- Resistor ---
       const resY = startY + circHeight / 2;
-      
-      // If switch is off, it doesn't glow at all
-      const glowIntensity = state.switchOn ? Math.min(1, state.I / 3.0) : 0; 
+      const glowIntensity = state.switchOn ? Math.min(1, state.I / 2.5) : 0; 
       
       const rColor = Math.round(56 + (249 - 56) * glowIntensity);
       const gColor = Math.round(189 - (189 - 115) * glowIntensity);
@@ -561,7 +635,7 @@
       ctx.stroke();
       ctx.shadowBlur = 0;
 
-      // --- Ammeter (Top Wire) ---
+      // --- Ammeter ---
       const amX = startX + circWidth / 2;
       ctx.clearRect(amX - 25, startY - 25, 50, 50);
       
@@ -579,12 +653,11 @@
       ctx.textBaseline = "middle";
       ctx.fillText("A", amX, startY - 2);
 
-      // If switch is off, read 0.0 A. If on, read state.I
       const displayI = state.switchOn ? state.I : 0.0;
       ctx.font = "bold 16px Arial"; 
-      ctx.fillText(`${displayI.toFixed(1)} A`, amX, startY - 42);
+      ctx.fillText(`${displayI.toFixed(2)} A`, amX, startY - 42);
 
-      // --- Voltmeter (Parallel to Battery) ---
+      // --- Voltmeter ---
       const vmX = startX - 70;
       const vmY = batY;
 
@@ -612,22 +685,25 @@
       ctx.font = "bold 22px Arial"; 
       ctx.fillText("V", vmX, vmY - 2);
 
-      // Voltmeter reads battery voltage even when switch is open
       ctx.font = "bold 16px Arial"; 
       ctx.textAlign = "right";
       ctx.fillText(`${state.V.toFixed(1)} V`, vmX - 35, vmY);
       
       // Label Resistor
+      // Label Resistor
       ctx.fillStyle = resistorColor;
-      ctx.textAlign = "left";
-      ctx.font = "bold 20px Arial"; 
+      ctx.textAlign = "center"; // Centers the text alongside the resistor
+      ctx.font = "bold 16px Arial"; 
+      const resName = els.rSelect.options[els.rSelect.selectedIndex].text;
       
-      const displayR = state.switchOn ? `${state.R.toFixed(1)} Ω` : `--- Ω`;
-      ctx.fillText(displayR, startX + circWidth + 35, resY);
+      ctx.save(); // Saves the current unrotated canvas state
+      ctx.translate(startX + circWidth + 35, resY); // Moves origin slightly to the right of the resistor
+      ctx.rotate(-Math.PI / 2); // Rotates the grid 90 degrees counter-clockwise
+      ctx.fillText(resName, 0, 0); // Draws the text at the new rotated origin
+      ctx.restore(); // Restores the canvas back to normal for the next frame
     }
 
     function drawParticles() {
-      // Dim particles when switch is off to show no current
       if (!state.switchOn) {
         ctx.fillStyle = "#475569"; 
         ctx.shadowBlur = 0;
@@ -661,7 +737,6 @@
       const dt = now - lastTime;
       lastTime = now;
 
-      // Update particle positions
       const baseSpeed = 150; 
       const currentSpeed = state.switchOn ? (state.I * baseSpeed * state.flowDir) : 0;
 
@@ -672,19 +747,15 @@
 
       ctx.clearRect(0, 0, canvas.clientWidth, canvas.clientHeight);
       
-      // --- RESPONSIVE SCALING FIX ---
-      // 620px is the safe width needed to show the voltmeter (left) and resistor labels (right)
       const safeWidth = 620; 
       const scale = canvas.clientWidth < safeWidth ? canvas.clientWidth / safeWidth : 1;
 
       ctx.save();
-      ctx.scale(scale, scale); // Zooms out the canvas if the screen is too small
+      ctx.scale(scale, scale); 
 
-      // Adjust center points based on the new scale
       cx = (canvas.clientWidth / scale) / 2;
       cy = (canvas.clientHeight / scale) / 2;
       
-      // +15 offsets the circuit slightly to balance the wide voltmeter on the left
       startX = cx - (circWidth / 2) + 15; 
       startY = cy - (circHeight / 2);
 
