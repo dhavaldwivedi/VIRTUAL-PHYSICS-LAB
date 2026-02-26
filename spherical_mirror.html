@@ -38,7 +38,6 @@
             width: 100%; 
             max-width: 1000px;
             height: auto;
-            touch-action: none; /* Prevents screen scrolling while dragging on mobile */
         }
         .bottom-panel {
             display: flex;
@@ -148,6 +147,10 @@
                         <input type="checkbox" id="showRay3"> 
                         <span class="ray-color-box" style="background: rgba(0, 255, 255, 1);"></span> Ray 3 (Center)
                     </label>
+                    <label class="ray-toggle-label">
+                        <input type="checkbox" id="showRay4"> 
+                        <span class="ray-color-box" style="background: rgba(255, 99, 71, 1);"></span> Ray 4 (Focus)
+                    </label>
                 </div>
 
                 <div class="control-group">
@@ -213,6 +216,7 @@
         const chkRay1 = document.getElementById('showRay1');
         const chkRay2 = document.getElementById('showRay2');
         const chkRay3 = document.getElementById('showRay3');
+        const chkRay4 = document.getElementById('showRay4');
 
         // Drag state variables
         let isDraggingU = false;
@@ -392,7 +396,6 @@
                 drawArrow(imgCanvasX, originY, h_i, '#4CAF50', "Img");
 
                 const objTipY = originY - h_o * scale;
-                const imgTipY = originY - h_i * scale;
 
                 // ---------------------------------------------------------
                 // RAY 1 (Purple): Parallel to axis, reflects through F
@@ -481,6 +484,43 @@
                         ctx.moveTo(originX, mirrorY_ray3);
                         ctx.lineTo(2000, mirrorY_ray3 + m3 * (2000 - originX));
                         ctx.strokeStyle = 'rgba(0, 255, 255, 0.5)';
+                        ctx.stroke();
+                        ctx.setLineDash([]);
+                    }
+                }
+
+                // ---------------------------------------------------------
+                // RAY 4 (Tomato Red): Through/towards Focus, reflects parallel
+                // ---------------------------------------------------------
+                if (chkRay4.checked && Math.abs(focalX - objCanvasX) > 0.1) {
+                    // Slope from object tip to focus
+                    let m4 = (originY - objTipY) / (focalX - objCanvasX);
+                    
+                    // Y-coordinate where it hits the principal plane (x = originX)
+                    let mirrorY_ray4 = objTipY + m4 * (originX - objCanvasX);
+
+                    // Incident ray
+                    ctx.beginPath();
+                    ctx.moveTo(objCanvasX, objTipY);
+                    ctx.lineTo(originX, mirrorY_ray4);
+                    ctx.strokeStyle = 'rgba(255, 99, 71, 1)'; 
+                    ctx.lineWidth = 2;
+                    ctx.stroke();
+
+                    // Reflected ray (parallel to axis, so y stays constant)
+                    ctx.beginPath();
+                    ctx.moveTo(originX, mirrorY_ray4);
+                    ctx.lineTo(-2000, mirrorY_ray4);
+                    ctx.strokeStyle = 'rgba(255, 99, 71, 0.8)';
+                    ctx.stroke();
+
+                    // Virtual extension (for convex mirrors or virtual images)
+                    if (v > 0 || mirrorType === 'convex') { 
+                        ctx.beginPath();
+                        ctx.setLineDash([6, 6]);
+                        ctx.moveTo(originX, mirrorY_ray4);
+                        ctx.lineTo(2000, mirrorY_ray4);
+                        ctx.strokeStyle = 'rgba(255, 99, 71, 0.5)';
                         ctx.stroke();
                         ctx.setLineDash([]);
                     }
@@ -593,6 +633,7 @@
         chkRay1.addEventListener('change', drawFrame);
         chkRay2.addEventListener('change', drawFrame);
         chkRay3.addEventListener('change', drawFrame);
+        chkRay4.addEventListener('change', drawFrame);
 
         // Initialize
         updatePhysics();
