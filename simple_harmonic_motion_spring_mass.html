@@ -1,0 +1,83 @@
+function drawGraph(ctx, canvas, valueKey, color, maxExpected) {
+      const w = canvas.width;
+      const h = canvas.height;
+      ctx.clearRect(0, 0, w, h);
+
+      // Set padding so text and points don't get clipped off the edges
+      const padLeft = 45;  
+      const padRight = 15; 
+      const drawWidth = w - padLeft - padRight;
+      const centerY = h / 2;
+      const drawHeight = h / 2.5;
+
+      // Draw Zero Line
+      ctx.beginPath();
+      ctx.moveTo(padLeft, centerY);
+      ctx.lineTo(w - padRight, centerY);
+      ctx.strokeStyle = "#334155";
+      ctx.lineWidth = 1;
+      ctx.stroke();
+
+      if (state.history.length === 0) return;
+
+      // Draw Graph Path
+      ctx.beginPath();
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 3;
+      ctx.lineJoin = "round";
+
+      const stepX = drawWidth / HISTORY_LENGTH;
+      let lastX = 0, lastY = 0;
+      
+      for (let i = 0; i < state.history.length; i++) {
+        const point = state.history[i];
+        
+        // Calculate position (oldest on left, newest on right padding line)
+        const xPos = w - padRight - ((state.history.length - 1 - i) * stepX);
+        const normalizedY = point[valueKey] / maxExpected;
+        const yPos = centerY - (normalizedY * drawHeight);
+
+        if (i === 0) ctx.moveTo(xPos, yPos);
+        else ctx.lineTo(xPos, yPos);
+
+        // Save the very last coordinate for our tracking dot
+        if (i === state.history.length - 1) {
+          lastX = xPos;
+          lastY = yPos;
+        }
+      }
+      ctx.stroke();
+
+      // --- Draw Y-Axis Labels ---
+      ctx.fillStyle = "#94a3b8";
+      ctx.font = "11px Arial";
+      ctx.textAlign = "right";
+      ctx.textBaseline = "middle";
+      
+      // Formatter to keep numbers clean (removes decimals from large numbers)
+      const formatVal = (val) => Math.abs(val) > 10 ? Math.round(val) : val.toFixed(1);
+
+      ctx.fillText(formatVal(maxExpected), padLeft - 8, centerY - drawHeight);
+      ctx.fillText("0", padLeft - 8, centerY);
+      ctx.fillText(formatVal(-maxExpected), padLeft - 8, centerY + drawHeight);
+
+      // --- Draw X-Axis Labels (Time) ---
+      const oldestPoint = state.history[0];
+      const newestPoint = state.history[state.history.length - 1];
+      
+      ctx.textAlign = "left";
+      ctx.textBaseline = "bottom";
+      ctx.fillText(`${oldestPoint.t.toFixed(1)}s`, padLeft, h - 3);
+
+      ctx.textAlign = "right";
+      ctx.fillText(`${newestPoint.t.toFixed(1)}s`, w - padRight, h - 3);
+
+      // --- Draw Current Value Marker ---
+      ctx.beginPath();
+      ctx.arc(lastX, lastY, 5, 0, Math.PI * 2);
+      ctx.fillStyle = "#020617"; // Matches graph background
+      ctx.fill();
+      ctx.lineWidth = 3;
+      ctx.strokeStyle = color; // Matches graph line color
+      ctx.stroke();
+    }
