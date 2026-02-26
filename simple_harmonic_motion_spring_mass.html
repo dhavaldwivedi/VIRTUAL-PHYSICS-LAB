@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
   <title>Simple Harmonic Motion: Mass-Spring System</title>
   <style>
     * { box-sizing: border-box; }
@@ -16,6 +16,8 @@
       display: flex;
       justify-content: center;
       padding: 20px;
+      /* Prevents pull-to-refresh on mobile devices */
+      overscroll-behavior-y: contain;
     }
 
     .container {
@@ -129,7 +131,12 @@
       width: 100%;
     }
 
-    #simCanvas { height: 250px; cursor: grab; }
+    #simCanvas { 
+      height: 250px; 
+      cursor: grab; 
+      /* Critical for iPad: stops the browser from taking over touch events */
+      touch-action: none; 
+    }
     #simCanvas:active { cursor: grabbing; }
     
     .graph-title {
@@ -236,29 +243,27 @@
   <script>
     // --- STATE ---
     const state = {
-      k: 10,       // Spring constant (N/m)
-      m: 2.0,      // Mass (kg)
-      A: 100,      // Amplitude (cm, acts as pixels here)
-      t: 0,        // Time (s)
-      x: 100,      // Current displacement
-      v: 0,        // Current velocity
-      a: 0,        // Current acceleration
+      k: 10,
+      m: 2.0,
+      A: 100,
+      t: 0,
+      x: 100,
+      v: 0,
+      a: 0,
       playing: false,
       lastTime: 0,
-      history: []  // Stores {t, x, v, a}
+      history: []
     };
 
-    const HISTORY_LENGTH = 300; // Approx 5 seconds at 60fps
+    const HISTORY_LENGTH = 300;
     const BLOCK_SIZE = 50;
     
     // --- DOM ELEMENTS ---
     const simCanvas = document.getElementById("simCanvas");
     const simCtx = simCanvas.getContext("2d");
-    
     const xCanvas = document.getElementById("xCanvas");
     const vCanvas = document.getElementById("vCanvas");
     const aCanvas = document.getElementById("aCanvas");
-    
     const xCtx = xCanvas.getContext("2d");
     const vCtx = vCanvas.getContext("2d");
     const aCtx = aCanvas.getContext("2d");
@@ -290,23 +295,16 @@
     window.addEventListener("resize", () => { resizeCanvas(); draw(); });
     resizeCanvas();
 
-    // --- PHYSICS CALCULATION ---
+    // --- PHYSICS ---
     function updatePhysics(dt) {
       if (!state.playing) return;
-      
       state.t += dt;
-      const omega = Math.sqrt(state.k / state.m); // Angular frequency
-      
-      // Exact Kinematic Equations for SHM
+      const omega = Math.sqrt(state.k / state.m);
       state.x = state.A * Math.cos(omega * state.t);
       state.v = -state.A * omega * Math.sin(omega * state.t);
       state.a = -state.A * Math.pow(omega, 2) * Math.cos(omega * state.t);
-
-      // Record History
       state.history.push({ t: state.t, x: state.x, v: state.v, a: state.a });
-      if (state.history.length > HISTORY_LENGTH) {
-        state.history.shift();
-      }
+      if (state.history.length > HISTORY_LENGTH) state.history.shift();
     }
 
     function resetPhysics() {
@@ -319,16 +317,14 @@
       state.history.push({ t: state.t, x: state.x, v: state.v, a: state.a });
     }
 
-    // --- DRAWING FUNCTIONS ---
+    // --- DRAWING ---
     function drawSpring(ctx, startX, endX, y) {
       ctx.beginPath();
       ctx.strokeStyle = "#94a3b8";
       ctx.lineWidth = 3;
-      
       const coils = 12;
       const width = endX - startX;
       const step = width / coils;
-      
       ctx.moveTo(startX, y);
       for (let i = 0; i < coils; i++) {
         const cx = startX + step * i;
@@ -346,23 +342,16 @@
       const w = simCanvas.width;
       const h = simCanvas.height;
       const centerY = h / 2 + 20;
-      const eqX = w / 2; // Equilibrium position (center)
-
+      const eqX = w / 2;
       ctx.clearRect(0, 0, w, h);
-
-      // Floor
       ctx.beginPath();
       ctx.moveTo(0, centerY + BLOCK_SIZE / 2);
       ctx.lineTo(w, centerY + BLOCK_SIZE / 2);
       ctx.strokeStyle = "#475569";
       ctx.lineWidth = 4;
       ctx.stroke();
-
-      // Wall
       ctx.fillStyle = "#334155";
       ctx.fillRect(0, centerY - 60, 20, 100);
-
-      // Equilibrium Line
       ctx.beginPath();
       ctx.setLineDash([5, 5]);
       ctx.moveTo(eqX, centerY - 80);
@@ -371,219 +360,178 @@
       ctx.lineWidth = 1;
       ctx.stroke();
       ctx.setLineDash([]);
-      
       ctx.fillStyle = "#cbd5e1";
       ctx.font = "14px Arial";
       ctx.textAlign = "center";
       ctx.fillText("x = 0", eqX, centerY - 90);
-
-      // Spring
       const blockX = eqX + state.x;
       drawSpring(ctx, 20, blockX - BLOCK_SIZE / 2, centerY);
-
-      // Block
       ctx.fillStyle = "#3b82f6";
       ctx.shadowColor = "rgba(59, 130, 246, 0.5)";
       ctx.shadowBlur = 15;
       ctx.fillRect(blockX - BLOCK_SIZE / 2, centerY - BLOCK_SIZE / 2, BLOCK_SIZE, BLOCK_SIZE);
       ctx.shadowBlur = 0;
-      
-      // Block Label
       ctx.fillStyle = "#ffffff";
       ctx.font = "bold 16px Arial";
       ctx.fillText(`${state.m.toFixed(1)}kg`, blockX, centerY + 5);
     }
 
-  function drawGraph(ctx, canvas, valueKey, color, maxExpected) {
+    function drawGraph(ctx, canvas, valueKey, color, maxExpected) {
       const w = canvas.width;
       const h = canvas.height;
       ctx.clearRect(0, 0, w, h);
-
-      // Set padding so text and points don't get clipped off the edges
       const padLeft = 45;  
       const padRight = 15; 
       const drawWidth = w - padLeft - padRight;
       const centerY = h / 2;
       const drawHeight = h / 2.5;
-
-      // Draw Zero Line
       ctx.beginPath();
       ctx.moveTo(padLeft, centerY);
       ctx.lineTo(w - padRight, centerY);
       ctx.strokeStyle = "#334155";
       ctx.lineWidth = 1;
       ctx.stroke();
-
       if (state.history.length === 0) return;
-
-      // Draw Graph Path
       ctx.beginPath();
       ctx.strokeStyle = color;
       ctx.lineWidth = 3;
       ctx.lineJoin = "round";
-
       const stepX = drawWidth / HISTORY_LENGTH;
       let lastX = 0, lastY = 0;
-      
       for (let i = 0; i < state.history.length; i++) {
         const point = state.history[i];
-        
-        // Calculate position (oldest on left, newest on right padding line)
         const xPos = w - padRight - ((state.history.length - 1 - i) * stepX);
         const normalizedY = point[valueKey] / maxExpected;
         const yPos = centerY - (normalizedY * drawHeight);
-
         if (i === 0) ctx.moveTo(xPos, yPos);
         else ctx.lineTo(xPos, yPos);
-
-        // Save the very last coordinate for our tracking dot
-        if (i === state.history.length - 1) {
-          lastX = xPos;
-          lastY = yPos;
-        }
+        if (i === state.history.length - 1) { lastX = xPos; lastY = yPos; }
       }
       ctx.stroke();
-
-      // --- Draw Y-Axis Labels ---
       ctx.fillStyle = "#94a3b8";
       ctx.font = "11px Arial";
       ctx.textAlign = "right";
       ctx.textBaseline = "middle";
-      
-      // Formatter to keep numbers clean (removes decimals from large numbers)
       const formatVal = (val) => Math.abs(val) > 10 ? Math.round(val) : val.toFixed(1);
-
       ctx.fillText(formatVal(maxExpected), padLeft - 8, centerY - drawHeight);
       ctx.fillText("0", padLeft - 8, centerY);
       ctx.fillText(formatVal(-maxExpected), padLeft - 8, centerY + drawHeight);
-
-      // --- Draw X-Axis Labels (Time) ---
       const oldestPoint = state.history[0];
       const newestPoint = state.history[state.history.length - 1];
-      
       ctx.textAlign = "left";
       ctx.textBaseline = "bottom";
       ctx.fillText(`${oldestPoint.t.toFixed(1)}s`, padLeft, h - 3);
-
       ctx.textAlign = "right";
       ctx.fillText(`${newestPoint.t.toFixed(1)}s`, w - padRight, h - 3);
-
-      // --- Draw Current Value Marker ---
       ctx.beginPath();
       ctx.arc(lastX, lastY, 5, 0, Math.PI * 2);
-      ctx.fillStyle = "#020617"; // Matches graph background
+      ctx.fillStyle = "#020617";
       ctx.fill();
       ctx.lineWidth = 3;
-      ctx.strokeStyle = color; // Matches graph line color
+      ctx.strokeStyle = color;
       ctx.stroke();
     }
 
     function draw() {
       drawSimulation();
-      
-      // Calculate dynamic max scales for graphs to keep them readable
       const omega = Math.sqrt(state.k / state.m);
       const maxX = 160; 
       const maxV = 160 * omega;
       const maxA = 160 * Math.pow(omega, 2);
-
       drawGraph(xCtx, xCanvas, "x", "#3b82f6", maxX);
       drawGraph(vCtx, vCanvas, "v", "#10b981", maxV);
       drawGraph(aCtx, aCanvas, "a", "#ef4444", maxA);
-
-      // Update Telemetry UI
       els.xOut.textContent = state.x.toFixed(1);
       els.vOut.textContent = state.v.toFixed(1);
       els.aOut.textContent = state.a.toFixed(1);
     }
 
-    // --- ANIMATION LOOP ---
     function loop(timestamp) {
       const dt = (timestamp - state.lastTime) / 1000;
       state.lastTime = timestamp;
-      
-      if (dt < 0.1) { // Prevent huge jumps if tab was inactive
+      if (dt < 0.1) {
         updatePhysics(dt);
         draw();
       }
       requestAnimationFrame(loop);
     }
 
-    // --- EVENTS ---
-    els.playBtn.addEventListener("click", () => {
-      state.playing = true;
-      state.lastTime = performance.now();
-    });
-
-    els.pauseBtn.addEventListener("click", () => {
-      state.playing = false;
-    });
-
-    els.resetBtn.addEventListener("click", () => {
-      state.playing = false;
-      resetPhysics();
-      draw();
-    });
-
-    // Inputs
+    // --- INPUTS ---
     function updateInputs() {
       state.k = parseFloat(els.kSlider.value);
       state.m = parseFloat(els.mSlider.value);
       state.A = parseFloat(els.aSlider.value);
-      
       els.kVal.textContent = `${state.k} N/m`;
       els.mVal.textContent = `${state.m.toFixed(1)} kg`;
       els.aVal.textContent = `${state.A} cm`;
-      
       if (!state.playing) {
         resetPhysics();
         draw();
       }
     }
 
+    els.playBtn.addEventListener("click", () => { state.playing = true; state.lastTime = performance.now(); });
+    els.pauseBtn.addEventListener("click", () => { state.playing = false; });
+    els.resetBtn.addEventListener("click", () => { state.playing = false; resetPhysics(); draw(); });
     els.kSlider.addEventListener("input", updateInputs);
     els.mSlider.addEventListener("input", updateInputs);
     els.aSlider.addEventListener("input", updateInputs);
 
-    // Mouse Dragging on Simulation Canvas
+    // --- TOUCH & MOUSE INTERACTION (IPAD FIX) ---
     let isDragging = false;
-    simCanvas.addEventListener("mousedown", (e) => {
-      if (state.playing) return;
+
+    function getInteractionX(e) {
       const rect = simCanvas.getBoundingClientRect();
-      const mouseX = e.clientX - rect.left;
+      // Handle touch or mouse event
+      const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+      return clientX - rect.left;
+    }
+
+    function handleStart(e) {
+      if (state.playing) return;
+      const interactionX = getInteractionX(e);
       const eqX = simCanvas.width / 2;
       const blockX = eqX + state.x;
       
-      // Check if clicked near the block
-      if (Math.abs(mouseX - blockX) < BLOCK_SIZE) {
+      // Hit detection (increased slightly for fingers)
+      if (Math.abs(interactionX - blockX) < BLOCK_SIZE * 1.2) {
         isDragging = true;
+        // Prevent iPad from scrolling when we start a drag
+        if (e.cancelable) e.preventDefault();
       }
-    });
+    }
 
-    window.addEventListener("mousemove", (e) => {
+    function handleMove(e) {
       if (!isDragging) return;
-      const rect = simCanvas.getBoundingClientRect();
-      let mouseX = e.clientX - rect.left;
+      const interactionX = getInteractionX(e);
       const eqX = simCanvas.width / 2;
+      let dragDist = interactionX - eqX;
       
-      // Clamp drag distance
-      let dragDist = mouseX - eqX;
+      // Clamp values
       if (dragDist > 150) dragDist = 150;
       if (dragDist < -150) dragDist = -150;
       
       state.A = dragDist;
       els.aSlider.value = dragDist;
       updateInputs();
-    });
+      
+      // Prevent iPad from scrolling during the move
+      if (e.cancelable) e.preventDefault();
+    }
 
-    window.addEventListener("mouseup", () => {
-      if (isDragging) {
-        isDragging = false;
-        // Optionally auto-play on release:
-        // state.playing = true;
-        // state.lastTime = performance.now();
-      }
-    });
+    function handleEnd() {
+      isDragging = false;
+    }
+
+    // Mouse Events
+    simCanvas.addEventListener("mousedown", handleStart);
+    window.addEventListener("mousemove", handleMove);
+    window.addEventListener("mouseup", handleEnd);
+
+    // Touch Events (iPad)
+    simCanvas.addEventListener("touchstart", handleStart, { passive: false });
+    window.addEventListener("touchmove", handleMove, { passive: false });
+    window.addEventListener("touchend", handleEnd);
 
     // Init
     resetPhysics();
