@@ -1,4 +1,400 @@
-function drawGraph(ctx, canvas, valueKey, color, maxExpected) {
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Simple Harmonic Motion: Mass-Spring System</title>
+  <style>
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: #0f172a;
+      color: #e2e8f0;
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 1200px;
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 20px;
+    }
+
+    @media (min-width: 900px) {
+      .container {
+        grid-template-columns: 350px 1fr;
+        align-items: start;
+      }
+    }
+
+    .panel {
+      background: #1e293b;
+      border-radius: 14px;
+      padding: 20px;
+      box-shadow: 0 6px 20px rgba(0,0,0,0.25);
+    }
+
+    .title {
+      margin: 0 0 15px;
+      font-size: 1.4rem;
+      font-weight: 700;
+      color: #f8fafc;
+    }
+
+    .control-group {
+      margin-bottom: 20px;
+      background: #0f172a;
+      padding: 15px;
+      border-radius: 10px;
+      border: 1px solid #334155;
+    }
+
+    .control-group label {
+      display: flex;
+      justify-content: space-between;
+      font-size: 1.05rem;
+      font-weight: 600;
+      color: #cbd5e1;
+      margin-bottom: 8px;
+    }
+
+    .control-group input[type="range"] {
+      width: 100%;
+      cursor: pointer;
+    }
+
+    .btn-row {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 15px;
+    }
+
+    button {
+      flex: 1;
+      border: none;
+      border-radius: 8px;
+      padding: 12px;
+      font-size: 1.05rem;
+      font-weight: bold;
+      cursor: pointer;
+      color: white;
+      transition: opacity 0.2s, transform 0.1s;
+    }
+    
+    button:active { transform: scale(0.98); }
+    button.play { background: #10b981; }
+    button.pause { background: #f59e0b; }
+    button.reset { background: #ef4444; }
+
+    .telemetry {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 10px;
+      margin-top: 15px;
+    }
+
+    .data-box {
+      background: #020617;
+      border: 1px solid #334155;
+      padding: 10px;
+      border-radius: 8px;
+      text-align: center;
+    }
+
+    .data-box .label { font-size: 0.9rem; color: #94a3b8; }
+    .data-box .val { font-size: 1.2rem; font-weight: bold; margin-top: 4px; }
+    
+    .val.x { color: #3b82f6; }
+    .val.v { color: #10b981; }
+    .val.a { color: #ef4444; }
+
+    .canvas-wrap {
+      width: 100%;
+      background: #020617;
+      border-radius: 12px;
+      border: 1px solid #334155;
+      overflow: hidden;
+      margin-bottom: 15px;
+      position: relative;
+    }
+
+    canvas {
+      display: block;
+      width: 100%;
+    }
+
+    #simCanvas { height: 250px; cursor: grab; }
+    #simCanvas:active { cursor: grabbing; }
+    
+    .graph-title {
+      position: absolute;
+      top: 8px;
+      left: 12px;
+      font-size: 0.9rem;
+      color: #cbd5e1;
+      font-weight: bold;
+      background: rgba(15, 23, 42, 0.7);
+      padding: 2px 6px;
+      border-radius: 4px;
+    }
+    
+    .graph-container {
+      position: relative;
+      margin-bottom: 10px;
+    }
+    
+    .graph-container:last-child { margin-bottom: 0; }
+    
+    .graph-canvas { height: 140px; }
+
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <section class="panel">
+      <h2 class="title">SHM Controls</h2>
+      
+      <div class="btn-row">
+        <button class="play" id="playBtn">Play</button>
+        <button class="pause" id="pauseBtn">Pause</button>
+        <button class="reset" id="resetBtn">Reset</button>
+      </div>
+
+      <div class="control-group">
+        <label>
+          <span>Spring Constant (k)</span>
+          <span id="kVal">10 N/m</span>
+        </label>
+        <input type="range" id="kSlider" min="2" max="50" step="1" value="10">
+      </div>
+
+      <div class="control-group">
+        <label>
+          <span>Mass (m)</span>
+          <span id="mVal">2.0 kg</span>
+        </label>
+        <input type="range" id="mSlider" min="0.5" max="5.0" step="0.1" value="2.0">
+      </div>
+
+      <div class="control-group">
+        <label>
+          <span>Initial Pull (Amplitude)</span>
+          <span id="aVal">100 cm</span>
+        </label>
+        <input type="range" id="aSlider" min="-150" max="150" step="1" value="100">
+      </div>
+
+      <div class="telemetry">
+        <div class="data-box">
+          <div class="label">Disp (x)</div>
+          <div class="val x" id="xOut">0.0</div>
+        </div>
+        <div class="data-box">
+          <div class="label">Vel (v)</div>
+          <div class="val v" id="vOut">0.0</div>
+        </div>
+        <div class="data-box">
+          <div class="label">Acc (a)</div>
+          <div class="val a" id="aOut">0.0</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel" style="display: flex; flex-direction: column;">
+      <h2 class="title">Simple Harmonic Motion (Spring-Mass System)</h2>
+      
+      <div class="canvas-wrap">
+        <canvas id="simCanvas"></canvas>
+      </div>
+
+      <h2 class="title" style="margin-top: 10px;">Real-Time Kinematics</h2>
+      
+      <div class="graph-container canvas-wrap">
+        <div class="graph-title" style="color: #3b82f6;">Displacement (cm) vs Time (s)</div>
+        <canvas id="xCanvas" class="graph-canvas"></canvas>
+      </div>
+      
+      <div class="graph-container canvas-wrap">
+        <div class="graph-title" style="color: #10b981;">Velocity (cm/s) vs Time (s)</div>
+        <canvas id="vCanvas" class="graph-canvas"></canvas>
+      </div>
+      
+      <div class="graph-container canvas-wrap">
+        <div class="graph-title" style="color: #ef4444;">Acceleration (cm/s²) vs Time (s)</div>
+        <canvas id="aCanvas" class="graph-canvas"></canvas>
+      </div>
+    </section>
+  </div>
+
+  <script>
+    // --- STATE ---
+    const state = {
+      k: 10,       // Spring constant (N/m)
+      m: 2.0,      // Mass (kg)
+      A: 100,      // Amplitude (cm, acts as pixels here)
+      t: 0,        // Time (s)
+      x: 100,      // Current displacement
+      v: 0,        // Current velocity
+      a: 0,        // Current acceleration
+      playing: false,
+      lastTime: 0,
+      history: []  // Stores {t, x, v, a}
+    };
+
+    const HISTORY_LENGTH = 300; // Approx 5 seconds at 60fps
+    const BLOCK_SIZE = 50;
+    
+    // --- DOM ELEMENTS ---
+    const simCanvas = document.getElementById("simCanvas");
+    const simCtx = simCanvas.getContext("2d");
+    
+    const xCanvas = document.getElementById("xCanvas");
+    const vCanvas = document.getElementById("vCanvas");
+    const aCanvas = document.getElementById("aCanvas");
+    
+    const xCtx = xCanvas.getContext("2d");
+    const vCtx = vCanvas.getContext("2d");
+    const aCtx = aCanvas.getContext("2d");
+
+    const els = {
+      playBtn: document.getElementById("playBtn"),
+      pauseBtn: document.getElementById("pauseBtn"),
+      resetBtn: document.getElementById("resetBtn"),
+      kSlider: document.getElementById("kSlider"),
+      mSlider: document.getElementById("mSlider"),
+      aSlider: document.getElementById("aSlider"),
+      kVal: document.getElementById("kVal"),
+      mVal: document.getElementById("mVal"),
+      aVal: document.getElementById("aVal"),
+      xOut: document.getElementById("xOut"),
+      vOut: document.getElementById("vOut"),
+      aOut: document.getElementById("aOut"),
+    };
+
+    // --- SETUP & SIZING ---
+    function resizeCanvas() {
+      const canvases = [simCanvas, xCanvas, vCanvas, aCanvas];
+      canvases.forEach(c => {
+        const rect = c.parentElement.getBoundingClientRect();
+        c.width = rect.width;
+        c.height = rect.height;
+      });
+    }
+    window.addEventListener("resize", () => { resizeCanvas(); draw(); });
+    resizeCanvas();
+
+    // --- PHYSICS CALCULATION ---
+    function updatePhysics(dt) {
+      if (!state.playing) return;
+      
+      state.t += dt;
+      const omega = Math.sqrt(state.k / state.m); // Angular frequency
+      
+      // Exact Kinematic Equations for SHM
+      state.x = state.A * Math.cos(omega * state.t);
+      state.v = -state.A * omega * Math.sin(omega * state.t);
+      state.a = -state.A * Math.pow(omega, 2) * Math.cos(omega * state.t);
+
+      // Record History
+      state.history.push({ t: state.t, x: state.x, v: state.v, a: state.a });
+      if (state.history.length > HISTORY_LENGTH) {
+        state.history.shift();
+      }
+    }
+
+    function resetPhysics() {
+      state.t = 0;
+      state.x = state.A;
+      state.v = 0;
+      const omega = Math.sqrt(state.k / state.m);
+      state.a = -state.A * Math.pow(omega, 2);
+      state.history = [];
+      state.history.push({ t: state.t, x: state.x, v: state.v, a: state.a });
+    }
+
+    // --- DRAWING FUNCTIONS ---
+    function drawSpring(ctx, startX, endX, y) {
+      ctx.beginPath();
+      ctx.strokeStyle = "#94a3b8";
+      ctx.lineWidth = 3;
+      
+      const coils = 12;
+      const width = endX - startX;
+      const step = width / coils;
+      
+      ctx.moveTo(startX, y);
+      for (let i = 0; i < coils; i++) {
+        const cx = startX + step * i;
+        const nextX = startX + step * (i + 1);
+        const midX = (cx + nextX) / 2;
+        const sign = i % 2 === 0 ? 1 : -1;
+        ctx.lineTo(midX, y + 15 * sign);
+        ctx.lineTo(nextX, y);
+      }
+      ctx.stroke();
+    }
+
+    function drawSimulation() {
+      const ctx = simCtx;
+      const w = simCanvas.width;
+      const h = simCanvas.height;
+      const centerY = h / 2 + 20;
+      const eqX = w / 2; // Equilibrium position (center)
+
+      ctx.clearRect(0, 0, w, h);
+
+      // Floor
+      ctx.beginPath();
+      ctx.moveTo(0, centerY + BLOCK_SIZE / 2);
+      ctx.lineTo(w, centerY + BLOCK_SIZE / 2);
+      ctx.strokeStyle = "#475569";
+      ctx.lineWidth = 4;
+      ctx.stroke();
+
+      // Wall
+      ctx.fillStyle = "#334155";
+      ctx.fillRect(0, centerY - 60, 20, 100);
+
+      // Equilibrium Line
+      ctx.beginPath();
+      ctx.setLineDash([5, 5]);
+      ctx.moveTo(eqX, centerY - 80);
+      ctx.lineTo(eqX, centerY + 60);
+      ctx.strokeStyle = "#cbd5e1";
+      ctx.lineWidth = 1;
+      ctx.stroke();
+      ctx.setLineDash([]);
+      
+      ctx.fillStyle = "#cbd5e1";
+      ctx.font = "14px Arial";
+      ctx.textAlign = "center";
+      ctx.fillText("x = 0", eqX, centerY - 90);
+
+      // Spring
+      const blockX = eqX + state.x;
+      drawSpring(ctx, 20, blockX - BLOCK_SIZE / 2, centerY);
+
+      // Block
+      ctx.fillStyle = "#3b82f6";
+      ctx.shadowColor = "rgba(59, 130, 246, 0.5)";
+      ctx.shadowBlur = 15;
+      ctx.fillRect(blockX - BLOCK_SIZE / 2, centerY - BLOCK_SIZE / 2, BLOCK_SIZE, BLOCK_SIZE);
+      ctx.shadowBlur = 0;
+      
+      // Block Label
+      ctx.fillStyle = "#ffffff";
+      ctx.font = "bold 16px Arial";
+      ctx.fillText(`${state.m.toFixed(1)}kg`, blockX, centerY + 5);
+    }
+
+  function drawGraph(ctx, canvas, valueKey, color, maxExpected) {
       const w = canvas.width;
       const h = canvas.height;
       ctx.clearRect(0, 0, w, h);
@@ -81,3 +477,118 @@ function drawGraph(ctx, canvas, valueKey, color, maxExpected) {
       ctx.strokeStyle = color; // Matches graph line color
       ctx.stroke();
     }
+
+    function draw() {
+      drawSimulation();
+      
+      // Calculate dynamic max scales for graphs to keep them readable
+      const omega = Math.sqrt(state.k / state.m);
+      const maxX = 160; 
+      const maxV = 160 * omega;
+      const maxA = 160 * Math.pow(omega, 2);
+
+      drawGraph(xCtx, xCanvas, "x", "#3b82f6", maxX);
+      drawGraph(vCtx, vCanvas, "v", "#10b981", maxV);
+      drawGraph(aCtx, aCanvas, "a", "#ef4444", maxA);
+
+      // Update Telemetry UI
+      els.xOut.textContent = state.x.toFixed(1);
+      els.vOut.textContent = state.v.toFixed(1);
+      els.aOut.textContent = state.a.toFixed(1);
+    }
+
+    // --- ANIMATION LOOP ---
+    function loop(timestamp) {
+      const dt = (timestamp - state.lastTime) / 1000;
+      state.lastTime = timestamp;
+      
+      if (dt < 0.1) { // Prevent huge jumps if tab was inactive
+        updatePhysics(dt);
+        draw();
+      }
+      requestAnimationFrame(loop);
+    }
+
+    // --- EVENTS ---
+    els.playBtn.addEventListener("click", () => {
+      state.playing = true;
+      state.lastTime = performance.now();
+    });
+
+    els.pauseBtn.addEventListener("click", () => {
+      state.playing = false;
+    });
+
+    els.resetBtn.addEventListener("click", () => {
+      state.playing = false;
+      resetPhysics();
+      draw();
+    });
+
+    // Inputs
+    function updateInputs() {
+      state.k = parseFloat(els.kSlider.value);
+      state.m = parseFloat(els.mSlider.value);
+      state.A = parseFloat(els.aSlider.value);
+      
+      els.kVal.textContent = `${state.k} N/m`;
+      els.mVal.textContent = `${state.m.toFixed(1)} kg`;
+      els.aVal.textContent = `${state.A} cm`;
+      
+      if (!state.playing) {
+        resetPhysics();
+        draw();
+      }
+    }
+
+    els.kSlider.addEventListener("input", updateInputs);
+    els.mSlider.addEventListener("input", updateInputs);
+    els.aSlider.addEventListener("input", updateInputs);
+
+    // Mouse Dragging on Simulation Canvas
+    let isDragging = false;
+    simCanvas.addEventListener("mousedown", (e) => {
+      if (state.playing) return;
+      const rect = simCanvas.getBoundingClientRect();
+      const mouseX = e.clientX - rect.left;
+      const eqX = simCanvas.width / 2;
+      const blockX = eqX + state.x;
+      
+      // Check if clicked near the block
+      if (Math.abs(mouseX - blockX) < BLOCK_SIZE) {
+        isDragging = true;
+      }
+    });
+
+    window.addEventListener("mousemove", (e) => {
+      if (!isDragging) return;
+      const rect = simCanvas.getBoundingClientRect();
+      let mouseX = e.clientX - rect.left;
+      const eqX = simCanvas.width / 2;
+      
+      // Clamp drag distance
+      let dragDist = mouseX - eqX;
+      if (dragDist > 150) dragDist = 150;
+      if (dragDist < -150) dragDist = -150;
+      
+      state.A = dragDist;
+      els.aSlider.value = dragDist;
+      updateInputs();
+    });
+
+    window.addEventListener("mouseup", () => {
+      if (isDragging) {
+        isDragging = false;
+        // Optionally auto-play on release:
+        // state.playing = true;
+        // state.lastTime = performance.now();
+      }
+    });
+
+    // Init
+    resetPhysics();
+    state.lastTime = performance.now();
+    requestAnimationFrame(loop);
+  </script>
+</body>
+</html>
