@@ -1,0 +1,576 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>2D Vector Addition & Subtraction</title>
+  <style>
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: #0f172a;
+      color: #e2e8f0;
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      padding: 15px;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 1200px;
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 20px;
+    }
+
+    /* Side-by-side on larger screens */
+    @media (min-width: 900px) {
+      .container {
+        grid-template-columns: 1.2fr 1fr;
+        align-items: start;
+      }
+    }
+
+    .panel {
+      background: #1e293b;
+      border-radius: 14px;
+      padding: 20px;
+      box-shadow: 0 6px 20px rgba(0,0,0,0.25);
+    }
+
+    .title {
+      margin: 0 0 15px;
+      font-size: 1.3rem;
+      font-weight: 700;
+      color: #f8fafc;
+    }
+
+    /* Canvas Area */
+    .canvas-wrap {
+      width: 100%;
+      background: #020617;
+      border-radius: 12px;
+      border: 1px solid #334155;
+      overflow: hidden;
+      position: relative;
+      /* Crucial for iPad/Touch to prevent scrolling while dragging */
+      touch-action: none; 
+    }
+    
+    canvas {
+      display: block;
+      width: 100%;
+      height: 500px;
+      cursor: crosshair;
+    }
+
+    /* Controls */
+    .controls-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 15px;
+      margin-bottom: 20px;
+    }
+
+    .control-group {
+      background: #0f172a;
+      padding: 12px;
+      border-radius: 10px;
+      border: 1px solid #334155;
+    }
+
+    .control-group label {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: #cbd5e1;
+      margin-bottom: 8px;
+    }
+
+    .control-group input[type="range"] {
+      width: 100%;
+      min-height: 44px; /* Touch target size */
+      cursor: pointer;
+    }
+
+    /* Operation Toggle */
+    .toggle-container {
+      display: flex;
+      background: #0f172a;
+      border-radius: 10px;
+      border: 1px solid #334155;
+      overflow: hidden;
+      margin-bottom: 20px;
+    }
+
+    .toggle-btn {
+      flex: 1;
+      padding: 14px;
+      text-align: center;
+      font-size: 1.1rem;
+      font-weight: bold;
+      cursor: pointer;
+      color: #94a3b8;
+      background: transparent;
+      border: none;
+      transition: all 0.2s;
+      min-height: 44px; /* Touch target size */
+    }
+
+    .toggle-btn.active {
+      color: white;
+      background: #3b82f6;
+    }
+
+    /* Math Panel */
+    .math-panel {
+      background: #020617;
+      border: 1px solid #334155;
+      border-radius: 12px;
+      padding: 15px;
+    }
+
+    .math-block {
+      margin-bottom: 12px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid #1e293b;
+    }
+
+    .math-block:last-child {
+      margin-bottom: 0;
+      padding-bottom: 0;
+      border-bottom: none;
+    }
+
+    .math-title {
+      font-size: 0.9rem;
+      color: #94a3b8;
+      margin-bottom: 6px;
+      font-weight: bold;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .equation {
+      font-family: "Courier New", Courier, monospace;
+      font-size: 1.15rem;
+      font-weight: bold;
+      color: #e2e8f0;
+      background: #0f172a;
+      padding: 10px;
+      border-radius: 6px;
+      line-height: 1.5;
+    }
+
+    /* Vector Colors for Text */
+    .vec-A { color: #60a5fa; } /* Blue */
+    .vec-B { color: #34d399; } /* Green */
+    .vec-R { color: #f87171; } /* Red */
+
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    
+    <section class="panel" style="display: flex; flex-direction: column;">
+      <h2 class="title">Vector Graph (Drag the Arrowheads)</h2>
+      <div class="canvas-wrap" style="flex-grow: 1;">
+        <canvas id="vectorCanvas"></canvas>
+      </div>
+      <div style="text-align: center; color: #94a3b8; font-size: 0.9rem; margin-top: 10px;">
+        1 grid unit = 1 physical unit
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2 class="title">Vector Operation</h2>
+      
+      <div class="toggle-container">
+        <button class="toggle-btn active" id="btnAdd">Addition (R = A + B)</button>
+        <button class="toggle-btn" id="btnSub">Subtraction (R = A - B)</button>
+      </div>
+
+      <div class="controls-grid">
+        <div class="control-group" style="border-top: 4px solid #3b82f6;">
+          <label>
+            <span class="vec-A">Vector A (X)</span>
+            <span id="axVal">4</span>
+          </label>
+          <input type="range" id="axSlider" min="-10" max="10" step="1" value="4">
+          
+          <label style="margin-top: 15px;">
+            <span class="vec-A">Vector A (Y)</span>
+            <span id="ayVal">3</span>
+          </label>
+          <input type="range" id="aySlider" min="-10" max="10" step="1" value="3">
+        </div>
+
+        <div class="control-group" style="border-top: 4px solid #10b981;">
+          <label>
+            <span class="vec-B">Vector B (X)</span>
+            <span id="bxVal">2</span>
+          </label>
+          <input type="range" id="bxSlider" min="-10" max="10" step="1" value="2">
+          
+          <label style="margin-top: 15px;">
+            <span class="vec-B">Vector B (Y)</span>
+            <span id="byVal">5</span>
+          </label>
+          <input type="range" id="bySlider" min="-10" max="10" step="1" value="5">
+        </div>
+      </div>
+
+      <h2 class="title">Calculations</h2>
+      
+      <div class="math-panel">
+        <div class="math-block">
+          <div class="math-title">X & Y Components</div>
+          <div class="equation" id="eqCompX"></div>
+          <div class="equation" id="eqCompY" style="margin-top: 5px;"></div>
+        </div>
+
+        <div class="math-block">
+          <div class="math-title">Magnitude |R|</div>
+          <div class="equation" id="eqMag"></div>
+        </div>
+
+        <div class="math-block">
+          <div class="math-title">Direction Angle (&theta;)</div>
+          <div class="equation" id="eqAng"></div>
+          <div style="font-size: 0.85rem; color: #94a3b8; margin-top: 5px;">*Angle measured counter-clockwise from the +X axis.</div>
+        </div>
+      </div>
+    </section>
+
+  </div>
+
+  <script>
+    // --- STATE ---
+    const state = {
+      Ax: 4,
+      Ay: 3,
+      Bx: 2,
+      By: 5,
+      operation: 'add', // 'add' or 'sub'
+      dragging: null // 'A', 'B', or null
+    };
+
+    // --- DOM ELEMENTS ---
+    const els = {
+      btnAdd: document.getElementById('btnAdd'),
+      btnSub: document.getElementById('btnSub'),
+      axSlider: document.getElementById('axSlider'),
+      aySlider: document.getElementById('aySlider'),
+      bxSlider: document.getElementById('bxSlider'),
+      bySlider: document.getElementById('bySlider'),
+      axVal: document.getElementById('axVal'),
+      ayVal: document.getElementById('ayVal'),
+      bxVal: document.getElementById('bxVal'),
+      byVal: document.getElementById('byVal'),
+      eqCompX: document.getElementById('eqCompX'),
+      eqCompY: document.getElementById('eqCompY'),
+      eqMag: document.getElementById('eqMag'),
+      eqAng: document.getElementById('eqAng')
+    };
+
+    const canvas = document.getElementById('vectorCanvas');
+    const ctx = canvas.getContext('2d');
+
+    // --- CANVAS SETUP & COORDINATE MAPPING ---
+    const gridScale = 12; // Canvas shows from -12 to +12 physics units
+    let pxPerUnit = 0;
+    let originX = 0;
+    let originY = 0;
+
+    function resizeCanvas() {
+      const rect = canvas.parentElement.getBoundingClientRect();
+      const dpr = window.devicePixelRatio || 1;
+      
+      canvas.width = rect.width * dpr;
+      canvas.height = 500 * dpr;
+      ctx.scale(dpr, dpr);
+      canvas.style.width = `${rect.width}px`;
+      canvas.style.height = `500px`;
+
+      originX = rect.width / 2;
+      originY = 500 / 2;
+      
+      // Determine pixels per unit based on smallest dimension to keep grid square
+      const minDimension = Math.min(rect.width, 500);
+      pxPerUnit = (minDimension / 2) / gridScale;
+
+      draw();
+    }
+    window.addEventListener('resize', resizeCanvas);
+
+    // Coordinate conversion helpers
+    const xToPx = (x) => originX + (x * pxPerUnit);
+    const yToPx = (y) => originY - (y * pxPerUnit); // Y is inverted on canvas
+    const pxToX = (px) => Math.round((px - originX) / pxPerUnit);
+    const pxToY = (py) => Math.round((originY - py) / pxPerUnit);
+
+    // --- MATH & UI UPDATES ---
+    function updateUI() {
+      // 1. Sync Sliders & Labels
+      els.axSlider.value = state.Ax;
+      els.aySlider.value = state.Ay;
+      els.bxSlider.value = state.Bx;
+      els.bySlider.value = state.By;
+
+      els.axVal.textContent = state.Ax;
+      els.ayVal.textContent = state.Ay;
+      els.bxVal.textContent = state.Bx;
+      els.byVal.textContent = state.By;
+
+      // 2. Toggles
+      if (state.operation === 'add') {
+        els.btnAdd.classList.add('active');
+        els.btnSub.classList.remove('active');
+      } else {
+        els.btnSub.classList.add('active');
+        els.btnAdd.classList.remove('active');
+      }
+
+      // 3. Math Calculations
+      const sign = state.operation === 'add' ? '+' : '-';
+      const Rx = state.operation === 'add' ? state.Ax + state.Bx : state.Ax - state.Bx;
+      const Ry = state.operation === 'add' ? state.Ay + state.By : state.Ay - state.By;
+      
+      const BxStr = state.Bx < 0 ? `(${state.Bx})` : state.Bx;
+      const ByStr = state.By < 0 ? `(${state.By})` : state.By;
+
+      els.eqCompX.innerHTML = `<span class="vec-R">R<sub>x</sub></span> = <span class="vec-A">${state.Ax}</span> ${sign} <span class="vec-B">${BxStr}</span> = <span class="vec-R">${Rx}</span>`;
+      els.eqCompY.innerHTML = `<span class="vec-R">R<sub>y</sub></span> = <span class="vec-A">${state.Ay}</span> ${sign} <span class="vec-B">${ByStr}</span> = <span class="vec-R">${Ry}</span>`;
+
+      const mag = Math.sqrt(Rx*Rx + Ry*Ry);
+      els.eqMag.innerHTML = `|<span class="vec-R">R</span>| = &radic;(${Rx}&sup2; + ${Ry}&sup2;) = <span class="vec-R">${mag.toFixed(2)}</span>`;
+
+      // Angle formatting (ensure 0 to 360)
+      let thetaRad = Math.atan2(Ry, Rx);
+      let thetaDeg = thetaRad * (180 / Math.PI);
+      if (thetaDeg < 0) thetaDeg += 360;
+      
+      els.eqAng.innerHTML = `&theta; = tan&inverse;&sup1;(${Ry} / ${Rx}) = <span class="vec-R">${thetaDeg.toFixed(1)}&deg;</span>`;
+
+      draw();
+    }
+
+// --- DRAWING LOGIC ---
+    function drawArrow(ctx, x1, y1, x2, y2, color, isDashed = false, label = "") {
+      const headlen = 12; // length of arrowhead
+      const angle = Math.atan2(y2 - y1, x2 - x1);
+      
+      // Line
+      ctx.beginPath();
+      if (isDashed) ctx.setLineDash([5, 5]);
+      else ctx.setLineDash([]);
+      ctx.moveTo(x1, y1);
+      ctx.lineTo(x2, y2);
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 3;
+      ctx.stroke();
+
+      // Head
+      ctx.setLineDash([]); // Always solid head
+      ctx.beginPath();
+      ctx.moveTo(x2, y2);
+      ctx.lineTo(x2 - headlen * Math.cos(angle - Math.PI / 6), y2 - headlen * Math.sin(angle - Math.PI / 6));
+      ctx.lineTo(x2 - headlen * Math.cos(angle + Math.PI / 6), y2 - headlen * Math.sin(angle + Math.PI / 6));
+      ctx.fillStyle = color;
+      ctx.fill();
+
+      // NEW: Draw Label (Magnitude)
+      if (label !== "") {
+        const midX = (x1 + x2) / 2;
+        const midY = (y1 + y2) / 2;
+        
+        // Offset perpendicular to the line so it doesn't overlap the vector
+        const offsetDist = 18; 
+        const offsetX = -offsetDist * Math.sin(angle);
+        const offsetY = offsetDist * Math.cos(angle);
+
+        ctx.font = "bold 13px Arial";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+
+        // Draw a tiny dark background box so the text is legible over the grid
+        const textWidth = ctx.measureText(label).width;
+        ctx.fillStyle = "#020617"; // Matches canvas background
+        ctx.fillRect(midX + offsetX - textWidth / 2 - 4, midY + offsetY - 10, textWidth + 8, 20);
+
+        // Draw text
+        ctx.fillStyle = color;
+        ctx.fillText(label, midX + offsetX, midY + offsetY);
+      }
+    }
+
+    
+
+    function draw() {
+      const w = canvas.clientWidth;
+      const h = canvas.clientHeight;
+      ctx.clearRect(0, 0, w, h);
+
+      // Draw Grid
+      ctx.lineWidth = 1;
+      ctx.strokeStyle = "#1e293b";
+      for (let i = -gridScale; i <= gridScale; i++) {
+        const pxX = xToPx(i);
+        const pxY = yToPx(i);
+        
+        // Vertical lines
+        ctx.beginPath(); ctx.moveTo(pxX, 0); ctx.lineTo(pxX, h); ctx.stroke();
+        // Horizontal lines
+        ctx.beginPath(); ctx.moveTo(0, pxY); ctx.lineTo(w, pxY); ctx.stroke();
+      }
+
+      // Draw Axes
+      ctx.strokeStyle = "#475569";
+      ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(originX, 0); ctx.lineTo(originX, h); ctx.stroke(); // Y
+      ctx.beginPath(); ctx.moveTo(0, originY); ctx.lineTo(w, originY); ctx.stroke(); // X
+
+      // Vector calculations
+      // Vector calculations
+      const Rx = state.operation === 'add' ? state.Ax + state.Bx : state.Ax - state.Bx;
+      const Ry = state.operation === 'add' ? state.Ay + state.By : state.Ay - state.By;
+
+      // NEW: Calculate magnitudes
+      const magA = Math.hypot(state.Ax, state.Ay).toFixed(1);
+      const magB = Math.hypot(state.Bx, state.By).toFixed(1);
+      const magR = Math.hypot(Rx, Ry).toFixed(1);
+
+      const pxOriginX = xToPx(0);
+      const pxOriginY = yToPx(0);
+
+      const pxAx = xToPx(state.Ax);
+      const pxAy = yToPx(state.Ay);
+      
+      const pxBx = xToPx(state.Bx);
+      const pxBy = yToPx(state.By);
+
+      const pxRx = xToPx(Rx);
+      const pxRy = yToPx(Ry);
+
+      // 1. Draw Original B (Green) WITH label
+      drawArrow(ctx, pxOriginX, pxOriginY, pxBx, pxBy, "#34d399", false, `|B|=${magB}`);
+      
+      // 2. Draw Original A (Blue) WITH label
+      drawArrow(ctx, pxOriginX, pxOriginY, pxAx, pxAy, "#60a5fa", false, `|A|=${magA}`);
+
+      // 3. Draw Dashed connection lines (Parallelogram Method - NO labels)
+      if (state.operation === 'add') {
+        drawArrow(ctx, pxAx, pxAy, pxRx, pxRy, "rgba(52, 211, 153, 0.5)", true);
+        drawArrow(ctx, pxBx, pxBy, pxRx, pxRy, "rgba(96, 165, 250, 0.5)", true);
+      } else {
+        const pxNegBx = xToPx(-state.Bx);
+        const pxNegBy = yToPx(-state.By);
+        drawArrow(ctx, pxOriginX, pxOriginY, pxNegBx, pxNegBy, "rgba(52, 211, 153, 0.5)", true);
+        drawArrow(ctx, pxAx, pxAy, pxRx, pxRy, "rgba(52, 211, 153, 0.5)", true);
+        drawArrow(ctx, pxNegBx, pxNegBy, pxRx, pxRy, "rgba(96, 165, 250, 0.5)", true);
+      }
+
+      // 4. Draw Resultant R (Red) WITH label
+      if (Rx !== 0 || Ry !== 0) {
+        drawArrow(ctx, pxOriginX, pxOriginY, pxRx, pxRy, "#f87171", false, `|R|=${magR}`);
+      }
+
+      // Draw interactive grab points (circles on tips of A and B)
+      ctx.beginPath(); ctx.arc(pxAx, pxAy, 10, 0, Math.PI*2); ctx.fillStyle = "rgba(96, 165, 250, 0.2)"; ctx.fill();
+      ctx.beginPath(); ctx.arc(pxBx, pxBy, 10, 0, Math.PI*2); ctx.fillStyle = "rgba(52, 211, 153, 0.2)"; ctx.fill();
+    }
+
+    // --- EVENT LISTENERS (UI) ---
+    els.btnAdd.addEventListener('click', () => { state.operation = 'add'; updateUI(); });
+    els.btnSub.addEventListener('click', () => { state.operation = 'sub'; updateUI(); });
+
+    const updateFromSlider = () => {
+      state.Ax = parseInt(els.axSlider.value);
+      state.Ay = parseInt(els.aySlider.value);
+      state.Bx = parseInt(els.bxSlider.value);
+      state.By = parseInt(els.bySlider.value);
+      updateUI();
+    };
+
+    els.axSlider.addEventListener('input', updateFromSlider);
+    els.aySlider.addEventListener('input', updateFromSlider);
+    els.bxSlider.addEventListener('input', updateFromSlider);
+    els.bySlider.addEventListener('input', updateFromSlider);
+
+    // --- EVENT LISTENERS (CANVAS MOUSE & TOUCH) ---
+    function getEventPos(e) {
+      const rect = canvas.getBoundingClientRect();
+      const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+      const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+      return {
+        x: clientX - rect.left,
+        y: clientY - rect.top
+      };
+    }
+
+    function handleStart(e) {
+      if (e.type === 'touchstart') e.preventDefault(); // Stop iPad scrolling
+      const pos = getEventPos(e);
+      
+      const pxAx = xToPx(state.Ax);
+      const pxAy = yToPx(state.Ay);
+      const pxBx = xToPx(state.Bx);
+      const pxBy = yToPx(state.By);
+
+      // Check distance to vector heads (touch target 20px radius)
+      if (Math.hypot(pos.x - pxAx, pos.y - pxAy) < 20) {
+        state.dragging = 'A';
+      } else if (Math.hypot(pos.x - pxBx, pos.y - pxBy) < 20) {
+        state.dragging = 'B';
+      }
+    }
+
+    function handleMove(e) {
+      if (!state.dragging) return;
+      if (e.type === 'touchmove') e.preventDefault();
+
+      const pos = getEventPos(e);
+      
+      // Convert pixels back to physics grid and clamp to [-10, 10]
+      let newX = Math.max(-10, Math.min(10, pxToX(pos.x)));
+      let newY = Math.max(-10, Math.min(10, pxToY(pos.y)));
+
+      if (state.dragging === 'A') {
+        state.Ax = newX;
+        state.Ay = newY;
+      } else if (state.dragging === 'B') {
+        state.Bx = newX;
+        state.By = newY;
+      }
+      
+      updateUI(); // Updates sliders and redesiplays math
+    }
+
+    function handleEnd(e) {
+      state.dragging = null;
+    }
+
+    // Mouse events
+    canvas.addEventListener('mousedown', handleStart);
+    window.addEventListener('mousemove', handleMove);
+    window.addEventListener('mouseup', handleEnd);
+
+    // Touch events (iPad/Mobile)
+    canvas.addEventListener('touchstart', handleStart, { passive: false });
+    window.addEventListener('touchmove', handleMove, { passive: false });
+    window.addEventListener('touchend', handleEnd);
+
+    // --- INIT ---
+    setTimeout(() => {
+      resizeCanvas();
+      updateUI();
+    }, 50);
+
+  </script>
+</body>
+</html>
