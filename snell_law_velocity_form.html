@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Refraction & Snell's Law</title>
+  <title>Refraction & Velocity</title>
   <style>
     * { box-sizing: border-box; }
 
@@ -12,10 +12,9 @@
       font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
       background: #0f172a;
       color: #e2e8f0;
-      overflow: hidden; /* Lock body scroll for fullscreen app */
+      overflow: hidden;
     }
 
-    /* Fullscreen Canvas */
     canvas {
       display: block;
       width: 100vw;
@@ -24,11 +23,10 @@
       top: 0;
       left: 0;
       z-index: 1;
-      touch-action: none; /* Crucial for dragging ray on iPad */
+      touch-action: none;
       cursor: crosshair;
     }
 
-    /* Toggle Button */
     .toggle-btn {
       position: absolute;
       top: 20px;
@@ -49,12 +47,11 @@
     }
     .toggle-btn:hover { background: rgba(255, 255, 255, 0.2); }
 
-    /* Floating Control Panel (Upper Right) */
     .controls-panel {
       position: absolute;
       top: 20px;
       right: 20px;
-      width: 340px;
+      width: 350px;
       max-height: calc(100vh - 40px);
       overflow-y: auto;
       z-index: 10;
@@ -68,14 +65,12 @@
       transition: transform 0.3s ease, opacity 0.3s ease;
     }
 
-    /* Hidden state for the panel */
     .controls-panel.hidden {
       transform: translateX(120%);
       opacity: 0;
       pointer-events: none;
     }
 
-    /* Close Button */
     .close-btn {
       position: absolute;
       top: 15px;
@@ -90,7 +85,6 @@
     }
     .close-btn:hover { color: white; }
 
-    /* Scrollbar styling for the panel */
     .controls-panel::-webkit-scrollbar { width: 6px; }
     .controls-panel::-webkit-scrollbar-thumb { background: #475569; border-radius: 3px; }
 
@@ -102,7 +96,7 @@
       text-align: center;
       border-bottom: 1px solid #334155;
       padding-bottom: 10px;
-      padding-right: 20px; /* Space for close button */
+      padding-right: 20px;
     }
 
     .control-section {
@@ -128,13 +122,12 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
-      font-size: 0.9rem;
+      font-size: 0.85rem;
       font-weight: 600;
       color: #cbd5e1;
       margin-bottom: 8px;
     }
 
-    /* Dropdowns */
     select {
       width: 100%;
       background: rgba(15, 23, 42, 0.8);
@@ -150,12 +143,7 @@
     }
     select option { background: #1e293b; }
 
-    /* Step Buttons (+/-) */
-    .val-container {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-    }
+    .val-container { display: flex; align-items: center; gap: 6px; }
 
     button.step-btn {
       flex: none; width: 26px; height: 26px; min-height: 0; padding: 0;
@@ -174,7 +162,6 @@
 
     input[type="range"] { width: 100%; min-height: 30px; cursor: pointer; }
 
-    /* Math Panel */
     .math-panel {
       background: rgba(0,0,0,0.4);
       border: 1px solid #334155;
@@ -194,7 +181,7 @@
 
     .equation {
       font-family: "Courier New", Courier, monospace;
-      font-size: 1.05rem; font-weight: bold; line-height: 1.5; color: #e2e8f0;
+      font-size: 1rem; font-weight: bold; line-height: 1.5; color: #e2e8f0;
     }
 
     .subtext { font-size: 0.8em; color: #64748b; }
@@ -205,7 +192,6 @@
       font-weight: bold; letter-spacing: 1px;
     }
 
-    /* Drag hint */
     .drag-hint {
       position: absolute;
       bottom: 20px;
@@ -224,13 +210,13 @@
 <body>
 
   <canvas id="simCanvas"></canvas>
-  <div class="drag-hint">👆 Drag the incident ray to change angle</div>
+  <div class="drag-hint">👆 Drag the white ray to change angle</div>
 
   <button id="toggleBtn" class="toggle-btn">⚙️ Settings & Info</button>
 
   <div id="controlsPanel" class="controls-panel hidden">
     <button id="closeBtn" class="close-btn">✖</button>
-    <div class="title">Optics: Snell's Law</div>
+    <div class="title">Optics: Velocity & Snell's Law</div>
 
     <div class="control-section" style="border-top: 4px solid white;">
       <div class="control-title" style="color: white;">Incident Ray (Medium 1)</div>
@@ -249,24 +235,24 @@
 
       <div class="control-group">
         <label>
-          <span>Refractive Index (n<sub>1</sub>)</span>
+          <span>Velocity (v<sub>1</sub>) [&times;10<sup>8</sup> m/s]</span>
           <div class="val-container">
-            <button class="step-btn" onclick="step('n1', -0.01)">-</button>
-            <span id="valN1" class="val-text" style="color: white;">1.00</span>
-            <button class="step-btn" onclick="step('n1', 0.01)">+</button>
+            <button class="step-btn" onclick="step('v1', -0.01)">-</button>
+            <span id="valV1" class="val-text" style="color: white;">3.00</span>
+            <button class="step-btn" onclick="step('v1', 0.01)">+</button>
           </div>
         </label>
-        <input type="range" id="slN1" min="1" max="3" step="0.01" value="1.00">
+        <input type="range" id="slV1" min="1.00" max="3.00" step="0.01" value="3.00">
         
-        <select id="selN1">
-          <option value="1.00">Air / Vacuum (1.00)</option>
-          <option value="1.33">Water (1.33)</option>
-          <option value="1.46">Fused Quartz (1.46)</option>
-          <option value="1.50">Crown Glass (1.50)</option>
-          <option value="1.66">Flint Glass (1.66)</option>
-          <option value="1.77">Sapphire (1.77)</option>
-          <option value="2.42">Diamond (2.42)</option>
-          <option value="custom">Custom Medium...</option>
+        <select id="selV1">
+          <option value="3.00">Air / Vacuum (3.00)</option>
+          <option value="2.26">Water (2.26)</option>
+          <option value="2.05">Fused Quartz (2.05)</option>
+          <option value="2.00">Crown Glass (2.00)</option>
+          <option value="1.81">Flint Glass (1.81)</option>
+          <option value="1.69">Sapphire (1.69)</option>
+          <option value="1.24">Diamond (1.24)</option>
+          <option value="custom">Custom Speed...</option>
         </select>
       </div>
     </div>
@@ -276,24 +262,24 @@
       
       <div class="control-group">
         <label>
-          <span>Refractive Index (n<sub>2</sub>)</span>
+          <span>Velocity (v<sub>2</sub>) [&times;10<sup>8</sup> m/s]</span>
           <div class="val-container">
-            <button class="step-btn" onclick="step('n2', -0.01)">-</button>
-            <span id="valN2" class="val-text" style="color: white;">1.50</span>
-            <button class="step-btn" onclick="step('n2', 0.01)">+</button>
+            <button class="step-btn" onclick="step('v2', -0.01)">-</button>
+            <span id="valV2" class="val-text" style="color: white;">2.00</span>
+            <button class="step-btn" onclick="step('v2', 0.01)">+</button>
           </div>
         </label>
-        <input type="range" id="slN2" min="1" max="3" step="0.01" value="1.50">
+        <input type="range" id="slV2" min="1.00" max="3.00" step="0.01" value="2.00">
         
-        <select id="selN2">
-          <option value="1.00">Air / Vacuum (1.00)</option>
-          <option value="1.33">Water (1.33)</option>
-          <option value="1.46">Fused Quartz (1.46)</option>
-          <option value="1.50" selected>Crown Glass (1.50)</option>
-          <option value="1.66">Flint Glass (1.66)</option>
-          <option value="1.77">Sapphire (1.77)</option>
-          <option value="2.42">Diamond (2.42)</option>
-          <option value="custom">Custom Medium...</option>
+        <select id="selV2">
+          <option value="3.00">Air / Vacuum (3.00)</option>
+          <option value="2.26">Water (2.26)</option>
+          <option value="2.05">Fused Quartz (2.05)</option>
+          <option value="2.00" selected>Crown Glass (2.00)</option>
+          <option value="1.81">Flint Glass (1.81)</option>
+          <option value="1.69">Sapphire (1.69)</option>
+          <option value="1.24">Diamond (1.24)</option>
+          <option value="custom">Custom Speed...</option>
         </select>
       </div>
     </div>
@@ -301,12 +287,12 @@
     <div class="math-panel">
       <div class="math-block" style="border-left: 4px solid white; padding-left: 10px;">
         <div class="math-title">
-          <span style="color: white;">1. Snell's Law</span>
+          <span style="color: white;">1. Snell's Law (Velocity)</span>
           <span id="statusBadge" class="status-badge" style="background: #10b981; color: #ecfdf5;">REFRACTION</span>
         </div>
         <div class="equation">
-          <span class="subtext">n<sub>1</sub> sin(&theta;<sub>1</sub>) = n<sub>2</sub> sin(&theta;<sub>2</sub>)</span><br>
-          <span id="eqSnellSub">1.00 sin(45.0&deg;) = 1.50 sin(&theta;<sub>2</sub>)</span><br>
+          <span class="subtext">sin(&theta;<sub>1</sub>) / v<sub>1</sub> = sin(&theta;<sub>2</sub>) / v<sub>2</sub></span><br>
+          <span id="eqSnellSub">sin(45.0&deg;) / 3.00 = sin(&theta;<sub>2</sub>) / 2.00</span><br>
           &theta;<sub>2</sub> = <span id="valTheta2Eq" class="highlight">28.1&deg;</span>
         </div>
       </div>
@@ -314,8 +300,8 @@
       <div class="math-block" style="border-left: 4px solid #fbbf24; padding-left: 10px;">
         <div class="math-title" style="color: #fbbf24;">2. Critical Angle (&theta;<sub>c</sub>)</div>
         <div class="equation">
-          <span class="subtext">&theta;<sub>c</sub> = arcsin(n<sub>2</sub> / n<sub>1</sub>)</span><br>
-          &theta;<sub>c</sub> = <span id="valCritEq" style="color: #e2e8f0;">None (n<sub>1</sub> &le; n<sub>2</sub>)</span>
+          <span class="subtext">&theta;<sub>c</sub> = arcsin(v<sub>1</sub> / v<sub>2</sub>)</span><br>
+          &theta;<sub>c</sub> = <span id="valCritEq" style="color: #e2e8f0;">None (v<sub>1</sub> &ge; v<sub>2</sub>)</span>
         </div>
       </div>
     </div>
@@ -326,8 +312,8 @@
     // --- STATE ---
     const state = {
       t1: 45.0,  // Incident Angle (degrees)
-      n1: 1.00,  // Refractive Index 1
-      n2: 1.50,  // Refractive Index 2
+      v1: 3.00,  // Velocity 1 (x10^8 m/s)
+      v2: 2.00,  // Velocity 2 (x10^8 m/s)
       
       t2: 0,     // Refracted Angle
       tc: 0,     // Critical Angle
@@ -335,27 +321,22 @@
       dragging: false
     };
 
-    // Common materials lookup for UI flair
+    // Common materials lookup for UI flair (Using Velocity v = c/n)
     const materials = [
-      { n: 1.00, name: "Air / Vacuum" },
-      { n: 1.33, name: "Water" },
-      { n: 1.46, name: "Fused Quartz" },
-      { n: 1.50, name: "Crown Glass" },
-      { n: 1.66, name: "Flint Glass" },
-      { n: 1.77, name: "Sapphire" },
-      { n: 2.42, name: "Diamond" }
+      { v: 3.00, name: "Air / Vacuum" },
+      { v: 2.26, name: "Water" },
+      { v: 2.05, name: "Fused Quartz" },
+      { v: 2.00, name: "Crown Glass" },
+      { v: 1.81, name: "Flint Glass" },
+      { v: 1.69, name: "Sapphire" },
+      { v: 1.24, name: "Diamond" }
     ];
-
-    function getMaterialName(n) {
-      let mat = materials.find(m => Math.abs(m.n - n) < 0.02);
-      return mat ? mat.name : "Custom Medium";
-    }
 
     // --- DOM ---
     const els = {
-      slT1: document.getElementById('slT1'), slN1: document.getElementById('slN1'), slN2: document.getElementById('slN2'),
-      valT1: document.getElementById('valT1'), valN1: document.getElementById('valN1'), valN2: document.getElementById('valN2'),
-      selN1: document.getElementById('selN1'), selN2: document.getElementById('selN2'),
+      slT1: document.getElementById('slT1'), slV1: document.getElementById('slV1'), slV2: document.getElementById('slV2'),
+      valT1: document.getElementById('valT1'), valV1: document.getElementById('valV1'), valV2: document.getElementById('valV2'),
+      selV1: document.getElementById('selV1'), selV2: document.getElementById('selV2'),
       eqSnellSub: document.getElementById('eqSnellSub'), valTheta2Eq: document.getElementById('valTheta2Eq'),
       valCritEq: document.getElementById('valCritEq'), statusBadge: document.getElementById('statusBadge'),
       toggleBtn: document.getElementById('toggleBtn'), controlsPanel: document.getElementById('controlsPanel'), closeBtn: document.getElementById('closeBtn')
@@ -377,13 +358,8 @@
     window.addEventListener('resize', resizeCanvas);
 
     // --- PANEL TOGGLE LOGIC ---
-    els.toggleBtn.addEventListener('click', () => {
-      els.controlsPanel.classList.remove('hidden');
-    });
-    
-    els.closeBtn.addEventListener('click', () => {
-      els.controlsPanel.classList.add('hidden');
-    });
+    els.toggleBtn.addEventListener('click', () => { els.controlsPanel.classList.remove('hidden'); });
+    els.closeBtn.addEventListener('click', () => { els.controlsPanel.classList.add('hidden'); });
 
     // --- DROPDOWN SYNC LOGIC ---
     function syncDropdown(selectEl, value) {
@@ -398,53 +374,54 @@
       if (!found) selectEl.value = "custom";
     }
 
-    els.selN1.addEventListener('change', (e) => {
-      if (e.target.value !== "custom") { state.n1 = parseFloat(e.target.value); updateMath(); }
+    els.selV1.addEventListener('change', (e) => {
+      if (e.target.value !== "custom") { state.v1 = parseFloat(e.target.value); updateMath(); }
     });
-    els.selN2.addEventListener('change', (e) => {
-      if (e.target.value !== "custom") { state.n2 = parseFloat(e.target.value); updateMath(); }
+    els.selV2.addEventListener('change', (e) => {
+      if (e.target.value !== "custom") { state.v2 = parseFloat(e.target.value); updateMath(); }
     });
 
     // --- MATH & UI SYNC ---
     function updateMath() {
       // Clamping limits
       state.t1 = Math.max(0, Math.min(90, state.t1));
-      state.n1 = Math.max(1, Math.min(3, state.n1));
-      state.n2 = Math.max(1, Math.min(3, state.n2));
+      state.v1 = Math.max(1.00, Math.min(3.00, state.v1));
+      state.v2 = Math.max(1.00, Math.min(3.00, state.v2));
 
-      els.slT1.value = state.t1; els.slN1.value = state.n1; els.slN2.value = state.n2;
+      els.slT1.value = state.t1; els.slV1.value = state.v1; els.slV2.value = state.v2;
       els.valT1.textContent = `${state.t1.toFixed(1)}\xB0`;
-      els.valN1.textContent = state.n1.toFixed(2);
-      els.valN2.textContent = state.n2.toFixed(2);
+      els.valV1.textContent = state.v1.toFixed(2);
+      els.valV2.textContent = state.v2.toFixed(2);
       
-      syncDropdown(els.selN1, state.n1);
-      syncDropdown(els.selN2, state.n2);
+      syncDropdown(els.selV1, state.v1);
+      syncDropdown(els.selV2, state.v2);
 
       const rad1 = state.t1 * Math.PI / 180;
       
-      // Critical Angle
-      if (state.n1 > state.n2) {
-        state.tc = Math.asin(state.n2 / state.n1) * 180 / Math.PI;
-        els.valCritEq.innerHTML = `arcsin(${state.n2.toFixed(2)} / ${state.n1.toFixed(2)}) = <span style="color:#fbbf24">${state.tc.toFixed(1)}&deg;</span>`;
+      // Critical Angle occurs when moving from SLOW (low v) to FAST (high v)
+      if (state.v1 < state.v2) {
+        state.tc = Math.asin(state.v1 / state.v2) * 180 / Math.PI;
+        els.valCritEq.innerHTML = `arcsin(${state.v1.toFixed(2)} / ${state.v2.toFixed(2)}) = <span style="color:#fbbf24">${state.tc.toFixed(1)}&deg;</span>`;
       } else {
         state.tc = null;
-        els.valCritEq.innerHTML = `None (n<sub>1</sub> &le; n<sub>2</sub>)`;
+        els.valCritEq.innerHTML = `None (v<sub>1</sub> &ge; v<sub>2</sub>)`;
       }
 
-      // TIR Check
-      const sinT2 = (state.n1 / state.n2) * Math.sin(rad1);
+      // Snell's Law calculated via velocity
+      const sinT2 = (state.v2 / state.v1) * Math.sin(rad1);
+      
       if (sinT2 > 1.0) {
         state.isTIR = true; state.t2 = null;
         els.statusBadge.textContent = "TOTAL INTERNAL REFLECTION";
         els.statusBadge.style.background = "white"; els.statusBadge.style.color = "#fef2f2";
-        els.eqSnellSub.innerHTML = `${state.n1.toFixed(2)} sin(${state.t1.toFixed(1)}&deg;) = ${state.n2.toFixed(2)} sin(&theta;<sub>2</sub>) &rarr; <span style="color:#ef4444">MATH ERROR</span>`;
+        els.eqSnellSub.innerHTML = `sin(${state.t1.toFixed(1)}&deg;) / ${state.v1.toFixed(2)} = sin(&theta;<sub>2</sub>) / ${state.v2.toFixed(2)} &rarr; <span style="color:#ef4444">MATH ERROR</span>`;
         els.valTheta2Eq.innerHTML = `<span style="color:white">None (sin&theta; > 1)</span>`;
         els.valTheta2Eq.style.color = "white";
       } else {
         state.isTIR = false; state.t2 = Math.asin(sinT2) * 180 / Math.PI;
         els.statusBadge.textContent = "REFRACTION";
         els.statusBadge.style.background = "#10b981"; els.statusBadge.style.color = "#ecfdf5";
-        els.eqSnellSub.innerHTML = `${state.n1.toFixed(2)} sin(${state.t1.toFixed(1)}&deg;) = ${state.n2.toFixed(2)} sin(&theta;<sub>2</sub>)`;
+        els.eqSnellSub.innerHTML = `sin(${state.t1.toFixed(1)}&deg;) / ${state.v1.toFixed(2)} = sin(&theta;<sub>2</sub>) / ${state.v2.toFixed(2)}`;
         els.valTheta2Eq.innerHTML = `${state.t2.toFixed(1)}&deg;`;
         els.valTheta2Eq.style.color = "#fbbf24";
       }
@@ -456,7 +433,7 @@
       updateMath();
     };
 
-    ['T1', 'N1', 'N2'].forEach(param => {
+    ['T1', 'V1', 'V2'].forEach(param => {
       els[`sl${param}`].addEventListener('input', (e) => {
         state[param.toLowerCase()] = parseFloat(e.target.value);
         updateMath();
@@ -479,10 +456,9 @@
 
     function handleDragMove(e) {
       if(!state.dragging) return;
-      if(e.touches) e.preventDefault(); // Stop iPad pull-to-refresh
+      if(e.touches) e.preventDefault();
       
       const pos = getPointerPos(e);
-      // Calculate angle relative to the normal (straight up Y axis)
       const dx = cx - pos.x; 
       const dy = cy - pos.y;
       
@@ -511,17 +487,13 @@
 
       ctx.clearRect(0, 0, w, h);
 
-// 1. Draw a solid dark background over the entire canvas first
-      ctx.fillStyle = "#020617";
-      ctx.fillRect(0, 0, w, h);
-
-      // 2. Tint Medium 1 dynamically based on its refractive index (n1)
-      const density1 = Math.max(0, (state.n1 - 1.0) * 0.35);
+      // Top Medium 1 (Density is inverted: lower velocity = denser material)
+      const density1 = Math.min(0.8, Math.max(0.0, (3.0 - state.v1) * 0.4));
       ctx.fillStyle = `rgba(14, 165, 233, ${density1})`; 
       ctx.fillRect(0, 0, w, cy);
       
-      // 3. Tint Medium 2 dynamically based on its refractive index (n2)
-      const density2 = Math.max(0, (state.n2 - 1.0) * 0.35);
+      // Bottom Medium 2
+      const density2 = Math.min(0.8, Math.max(0.0, (3.0 - state.v2) * 0.4));
       ctx.fillStyle = `rgba(14, 165, 233, ${density2})`; 
       ctx.fillRect(0, cy, w, h - cy);
 
@@ -542,10 +514,10 @@
       const incX = cx - rayLen * Math.sin(rad1); const incY = cy - rayLen * Math.cos(rad1);
       ctx.beginPath(); ctx.moveTo(incX, incY); ctx.lineTo(cx, cy);
       ctx.strokeStyle = "white"; ctx.lineWidth = 4;
-      ctx.shadowColor = "rgba(239, 68, 68, 0.6)"; ctx.shadowBlur = 10; ctx.stroke(); ctx.shadowBlur = 0;
+      ctx.shadowColor = "rgba(255, 255, 255, 0.6)"; ctx.shadowBlur = 10; ctx.stroke(); ctx.shadowBlur = 0;
       drawArrow(ctx, incX, incY, cx, cy, "white");
 
-      // Angle Arc 1 (Unicode \u03B8\u2081 creates θ₁)
+      // Angle Arc 1
       if (state.t1 > 2) { 
         ctx.beginPath(); ctx.arc(cx, cy, 50, -Math.PI/2 - rad1, -Math.PI/2);
         ctx.strokeStyle = "white"; ctx.lineWidth = 2; ctx.stroke();
@@ -560,14 +532,14 @@
       
       if (state.isTIR) {
         ctx.strokeStyle = "white"; ctx.lineWidth = 4;
-        ctx.shadowColor = "rgba(239, 68, 68, 0.6)"; ctx.shadowBlur = 10;
+        ctx.shadowColor = "rgba(255, 255, 255, 0.6)"; ctx.shadowBlur = 10;
       } else {
-        ctx.strokeStyle = "rgba(239, 68, 68, 0.3)"; ctx.lineWidth = 2;
+        ctx.strokeStyle = "rgba(255, 255, 255, 0.3)"; ctx.lineWidth = 2;
       }
       ctx.stroke(); ctx.shadowBlur = 0;
-      drawArrow(ctx, cx, cy, refX, refY, state.isTIR ? "white" : "rgba(239, 68, 68, 0.3)");
+      drawArrow(ctx, cx, cy, refX, refY, state.isTIR ? "white" : "rgba(255, 255, 255, 0.3)");
 
-      // Refracted Ray (NOW WHITE)
+      // Refracted Ray
       if (!state.isTIR) {
         const refrX = cx + rayLen * Math.sin(rad2); const refrY = cy + rayLen * Math.cos(rad2);
         ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(refrX, refrY);
@@ -575,7 +547,7 @@
         ctx.shadowColor = "rgba(255, 255, 255, 0.6)"; ctx.shadowBlur = 10; ctx.stroke(); ctx.shadowBlur = 0;
         drawArrow(ctx, cx, cy, refrX, refrY, "white");
 
-        // Angle Arc 2 (Unicode \u03B8\u2082 creates θ₂)
+        // Angle Arc 2
         if (state.t2 > 2) {
           ctx.beginPath(); ctx.arc(cx, cy, 50, Math.PI/2 - rad2, Math.PI/2);
           ctx.strokeStyle = "white"; ctx.lineWidth = 2; ctx.stroke();
