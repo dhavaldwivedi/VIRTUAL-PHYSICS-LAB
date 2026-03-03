@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Inverse Square Law & Radiation</title>
   <style>
     * { box-sizing: border-box; }
@@ -16,7 +16,7 @@
       display: flex;
       justify-content: center;
       padding: 15px;
-      /* Removed touch-action: none to allow page scrolling */
+      /* FIX 1: Removed touch-action: none; to allow page scrolling */
     }
 
     .container {
@@ -58,14 +58,13 @@
       border: 1px solid #334155;
       overflow: hidden;
       position: relative;
-      /* touch-action: pan-y allows scrolling the page even if touching the canvas */
-      touch-action: pan-y; 
+      touch-action: pan-y; /* Allows vertical scrolling even on the canvas */
     }
     
     #simCanvas {
       display: block;
       width: 100%;
-      height: 380px; /* Slightly taller for the top labels */
+      height: 350px;
       cursor: pointer;
     }
 
@@ -116,6 +115,12 @@
       padding: 15px;
     }
 
+    .math-block {
+      margin-bottom: 15px;
+      padding-bottom: 15px;
+      border-bottom: 1px solid #1e293b;
+    }
+
     .equation {
       font-family: "Courier New", Courier, monospace;
       font-size: 1.1rem;
@@ -127,26 +132,24 @@
     .highlight { color: #fbbf24; }
     .success { color: #38bdf8; }
     .subtext { color: #94a3b8; font-size: 0.9rem; }
-
   </style>
 </head>
 <body>
 
   <div class="container">
-    
-    <section class="panel">
+    <section class="panel" style="display: flex; flex-direction: column;">
       <div class="title">
         <span>Radiation System</span>
-        <span style="font-size: 0.8rem; color: #94a3b8; font-weight: normal;">Drag the Planet</span>
+        <span style="font-size: 0.9rem; color: #94a3b8; font-weight: normal;">Drag the Planet</span>
       </div>
       
-      <div class="canvas-wrap">
+      <div class="canvas-wrap" style="flex-grow: 1;">
         <canvas id="simCanvas"></canvas>
       </div>
 
       <div class="math-panel" style="margin-top: 15px; border-left: 4px solid #38bdf8;">
-        <div class="equation" id="eqTelemetry" style="font-size: 0.95rem;">
-          </div>
+        <div class="math-title" style="color: #38bdf8;">Live Telemetry</div>
+        <div class="equation" id="eqTelemetry"></div>
       </div>
     </section>
 
@@ -156,30 +159,22 @@
 
       <div class="controls-grid">
         <div class="control-group" style="border-top: 3px solid #fbbf24;">
-          <label>
-            <span>Source Power (P)</span>
-            <span id="pVal" style="color:#fbbf24;">3.90 &times; 10&sup2;&sup6; W</span>
-          </label>
+          <label><span>Source Power (P)</span><span id="pVal" style="color:#fbbf24;"></span></label>
           <input type="range" id="pSlider" min="0.5" max="10.0" step="0.1" value="3.9">
         </div>
-
         <div class="control-group" style="border-top: 3px solid #38bdf8;">
-          <label>
-            <span>Distance (x)</span>
-            <span id="xVal" style="color:#38bdf8;">1.00 AU</span>
-          </label>
+          <label><span>Distance (x)</span><span id="xVal" style="color:#38bdf8;"></span></label>
           <input type="range" id="xSlider" min="0.2" max="3.0" step="0.01" value="1.00">
         </div>
       </div>
 
       <div class="math-panel">
-        <div class="equation" style="font-size: 0.85rem;">
-          <span class="subtext">I = P / (4&pi;x&sup2;)</span><br>
-          I = <span class="highlight" id="iResult"></span> W/m&sup2;
+        <div class="math-block">
+          <div class="math-title">1. Radiation Intensity (I)</div>
+          <div class="equation">I = <span class="highlight" id="iResult"></span> W/m&sup2;</div>
         </div>
       </div>
     </section>
-
   </div>
 
   <script>
@@ -191,7 +186,7 @@
       x_au: 1.0,
       dragging: false,
       phase: 0,
-      currentIntensity: 1380
+      currentIntensity: 0 // Track for the drawing function
     };
 
     const els = {
@@ -208,72 +203,50 @@
     const graphCanvas = document.getElementById('graphCanvas');
     const graphCtx = graphCanvas.getContext('2d');
 
-    let simW, simH, graphW, graphH;
-    let auToPx = 0;
-    let originX = 50;
+    let simW, simH, graphW, graphH, auToPx, originX = 40;
 
     function resize() {
       const rectS = simCanvas.parentElement.getBoundingClientRect();
-      simW = rectS.width;
-      simH = 380;
+      simW = rectS.width; simH = 350;
       simCanvas.width = simW * window.devicePixelRatio;
       simCanvas.height = simH * window.devicePixelRatio;
       simCtx.scale(window.devicePixelRatio, window.devicePixelRatio);
-      simCanvas.style.width = `${simW}px`;
-      simCanvas.style.height = `${simH}px`;
-
-      auToPx = (simW - originX - 60) / 3.0; 
+      simCanvas.style.width = `${simW}px`; simCanvas.style.height = `${simH}px`;
+      auToPx = (simW - originX - 40) / 3.0;
 
       const rectG = graphCanvas.getBoundingClientRect();
-      graphW = rectG.width;
-      graphH = 200;
+      graphW = rectG.width; graphH = 200;
       graphCanvas.width = graphW * window.devicePixelRatio;
       graphCanvas.height = graphH * window.devicePixelRatio;
       graphCtx.scale(window.devicePixelRatio, window.devicePixelRatio);
-      
       updatePhysics();
     }
-
-    function formatSci(num) {
-      if (num === 0) return "0";
-      let exp = Math.floor(Math.log10(num));
-      let mantissa = num / Math.pow(10, exp);
-      return `${mantissa.toFixed(2)}e${exp}`;
-    }
+    window.addEventListener('resize', resize);
 
     function updatePhysics() {
       const P_watts = state.P_slider * P_MULTIPLIER;
       const x_meters = state.x_au * AU_IN_METERS;
-      const surfaceArea = 4 * Math.PI * Math.pow(x_meters, 2);
-      state.currentIntensity = P_watts / surfaceArea;
-      const relAmplitude = 1 / state.x_au;
+      state.currentIntensity = P_watts / (4 * Math.PI * Math.pow(x_meters, 2));
 
-      els.pVal.innerHTML = `${state.P_slider.toFixed(1)} &times; 10<sup style="font-size:0.8em">26</sup> W`;
+      els.pVal.innerHTML = `${state.P_slider.toFixed(1)} &times; 10<sup>26</sup> W`;
       els.xVal.innerHTML = `${state.x_au.toFixed(2)} AU`;
-      els.iResult.innerHTML = state.currentIntensity > 10000 ? formatSci(state.currentIntensity) : Math.round(state.currentIntensity).toLocaleString();
+      els.iResult.innerHTML = Math.round(state.currentIntensity).toLocaleString();
 
       els.eqTelemetry.innerHTML = `
-        DISTANCE: <span class="success">${state.x_au.toFixed(2)} AU</span> | 
-        INTENSITY: <span class="highlight">${Math.round(state.currentIntensity).toLocaleString()} W/m&sup2;</span>
+        <span style="color:#cbd5e1">Dist:</span> <span class="success">${state.x_au.toFixed(2)} AU</span> | 
+        <span style="color:#cbd5e1">Int:</span> <span class="highlight">${Math.round(state.currentIntensity).toLocaleString()} W/m&sup2;</span>
       `;
-
       drawGraph(state.currentIntensity);
     }
 
     function drawGraph(currentI) {
       graphCtx.clearRect(0, 0, graphW, graphH);
-      const padX = 45;
-      const padY = 20;
-      const plotW = graphW - padX - 20;
-      const plotH = graphH - padY - 30;
-
+      const padX = 40, padY = 20, plotW = graphW - padX - 20, plotH = graphH - padY - 20;
       graphCtx.strokeStyle = "#475569";
       graphCtx.beginPath();
-      graphCtx.moveTo(padX, padY);
-      graphCtx.lineTo(padX, padY + plotH);
-      graphCtx.lineTo(padX + plotW, padY + plotH);
+      graphCtx.moveTo(padX, padY); graphCtx.lineTo(padX, padY + plotH); graphCtx.lineTo(padX + plotW, padY + plotH);
       graphCtx.stroke();
-
+      
       graphCtx.beginPath();
       graphCtx.strokeStyle = "#fbbf24";
       graphCtx.lineWidth = 3;
@@ -286,125 +259,86 @@
         else graphCtx.lineTo(padX + px, padY + py);
       }
       graphCtx.stroke();
-
-      let currentPx = ((state.x_au - 0.2) / 2.8) * plotW;
-      let currentPy = plotH - (currentI / maxI_plot) * plotH;
-      graphCtx.beginPath();
-      graphCtx.arc(padX + currentPx, padY + currentPy, 5, 0, Math.PI*2);
-      graphCtx.fillStyle = "#38bdf8";
-      graphCtx.fill();
     }
 
     function drawSim() {
       simCtx.clearRect(0, 0, simW, simH);
-      const centerY = simH / 2 + 20;
+      const centerY = simH / 2;
 
-      // Glow
-      const grad = simCtx.createRadialGradient(originX, centerY, 0, originX, centerY, simW * 0.8);
-      grad.addColorStop(0, "rgba(251, 191, 36, 0.4)");
-      grad.addColorStop(0.4, "rgba(251, 191, 36, 0.05)");
-      grad.addColorStop(1, "rgba(251, 191, 36, 0)");
-      simCtx.fillStyle = grad;
-      simCtx.fillRect(0, 0, simW, simH);
+      // Gradient & Wave
+      const grad = simCtx.createRadialGradient(originX, centerY, 0, originX, centerY, simW);
+      grad.addColorStop(0, "rgba(251, 191, 36, 0.4)"); grad.addColorStop(0.3, "rgba(251, 191, 36, 0)");
+      simCtx.fillStyle = grad; simCtx.fillRect(0, 0, simW, simH);
 
-      // Wave
       simCtx.beginPath();
-      simCtx.strokeStyle = "rgba(167, 139, 250, 0.4)";
-      simCtx.lineWidth = 2;
-      for (let px = originX + 20; px < simW; px++) {
-        let au = (px - originX) / auToPx;
-        let visualAmp = Math.min(80, 25 * (1/au)); 
-        let y = centerY + Math.sin((px / 15) - state.phase) * visualAmp;
-        if (px === originX + 20) simCtx.moveTo(px, y);
-        else simCtx.lineTo(px, y);
+      simCtx.strokeStyle = "rgba(167, 139, 250, 0.6)";
+      for (let px = originX + 15; px < simW; px++) {
+        let visualAmp = Math.min(100, 30 * (1 / ((px - originX) / auToPx)));
+        let y = centerY + Math.sin((px / 20) - state.phase) * visualAmp;
+        if (px === originX + 15) simCtx.moveTo(px, y); else simCtx.lineTo(px, y);
       }
       simCtx.stroke();
 
       // Sun
-      simCtx.beginPath();
-      simCtx.arc(originX, centerY, 25, 0, Math.PI*2);
-      simCtx.fillStyle = "#fbbf24";
-      simCtx.fill();
-
-      // Planet & Dynamic Labels
-      const earthPx = originX + (state.x_au * auToPx);
-      
-      // Floating Intensity Label (Above Planet)
-      simCtx.fillStyle = "#fbbf24";
-      simCtx.font = "bold 14px Arial";
-      simCtx.textAlign = "center";
-      simCtx.fillText(`${Math.round(state.currentIntensity).toLocaleString()} W/m²`, earthPx, centerY - 55);
-      
-      // Distance Label
-      simCtx.fillStyle = "#38bdf8";
-      simCtx.font = "12px Arial";
-      simCtx.fillText(`${state.x_au.toFixed(2)} AU`, earthPx, centerY - 35);
+      simCtx.beginPath(); simCtx.arc(originX, centerY, 20, 0, Math.PI*2);
+      simCtx.fillStyle = "#fbbf24"; simCtx.fill();
 
       // Planet
-      simCtx.beginPath();
-      simCtx.arc(earthPx, centerY, 14, 0, Math.PI*2);
-      simCtx.fillStyle = "#38bdf8";
-      simCtx.fill();
-      simCtx.beginPath();
-      simCtx.arc(earthPx, centerY, 14, -Math.PI/2, Math.PI/2);
-      simCtx.fillStyle = "rgba(0,0,0,0.4)";
-      simCtx.fill();
+      const earthPx = originX + (state.x_au * auToPx);
+      simCtx.beginPath(); simCtx.arc(earthPx, centerY, 12, 0, Math.PI*2);
+      simCtx.fillStyle = "#38bdf8"; simCtx.fill();
 
-      if (state.dragging) {
-        simCtx.beginPath();
-        simCtx.arc(earthPx, centerY, 22, 0, Math.PI*2);
-        simCtx.strokeStyle = "rgba(255,255,255,0.5)";
-        simCtx.stroke();
-      }
+      // FIX 2: Intensity Label Above Planet
+      simCtx.font = "bold 14px Arial";
+      simCtx.fillStyle = "#fbbf24";
+      simCtx.textAlign = "center";
+      simCtx.fillText(`${Math.round(state.currentIntensity).toLocaleString()} W/m²`, earthPx, centerY - 40);
+      
+      simCtx.font = "12px Arial";
+      simCtx.fillStyle = "white";
+      simCtx.fillText(`${state.x_au.toFixed(2)} AU`, earthPx, centerY - 22);
 
-      state.phase += 0.04;
+      state.phase += 0.05;
       requestAnimationFrame(drawSim);
     }
 
     function getMouseX(e) {
       const rect = simCanvas.getBoundingClientRect();
       const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-      return clientX - rect.left;
+      return (clientX - rect.left) / (simW / simCanvas.offsetWidth);
     }
 
     function handleStart(e) {
       const pxX = getMouseX(e);
       const earthPx = originX + (state.x_au * auToPx);
+      // FIX 3: Only preventDefault if touching the planet area
       if (Math.abs(pxX - earthPx) < 40) {
         state.dragging = true;
-        // Only prevent default if we are actually dragging the planet
         if (e.cancelable) e.preventDefault(); 
       }
     }
 
     function handleMove(e) {
       if (!state.dragging) return;
-      if (e.cancelable) e.preventDefault(); // Stop scrolling ONLY while dragging
-
+      // FIX 4: Only lock the screen if we are actually dragging
+      if (e.cancelable) e.preventDefault(); 
       const pxX = getMouseX(e);
-      let newAu = (pxX - originX) / auToPx;
-      state.x_au = Math.max(0.2, Math.min(3.0, newAu));
+      state.x_au = Math.max(0.2, Math.min(3.0, (pxX - originX) / auToPx));
       els.xSlider.value = state.x_au;
       updatePhysics();
     }
 
-    function handleEnd() { state.dragging = false; }
-
-    // Desktop
     simCanvas.addEventListener('mousedown', handleStart);
     window.addEventListener('mousemove', handleMove);
-    window.addEventListener('mouseup', handleEnd);
-
-    // iPad / Mobile - Passive: true allows the browser to scroll the page normally
+    window.addEventListener('mouseup', () => state.dragging = false);
     simCanvas.addEventListener('touchstart', handleStart, { passive: false });
     window.addEventListener('touchmove', handleMove, { passive: false });
-    window.addEventListener('touchend', handleEnd);
+    window.addEventListener('touchend', () => state.dragging = false);
 
     els.pSlider.addEventListener('input', (e) => { state.P_slider = parseFloat(e.target.value); updatePhysics(); });
     els.xSlider.addEventListener('input', (e) => { state.x_au = parseFloat(e.target.value); updatePhysics(); });
 
-    window.addEventListener('resize', resize);
-    setTimeout(resize, 100);
+    setTimeout(resize, 50);
     requestAnimationFrame(drawSim);
   </script>
 </body>
