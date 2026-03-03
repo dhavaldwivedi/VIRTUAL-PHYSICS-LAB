@@ -16,7 +16,7 @@
       display: flex;
       justify-content: center;
       padding: 15px;
-      /* FIX 1: Removed touch-action: none; to allow page scrolling */
+      touch-action: pan-y; /* Prevent scroll on touch devices */
     }
 
     .container {
@@ -51,6 +51,7 @@
       align-items: center;
     }
 
+    /* Canvas Areas */
     .canvas-wrap {
       width: 100%;
       background: #020617;
@@ -58,7 +59,6 @@
       border: 1px solid #334155;
       overflow: hidden;
       position: relative;
-      touch-action: pan-y; /* Allows vertical scrolling even on the canvas */
     }
     
     #simCanvas {
@@ -78,6 +78,7 @@
       margin-bottom: 20px;
     }
 
+    /* Controls */
     .controls-grid {
       display: flex;
       flex-direction: column;
@@ -102,12 +103,19 @@
       margin-bottom: 8px;
     }
 
+    .val-container {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
     input[type="range"] {
       width: 100%;
-      min-height: 40px;
+      min-height: 40px; /* Touch friendly */
       cursor: pointer;
     }
 
+    /* Math Panel */
     .math-panel {
       background: #0f172a;
       border: 1px solid #334155;
@@ -121,6 +129,21 @@
       border-bottom: 1px solid #1e293b;
     }
 
+    .math-block:last-child {
+      margin-bottom: 0;
+      padding-bottom: 0;
+      border-bottom: none;
+    }
+
+    .math-title {
+      font-size: 0.85rem;
+      color: #94a3b8;
+      margin-bottom: 8px;
+      font-weight: bold;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
     .equation {
       font-family: "Courier New", Courier, monospace;
       font-size: 1.1rem;
@@ -129,14 +152,16 @@
       color: #e2e8f0;
     }
 
-    .highlight { color: #fbbf24; }
-    .success { color: #38bdf8; }
+    .highlight { color: #fbbf24; } /* Yellow */
+    .success { color: #38bdf8; } /* Blue */
     .subtext { color: #94a3b8; font-size: 0.9rem; }
+
   </style>
 </head>
 <body>
 
   <div class="container">
+    
     <section class="panel" style="display: flex; flex-direction: column;">
       <div class="title">
         <span>Radiation System</span>
@@ -147,199 +172,379 @@
         <canvas id="simCanvas"></canvas>
       </div>
 
+      <div style="text-align: center; color: #94a3b8; font-size: 0.85rem; margin-top: 10px;">
+        The sine wave represents wave Amplitude (1/x). The background gradient represents Intensity (1/x&sup2;).
+      </div>
+
       <div class="math-panel" style="margin-top: 15px; border-left: 4px solid #38bdf8;">
         <div class="math-title" style="color: #38bdf8;">Live Telemetry</div>
-        <div class="equation" id="eqTelemetry"></div>
+        <div class="equation" id="eqTelemetry">
+          Distance (x): 1.00 AU <br>
+          Intensity (I): 1380 W/m&sup2; <br>
+          Rel. Amplitude (A): 1.00x
+        </div>
       </div>
     </section>
 
     <section class="panel">
+      
       <div class="title">Intensity vs Distance</div>
       <canvas id="graphCanvas"></canvas>
 
       <div class="controls-grid">
         <div class="control-group" style="border-top: 3px solid #fbbf24;">
-          <label><span>Source Power (P)</span><span id="pVal" style="color:#fbbf24;"></span></label>
+          <label>
+            <span>Source Power (P)</span>
+            <span id="pVal" style="color:#fbbf24;">3.90 &times; 10&sup2;&sup6; W</span>
+          </label>
           <input type="range" id="pSlider" min="0.5" max="10.0" step="0.1" value="3.9">
         </div>
+
         <div class="control-group" style="border-top: 3px solid #38bdf8;">
-          <label><span>Distance (x)</span><span id="xVal" style="color:#38bdf8;"></span></label>
+          <label>
+            <span>Distance (x)</span>
+            <span id="xVal" style="color:#38bdf8;">1.00 AU</span>
+          </label>
           <input type="range" id="xSlider" min="0.2" max="3.0" step="0.01" value="1.00">
         </div>
       </div>
 
+      <h2 class="title" style="margin-top: 10px; font-size: 1.1rem;">Physics Equations</h2>
+      
       <div class="math-panel">
+        
         <div class="math-block">
           <div class="math-title">1. Radiation Intensity (I)</div>
-          <div class="equation">I = <span class="highlight" id="iResult"></span> W/m&sup2;</div>
+          <div class="equation">
+            <span class="subtext">I = P / (4&pi;x&sup2;)</span><br>
+            I = (<span id="pSub"></span>) / (4&pi;(<span id="xSub"></span>)&sup2;)<br>
+            I = <span class="highlight" id="iResult"></span> W/m&sup2;
+          </div>
         </div>
+
+        <div class="math-block">
+          <div class="math-title">2. Wave Amplitude (A)</div>
+          <div class="equation">
+            <span class="subtext">I &prop; A&sup2; &rarr; A &prop; &radic;I &prop; 1/x</span><br>
+            Rel. Amplitude = 1 / x<br>
+            Rel. Amplitude = <span class="success" id="aResult"></span>
+          </div>
+        </div>
+
       </div>
     </section>
+
   </div>
 
   <script>
-    const AU_IN_METERS = 1.496e11;
-    const P_MULTIPLIER = 1e26;
+    // --- PHYSICS CONSTANTS ---
+    const AU_IN_METERS = 1.496e11; // 1 Astronomical Unit in meters
+    const P_MULTIPLIER = 1e26;     // Power slider is in units of 10^26 Watts
 
+    // --- STATE ---
     const state = {
-      P_slider: 3.9,
-      x_au: 1.0,
+      P_slider: 3.9,   // Base is 3.9 (Sun's power)
+      x_au: 1.0,       // Distance in AU
       dragging: false,
-      phase: 0,
-      currentIntensity: 0 // Track for the drawing function
+      phase: 0         // For animating the wave
     };
 
+    // --- DOM ELEMENTS ---
     const els = {
       pSlider: document.getElementById('pSlider'),
       xSlider: document.getElementById('xSlider'),
       pVal: document.getElementById('pVal'),
       xVal: document.getElementById('xVal'),
+      pSub: document.getElementById('pSub'),
+      xSub: document.getElementById('xSub'),
       iResult: document.getElementById('iResult'),
+      aResult: document.getElementById('aResult'),
       eqTelemetry: document.getElementById('eqTelemetry')
     };
 
     const simCanvas = document.getElementById('simCanvas');
     const simCtx = simCanvas.getContext('2d');
+    
     const graphCanvas = document.getElementById('graphCanvas');
     const graphCtx = graphCanvas.getContext('2d');
 
-    let simW, simH, graphW, graphH, auToPx, originX = 40;
+    // --- SIZING ---
+    let simW, simH, graphW, graphH;
+    let auToPx = 0; // How many pixels represents 1 AU
+    let originX = 40; // Sun position
 
     function resize() {
+      // Sim Canvas
       const rectS = simCanvas.parentElement.getBoundingClientRect();
-      simW = rectS.width; simH = 350;
+      simW = rectS.width;
+      simH = 350;
       simCanvas.width = simW * window.devicePixelRatio;
       simCanvas.height = simH * window.devicePixelRatio;
       simCtx.scale(window.devicePixelRatio, window.devicePixelRatio);
-      simCanvas.style.width = `${simW}px`; simCanvas.style.height = `${simH}px`;
-      auToPx = (simW - originX - 40) / 3.0;
+      simCanvas.style.width = `${simW}px`;
+      simCanvas.style.height = `${simH}px`;
 
+      // 3.5 AU needs to fit in the screen width minus origin
+      auToPx = (simW - originX - 40) / 3.0; 
+
+      // Graph Canvas
       const rectG = graphCanvas.getBoundingClientRect();
-      graphW = rectG.width; graphH = 200;
+      graphW = rectG.width;
+      graphH = 200;
       graphCanvas.width = graphW * window.devicePixelRatio;
       graphCanvas.height = graphH * window.devicePixelRatio;
       graphCtx.scale(window.devicePixelRatio, window.devicePixelRatio);
+      
       updatePhysics();
     }
     window.addEventListener('resize', resize);
 
-    function updatePhysics() {
-      const P_watts = state.P_slider * P_MULTIPLIER;
-      const x_meters = state.x_au * AU_IN_METERS;
-      state.currentIntensity = P_watts / (4 * Math.PI * Math.pow(x_meters, 2));
-
-      els.pVal.innerHTML = `${state.P_slider.toFixed(1)} &times; 10<sup>26</sup> W`;
-      els.xVal.innerHTML = `${state.x_au.toFixed(2)} AU`;
-      els.iResult.innerHTML = Math.round(state.currentIntensity).toLocaleString();
-
-      els.eqTelemetry.innerHTML = `
-        <span style="color:#cbd5e1">Dist:</span> <span class="success">${state.x_au.toFixed(2)} AU</span> | 
-        <span style="color:#cbd5e1">Int:</span> <span class="highlight">${Math.round(state.currentIntensity).toLocaleString()} W/m&sup2;</span>
-      `;
-      drawGraph(state.currentIntensity);
+    // Formatter for scientific notation
+    function formatSci(num) {
+      if (num === 0) return "0";
+      let exp = Math.floor(Math.log10(num));
+      let mantissa = num / Math.pow(10, exp);
+      return `${mantissa.toFixed(2)} &times; 10<sup style="font-size:0.8em">${exp}</sup>`;
     }
 
+    // --- MATH & UPDATE ---
+    function updatePhysics() {
+      // Calculate real values
+      const P_watts = state.P_slider * P_MULTIPLIER;
+      const x_meters = state.x_au * AU_IN_METERS;
+      
+      // I = P / (4 * pi * r^2)
+      const surfaceArea = 4 * Math.PI * Math.pow(x_meters, 2);
+      const intensity = P_watts / surfaceArea;
+
+      // Amplitude is proportional to sqrt(Intensity), thus proportional to 1/x
+      const relAmplitude = 1 / state.x_au;
+
+      // Update UI Text
+      els.pVal.innerHTML = `${state.P_slider.toFixed(1)} &times; 10<sup style="font-size:0.8em">26</sup> W`;
+      els.xVal.innerHTML = `${state.x_au.toFixed(2)} AU`;
+
+      els.pSub.innerHTML = `${state.P_slider.toFixed(1)}e26`;
+      els.xSub.innerHTML = `${(state.x_au * 1.496).toFixed(3)}e11`; // Show in meters
+
+      els.iResult.innerHTML = intensity > 10000 ? formatSci(intensity) : Math.round(intensity).toLocaleString();
+      els.aResult.innerHTML = relAmplitude.toFixed(2) + "x";
+
+      els.eqTelemetry.innerHTML = `
+        <span style="color:#cbd5e1">Distance (x):</span> <span class="success">${state.x_au.toFixed(2)} AU</span> <br>
+        <span style="color:#cbd5e1">Intensity (I):</span> <span class="highlight">${Math.round(intensity).toLocaleString()} W/m&sup2;</span> <br>
+        <span style="color:#cbd5e1">Rel. Amplitude (A):</span> <span style="color:#a78bfa">${relAmplitude.toFixed(2)}x</span>
+      `;
+
+      drawGraph(intensity);
+    }
+
+    // --- DRAWING: GRAPH ---
     function drawGraph(currentI) {
       graphCtx.clearRect(0, 0, graphW, graphH);
-      const padX = 40, padY = 20, plotW = graphW - padX - 20, plotH = graphH - padY - 20;
+
+      const padX = 40;
+      const padY = 20;
+      const plotW = graphW - padX - 20;
+      const plotH = graphH - padY - 20;
+
+      // Draw Axes
       graphCtx.strokeStyle = "#475569";
+      graphCtx.lineWidth = 2;
       graphCtx.beginPath();
-      graphCtx.moveTo(padX, padY); graphCtx.lineTo(padX, padY + plotH); graphCtx.lineTo(padX + plotW, padY + plotH);
+      graphCtx.moveTo(padX, padY);
+      graphCtx.lineTo(padX, padY + plotH);
+      graphCtx.lineTo(padX + plotW, padY + plotH);
       graphCtx.stroke();
+
+      // Axis Labels
+      graphCtx.fillStyle = "#94a3b8";
+      graphCtx.font = "11px Arial";
+      graphCtx.textAlign = "center";
+      graphCtx.fillText("Distance (AU)", padX + plotW/2, padY + plotH + 15);
       
+      graphCtx.save();
+      graphCtx.translate(15, padY + plotH/2);
+      graphCtx.rotate(-Math.PI/2);
+      graphCtx.fillText("Intensity", 0, 0);
+      graphCtx.restore();
+
+      // Plot 1/x^2 curve
       graphCtx.beginPath();
       graphCtx.strokeStyle = "#fbbf24";
       graphCtx.lineWidth = 3;
-      const maxI_plot = (state.P_slider * P_MULTIPLIER) / (4 * Math.PI * Math.pow(0.2 * AU_IN_METERS, 2));
+      
+      const maxI_plot = (state.P_slider * P_MULTIPLIER) / (4 * Math.PI * Math.pow(0.2 * AU_IN_METERS, 2)); // I at 0.2 AU
+      
       for (let px = 0; px <= plotW; px += 2) {
-        let au = 0.2 + (px / plotW) * 2.8;
-        let I = (state.P_slider * P_MULTIPLIER) / (4 * Math.PI * Math.pow(au * AU_IN_METERS, 2));
+        let au = 0.2 + (px / plotW) * 2.8; // range 0.2 to 3.0 AU
+        let meters = au * AU_IN_METERS;
+        let I = (state.P_slider * P_MULTIPLIER) / (4 * Math.PI * Math.pow(meters, 2));
+        
         let py = plotH - (I / maxI_plot) * plotH;
+        py = Math.max(0, py); // Clamp top
+
         if (px === 0) graphCtx.moveTo(padX + px, padY + py);
         else graphCtx.lineTo(padX + px, padY + py);
       }
       graphCtx.stroke();
+
+      // Draw Current Point
+      let currentPx = ((state.x_au - 0.2) / 2.8) * plotW;
+      let currentPy = plotH - (currentI / maxI_plot) * plotH;
+      
+      graphCtx.beginPath();
+      graphCtx.arc(padX + currentPx, padY + currentPy, 6, 0, Math.PI*2);
+      graphCtx.fillStyle = "#38bdf8";
+      graphCtx.fill();
+      graphCtx.strokeStyle = "white";
+      graphCtx.lineWidth = 2;
+      graphCtx.stroke();
     }
 
+    // --- DRAWING: SIMULATION ---
     function drawSim() {
       simCtx.clearRect(0, 0, simW, simH);
       const centerY = simH / 2;
 
-      // Gradient & Wave
+      // 1. Draw Intensity Gradient (1/x^2 visualization)
       const grad = simCtx.createRadialGradient(originX, centerY, 0, originX, centerY, simW);
-      grad.addColorStop(0, "rgba(251, 191, 36, 0.4)"); grad.addColorStop(0.3, "rgba(251, 191, 36, 0)");
-      simCtx.fillStyle = grad; simCtx.fillRect(0, 0, simW, simH);
+      // Alpha drops rapidly to simulate 1/r^2
+      grad.addColorStop(0, "rgba(251, 191, 36, 0.8)"); // Center: Bright Yellow
+      grad.addColorStop(0.1, "rgba(251, 191, 36, 0.3)");
+      grad.addColorStop(0.3, "rgba(251, 191, 36, 0.05)");
+      grad.addColorStop(1, "rgba(251, 191, 36, 0)");
+      simCtx.fillStyle = grad;
+      simCtx.fillRect(0, 0, simW, simH);
 
+      // Distance Line (X-Axis)
+      simCtx.strokeStyle = "rgba(255, 255, 255, 0.2)";
+      simCtx.lineWidth = 1;
+      simCtx.setLineDash([5, 5]);
       simCtx.beginPath();
-      simCtx.strokeStyle = "rgba(167, 139, 250, 0.6)";
+      simCtx.moveTo(originX, centerY);
+      simCtx.lineTo(simW, centerY);
+      simCtx.stroke();
+      simCtx.setLineDash([]);
+
+      // 2. Draw Wave Amplitude (1/x visualization)
+      simCtx.beginPath();
+      simCtx.strokeStyle = "rgba(167, 139, 250, 0.6)"; // Purple wave
+      simCtx.lineWidth = 2;
+      
+      const waveFreq = 20; // Spatial frequency
       for (let px = originX + 15; px < simW; px++) {
-        let visualAmp = Math.min(100, 30 * (1 / ((px - originX) / auToPx)));
-        let y = centerY + Math.sin((px / 20) - state.phase) * visualAmp;
-        if (px === originX + 15) simCtx.moveTo(px, y); else simCtx.lineTo(px, y);
+        let au = (px - originX) / auToPx;
+        let amplitude = 1 / au; // Amplitude proportional to 1/x
+        
+        // Cap amplitude visually near the sun so it doesn't break canvas
+        let visualAmp = Math.min(100, 30 * amplitude); 
+        
+        let y = centerY + Math.sin((px / waveFreq) - state.phase) * visualAmp;
+        
+        if (px === originX + 15) simCtx.moveTo(px, y);
+        else simCtx.lineTo(px, y);
       }
       simCtx.stroke();
 
-      // Sun
-      simCtx.beginPath(); simCtx.arc(originX, centerY, 20, 0, Math.PI*2);
-      simCtx.fillStyle = "#fbbf24"; simCtx.fill();
-
-      // Planet
-      const earthPx = originX + (state.x_au * auToPx);
-      simCtx.beginPath(); simCtx.arc(earthPx, centerY, 12, 0, Math.PI*2);
-      simCtx.fillStyle = "#38bdf8"; simCtx.fill();
-
-      // FIX 2: Intensity Label Above Planet
-      simCtx.font = "bold 14px Arial";
+      // 3. Draw Sun
+      simCtx.beginPath();
+      simCtx.arc(originX, centerY, 20, 0, Math.PI*2);
       simCtx.fillStyle = "#fbbf24";
-      simCtx.textAlign = "center";
-      simCtx.fillText(`${Math.round(state.currentIntensity).toLocaleString()} W/m²`, earthPx, centerY - 40);
-      
-      simCtx.font = "12px Arial";
-      simCtx.fillStyle = "white";
-      simCtx.fillText(`${state.x_au.toFixed(2)} AU`, earthPx, centerY - 22);
+      simCtx.shadowColor = "#f59e0b";
+      simCtx.shadowBlur = 20 * (state.P_slider / 3.9); // Glow scales with power
+      simCtx.fill();
+      simCtx.shadowBlur = 0;
 
+      // 4. Draw Earth / Detector
+      const earthPx = originX + (state.x_au * auToPx);
+      
+      // Selection Halo
+      if (state.dragging) {
+        simCtx.beginPath();
+        simCtx.arc(earthPx, centerY, 25, 0, Math.PI*2);
+        simCtx.fillStyle = "rgba(56, 189, 248, 0.3)";
+        simCtx.fill();
+      }
+
+      // Planet body
+      simCtx.beginPath();
+      simCtx.arc(earthPx, centerY, 12, 0, Math.PI*2);
+      simCtx.fillStyle = "#38bdf8"; // Earth blue
+      simCtx.fill();
+      
+      // Night side shadow (simulate lighting)
+      simCtx.beginPath();
+      simCtx.arc(earthPx, centerY, 12, -Math.PI/2, Math.PI/2);
+      simCtx.fillStyle = "rgba(0,0,0,0.5)";
+      simCtx.fill();
+
+      // Planet Label
+      simCtx.font = "bold 12px Arial";
+      simCtx.fillStyle = "white";
+      simCtx.textAlign = "center";
+      simCtx.fillText(`${state.x_au.toFixed(2)} AU`, earthPx, centerY - 20);
+
+      // Animate wave phase
       state.phase += 0.05;
       requestAnimationFrame(drawSim);
     }
 
+    // --- INTERACTIVITY (iPad / Mouse) ---
+    els.pSlider.addEventListener('input', (e) => { state.P_slider = parseFloat(e.target.value); updatePhysics(); });
+    els.xSlider.addEventListener('input', (e) => { state.x_au = parseFloat(e.target.value); updatePhysics(); });
+
     function getMouseX(e) {
       const rect = simCanvas.getBoundingClientRect();
       const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-      return (clientX - rect.left) / (simW / simCanvas.offsetWidth);
+      return (clientX - rect.left) / (simW / simCanvas.offsetWidth); // handle scaling
     }
 
     function handleStart(e) {
+      if (e.target !== simCanvas) return;
+      if (e.type === 'touchstart') e.preventDefault();
+      
       const pxX = getMouseX(e);
       const earthPx = originX + (state.x_au * auToPx);
-      // FIX 3: Only preventDefault if touching the planet area
+      
+      // Check if clicking near earth (large 40px touch radius)
       if (Math.abs(pxX - earthPx) < 40) {
         state.dragging = true;
-        if (e.cancelable) e.preventDefault(); 
       }
     }
 
     function handleMove(e) {
       if (!state.dragging) return;
-      // FIX 4: Only lock the screen if we are actually dragging
-      if (e.cancelable) e.preventDefault(); 
+      if (e.type === 'touchmove') e.preventDefault(); // Stop iPad scroll
+
       const pxX = getMouseX(e);
-      state.x_au = Math.max(0.2, Math.min(3.0, (pxX - originX) / auToPx));
-      els.xSlider.value = state.x_au;
+      let newAu = (pxX - originX) / auToPx;
+      
+      // Clamp between 0.2 and 3.0 AU
+      state.x_au = Math.max(0.2, Math.min(3.0, newAu));
+      els.xSlider.value = state.x_au; // Sync slider
+      
       updatePhysics();
+    }
+
+    function handleEnd() {
+      state.dragging = false;
     }
 
     simCanvas.addEventListener('mousedown', handleStart);
     window.addEventListener('mousemove', handleMove);
-    window.addEventListener('mouseup', () => state.dragging = false);
+    window.addEventListener('mouseup', handleEnd);
+
     simCanvas.addEventListener('touchstart', handleStart, { passive: false });
     window.addEventListener('touchmove', handleMove, { passive: false });
-    window.addEventListener('touchend', () => state.dragging = false);
+    window.addEventListener('touchend', handleEnd);
 
-    els.pSlider.addEventListener('input', (e) => { state.P_slider = parseFloat(e.target.value); updatePhysics(); });
-    els.xSlider.addEventListener('input', (e) => { state.x_au = parseFloat(e.target.value); updatePhysics(); });
+    // --- INIT ---
+    setTimeout(() => {
+      resize();
+      requestAnimationFrame(drawSim); // Start animation loop
+    }, 50);
 
-    setTimeout(resize, 50);
-    requestAnimationFrame(drawSim);
   </script>
 </body>
 </html>
