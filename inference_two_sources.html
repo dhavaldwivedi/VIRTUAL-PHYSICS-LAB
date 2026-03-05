@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>2D Wave Interference & Path Difference</title>
+  <style>
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: #0f172a;
+      color: #e2e8f0;
+      overflow: hidden; 
+    }
+
+    canvas {
+      display: block;
+      width: 100vw;
+      height: 100vh;
+      position: absolute;
+      top: 0;
+      left: 0;
+      z-index: 1;
+      touch-action: none;
+    }
+
+    .toggle-btn {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      background: rgba(15, 23, 42, 0.85);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      color: white;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      padding: 10px 16px;
+      border-radius: 8px;
+      font-size: 1rem;
+      font-weight: bold;
+      cursor: pointer;
+      z-index: 5;
+      transition: background 0.2s;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    }
+    .toggle-btn:hover { background: rgba(255, 255, 255, 0.2); }
+
+    .controls-panel {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      width: 360px;
+      max-height: calc(100vh - 40px);
+      overflow-y: auto;
+      z-index: 10;
+      background: rgba(15, 23, 42, 0.85);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      border-radius: 16px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      padding: 20px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.4);
+      transition: transform 0.3s ease, opacity 0.3s ease;
+    }
+
+    .controls-panel.hidden {
+      transform: translateX(120%);
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .close-btn {
+      position: absolute;
+      top: 15px;
+      right: 15px;
+      background: none;
+      border: none;
+      color: #94a3b8;
+      font-size: 1.2rem;
+      cursor: pointer;
+      padding: 0;
+      line-height: 1;
+    }
+    .close-btn:hover { color: white; }
+
+    .controls-panel::-webkit-scrollbar { width: 6px; }
+    .controls-panel::-webkit-scrollbar-thumb { background: #475569; border-radius: 3px; }
+
+    .title {
+      margin: 0 0 15px;
+      font-size: 1.2rem;
+      font-weight: 700;
+      color: #f8fafc;
+      text-align: center;
+      border-bottom: 1px solid #334155;
+      padding-bottom: 10px;
+      padding-right: 20px;
+    }
+
+    .control-section {
+      background: rgba(0,0,0,0.2);
+      border-radius: 10px;
+      border: 1px solid #334155;
+      padding: 15px;
+      margin-bottom: 15px;
+    }
+
+    .control-group { margin-bottom: 15px; }
+    .control-group:last-child { margin-bottom: 0; }
+
+    .control-group label {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: #cbd5e1;
+      margin-bottom: 8px;
+    }
+
+    .val-container { display: flex; align-items: center; gap: 6px; }
+
+    button.step-btn {
+      flex: none; width: 26px; height: 26px; min-height: 0; padding: 0;
+      border-radius: 6px; background: rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.2); color: white;
+      font-size: 1.1rem; display: flex; align-items: center; justify-content: center;
+      line-height: 1; cursor: pointer; transition: background 0.1s;
+    }
+    button.step-btn:hover { background: rgba(255, 255, 255, 0.25); }
+    button.step-btn:active { transform: scale(0.9); }
+
+    .val-text {
+      min-width: 50px; text-align: center;
+      font-family: 'Courier New', Courier, monospace; font-weight: bold;
+    }
+
+    input[type="range"] { width: 100%; min-height: 30px; cursor: pointer; }
+
+    /* Checkbox toggle */
+    .toggle-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 0.95rem;
+      font-weight: bold;
+      color: #e2e8f0;
+      cursor: pointer;
+    }
+    .toggle-row input {
+      width: 20px; height: 20px; cursor: pointer;
+    }
+
+    /* Lab Worksheet Section */
+    .lab-panel {
+      background: rgba(0,0,0,0.5);
+      border: 1px solid #38bdf8;
+      border-radius: 12px;
+      padding: 15px;
+      margin-bottom: 0;
+    }
+    .lab-header {
+      font-size: 1.05rem; color: #38bdf8; font-weight: bold;
+      text-transform: uppercase; margin-bottom: 12px; text-align: center;
+      letter-spacing: 1px;
+    }
+    .measurements {
+      display: flex; flex-direction: column; gap: 6px;
+      background: #1e293b; padding: 12px; border-radius: 6px; margin-bottom: 12px;
+      font-family: "Courier New", Courier, monospace; font-weight: bold; font-size: 1rem;
+    }
+    .meas-row { display: flex; justify-content: space-between; }
+    
+    .divider { height: 1px; background: #475569; margin: 4px 0; }
+
+    .result-box {
+      text-align: center; margin-top: 10px; font-size: 1.1rem; 
+      background: #020617; padding: 10px; border-radius: 6px; border: 1px solid #475569;
+    }
+    .ratio-highlight { color: #fbbf24; font-weight: bold; font-family: 'Courier New', Courier, monospace; font-size: 1.25rem;}
+
+    .status-badge {
+      display: block; text-align: center; font-weight: bold; font-size: 0.9rem;
+      padding: 10px; border-radius: 6px; margin-top: 12px; letter-spacing: 0.5px;
+      transition: background 0.3s, color 0.3s;
+    }
+    .status-constructive { background: #10b981; color: #ecfdf5; box-shadow: 0 0 10px rgba(16,185,129,0.4); }
+    .status-destructive { background: #ef4444; color: #fef2f2; box-shadow: 0 0 10px rgba(239,68,68,0.4); }
+    .status-intermediate { background: #475569; color: #cbd5e1; }
+
+    .drag-hint {
+      position: absolute; bottom: 20px; left: 20px;
+      background: rgba(15, 23, 42, 0.7); padding: 10px 15px; border-radius: 8px;
+      border: 1px solid #334155; color: #94a3b8; font-size: 0.9rem;
+      pointer-events: none; z-index: 10;
+    }
+  </style>
+</head>
+<body>
+
+  <canvas id="simCanvas"></canvas>
+  <div class="drag-hint">👆 Drag the Sources (S₁, S₂) or the Probe (P)</div>
+
+  <button id="toggleBtn" class="toggle-btn">⚙️ Settings & Lab</button>
+
+  <div id="controlsPanel" class="controls-panel">
+    <button id="closeBtn" class="close-btn">✖</button>
+    <div class="title">Path Difference Lab</div>
+
+    <div class="control-section" style="border-top: 4px solid #06b6d4;">
+      <div class="control-group">
+        <label>
+          <span style="color: #06b6d4;">Wavelength (&lambda;)</span>
+          <div class="val-container">
+            <button class="step-btn" onclick="step('lambda', -5)">-</button>
+            <span id="valLambda" class="val-text" style="color: #06b6d4;">40 px</span>
+            <button class="step-btn" onclick="step('lambda', 5)">+</button>
+          </div>
+        </label>
+        <input type="range" id="slLambda" min="20" max="100" step="1" value="40">
+      </div>
+      
+      <div class="control-group">
+        <label>
+          <span>Animation Speed</span>
+          <div class="val-container">
+            <button class="step-btn" onclick="step('speed', -0.5)">-</button>
+            <span id="valSpeed" class="val-text" style="color: white;">1.5</span>
+            <button class="step-btn" onclick="step('speed', 0.5)">+</button>
+          </div>
+        </label>
+        <input type="range" id="slSpeed" min="0" max="5" step="0.1" value="1.5">
+      </div>
+
+      <label class="toggle-row" style="margin-top: 20px;">
+        Show Expanding Waves
+        <input type="checkbox" id="chkWaves" checked>
+      </label>
+    </div>
+
+    <div class="lab-panel">
+      <div class="lab-header">Live Calculations</div>
+      
+      <div class="measurements">
+        <div class="meas-row">
+          <span style="color: #a78bfa;">S₁P (x₁)</span>
+          <span id="labX1">0.0</span>
+        </div>
+        <div class="meas-row">
+          <span style="color: #f472b6;">S₂P (x₂)</span>
+          <span id="labX2">0.0</span>
+        </div>
+        <div class="divider"></div>
+        <div class="meas-row" style="color: white;">
+          <span>Path Diff (&Delta;x)</span>
+          <span id="labDeltaX">0.0</span>
+        </div>
+      </div>
+      
+      <div class="result-box">
+        &Delta;x &divide; &lambda; = <span id="labRatio" class="ratio-highlight">0.00</span>
+      </div>
+
+      <div id="badge" class="status-badge status-constructive">
+        CONSTRUCTIVE (&Delta;x = n&lambda;)
+      </div>
+      
+    </div>
+
+  </div>
+
+  <script>
+    // --- STATE ---
+    const state = {
+      lambda: 40,   // Wavelength
+      speed: 1.5,   // Animation phase speed
+      phase: 0,     // Current wave phase
+      showWaves: true,
+      
+      // Node positions
+      s1: { x: window.innerWidth * 0.25, y: window.innerHeight * 0.4 },
+      s2: { x: window.innerWidth * 0.25, y: window.innerHeight * 0.6 },
+      p: { x: window.innerWidth * 0.75, y: window.innerHeight * 0.5 }, // Starts perfectly constructive
+      
+      dragNode: null // 's1', 's2', 'p', or null
+    };
+
+    // --- DOM ---
+    const els = {
+      slLambda: document.getElementById('slLambda'), valLambda: document.getElementById('valLambda'),
+      slSpeed: document.getElementById('slSpeed'), valSpeed: document.getElementById('valSpeed'),
+      chkWaves: document.getElementById('chkWaves'),
+      
+      labX1: document.getElementById('labX1'), labX2: document.getElementById('labX2'),
+      labDeltaX: document.getElementById('labDeltaX'), labRatio: document.getElementById('labRatio'),
+      badge: document.getElementById('badge'),
+      
+      toggleBtn: document.getElementById('toggleBtn'), controlsPanel: document.getElementById('controlsPanel'), closeBtn: document.getElementById('closeBtn')
+    };
+
+    const canvas = document.getElementById('simCanvas');
+    const ctx = canvas.getContext('2d');
+
+    function resizeCanvas() {
+      const dpr = window.devicePixelRatio || 1;
+      canvas.width = window.innerWidth * dpr;
+      canvas.height = window.innerHeight * dpr;
+      ctx.setTransform(1, 0, 0, 1, 0, 0); 
+      ctx.scale(dpr, dpr);
+    }
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas();
+
+    // --- UI LOGIC ---
+    els.toggleBtn.addEventListener('click', () => { els.controlsPanel.classList.remove('hidden'); });
+    els.closeBtn.addEventListener('click', () => { els.controlsPanel.classList.add('hidden'); });
+
+    function updateUI() {
+      state.lambda = Math.max(20, Math.min(100, state.lambda)); 
+      state.speed = Math.max(0, Math.min(5, state.speed)); 
+      
+      els.slLambda.value = state.lambda; els.valLambda.textContent = `${state.lambda} px`;
+      els.slSpeed.value = state.speed; els.valSpeed.textContent = state.speed.toFixed(1);
+    }
+
+    window.step = function(param, amount) {
+      state[param] = Math.round((state[param] + amount) * 10) / 10;
+      updateUI();
+    };
+
+    els.slLambda.addEventListener('input', (e) => { state.lambda = parseFloat(e.target.value); updateUI(); });
+    els.slSpeed.addEventListener('input', (e) => { state.speed = parseFloat(e.target.value); updateUI(); });
+    els.chkWaves.addEventListener('change', (e) => { state.showWaves = e.target.checked; });
+
+    // --- DRAGGING LOGIC ---
+    function getPointerPos(e) {
+      const rect = canvas.getBoundingClientRect();
+      const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+      const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+      return { x: clientX - rect.left, y: clientY - rect.top };
+    }
+
+    // Distance formula
+    const dist = (p1, p2) => Math.sqrt(Math.pow(p2.x - p1.x, 2) + Math.pow(p2.y - p1.y, 2));
+
+    function handleDragStart(e) {
+      if(e.target !== canvas) return;
+      const pos = getPointerPos(e);
+      
+      // Check which node is being clicked (tolerance 30px)
+      if (dist(pos, state.p) < 40) state.dragNode = 'p';
+      else if (dist(pos, state.s1) < 40) state.dragNode = 's1';
+      else if (dist(pos, state.s2) < 40) state.dragNode = 's2';
+      
+      if (state.dragNode) {
+          canvas.style.cursor = 'grabbing';
+          handleDragMove(e);
+      }
+    }
+
+    function handleDragMove(e) {
+      const pos = getPointerPos(e);
+      
+      if(!state.dragNode) {
+        // Hover cursor effect
+        if (dist(pos, state.p) < 40 || dist(pos, state.s1) < 40 || dist(pos, state.s2) < 40) {
+            canvas.style.cursor = 'grab';
+        } else {
+            canvas.style.cursor = 'crosshair';
+        }
+        return;
+      }
+      
+      if(e.touches) e.preventDefault(); 
+      
+      // Update position of the dragged node
+      state[state.dragNode].x = pos.x;
+      state[state.dragNode].y = pos.y;
+    }
+
+    function handleDragEnd() { 
+        state.dragNode = null; 
+        canvas.style.cursor = 'crosshair';
+    }
+
+    canvas.addEventListener('mousedown', handleDragStart);
+    window.addEventListener('mousemove', handleDragMove);
+    window.addEventListener('mouseup', handleDragEnd);
+    canvas.addEventListener('touchstart', handleDragStart, { passive: false });
+    window.addEventListener('touchmove', handleDragMove, { passive: false });
+    window.addEventListener('touchend', handleDragEnd);
+
+
+    // --- ANIMATION & DRAWING LOOP ---
+    function animate() {
+      state.phase += state.speed; // Advance wave phase
+
+      const w = window.innerWidth;
+      const h = window.innerHeight;
+      ctx.clearRect(0, 0, w, h);
+
+      // 1. Draw Wavefronts
+      if (state.showWaves) {
+          ctx.strokeStyle = "rgba(6, 182, 212, 0.45)"; // Cyan waves
+          // Make line width relative to wavelength so crests look good
+          ctx.lineWidth = Math.max(1.5, state.lambda * 0.15); 
+          
+          const maxRadius = Math.max(w, h) * 1.5;
+          const numRings = Math.ceil(maxRadius / state.lambda);
+          
+          // Draw waves for S1
+          for (let i = 0; i < numRings; i++) {
+              let r = (i * state.lambda + (state.phase % state.lambda));
+              if (r > 0) {
+                  ctx.beginPath(); ctx.arc(state.s1.x, state.s1.y, r, 0, Math.PI*2); ctx.stroke();
+              }
+          }
+          
+          // Draw waves for S2 (Using globalCompositeOperation creates the Moire interference pattern!)
+          ctx.globalCompositeOperation = 'screen';
+          for (let i = 0; i < numRings; i++) {
+              let r = (i * state.lambda + (state.phase % state.lambda));
+              if (r > 0) {
+                  ctx.beginPath(); ctx.arc(state.s2.x, state.s2.y, r, 0, Math.PI*2); ctx.stroke();
+              }
+          }
+          ctx.globalCompositeOperation = 'source-over';
+      }
+
+      // 2. Perform Math Calculations
+      const d1 = dist(state.s1, state.p);
+      const d2 = dist(state.s2, state.p);
+      const deltaX = Math.abs(d1 - d2);
+      const nRatio = deltaX / state.lambda;
+
+      // Update HUD Numbers
+      els.labX1.textContent = `${d1.toFixed(1)} px`;
+      els.labX2.textContent = `${d2.toFixed(1)} px`;
+      els.labDeltaX.textContent = `${deltaX.toFixed(1)} px`;
+      els.labRatio.textContent = nRatio.toFixed(2);
+
+      // Determine Interference State (Tolerance of +/- 0.08 from integer/half-integer)
+      const distToInteger = Math.abs(Math.round(nRatio) - nRatio);
+      
+      if (distToInteger < 0.08) {
+          els.badge.textContent = "CONSTRUCTIVE (\u0394x = n\u03BB)";
+          els.badge.className = "status-badge status-constructive";
+      } else if (distToInteger > 0.42) {
+          els.badge.textContent = "DESTRUCTIVE (\u0394x = (n+\u00BD)\u03BB)";
+          els.badge.className = "status-badge status-destructive";
+      } else {
+          els.badge.textContent = "INTERMEDIATE";
+          els.badge.className = "status-badge status-intermediate";
+      }
+
+      // 3. Draw Geometry Lines
+      ctx.setLineDash([5, 5]);
+      ctx.lineWidth = 2;
+      
+      // S1 to P
+      ctx.strokeStyle = "#a78bfa"; // Purple
+      ctx.beginPath(); ctx.moveTo(state.s1.x, state.s1.y); ctx.lineTo(state.p.x, state.p.y); ctx.stroke();
+      
+      // S2 to P
+      ctx.strokeStyle = "#f472b6"; // Pink
+      ctx.beginPath(); ctx.moveTo(state.s2.x, state.s2.y); ctx.lineTo(state.p.x, state.p.y); ctx.stroke();
+      ctx.setLineDash([]);
+
+      // Line Labels
+      ctx.fillStyle = "#a78bfa"; ctx.font = "bold 14px Arial";
+      ctx.fillText("x₁", (state.s1.x + state.p.x)/2, (state.s1.y + state.p.y)/2 - 10);
+      ctx.fillStyle = "#f472b6";
+      ctx.fillText("x₂", (state.s2.x + state.p.x)/2, (state.s2.y + state.p.y)/2 + 20);
+
+      // 4. Draw Nodes
+      const drawNode = (point, color, label) => {
+          // Glow
+          ctx.beginPath(); ctx.arc(point.x, point.y, 12, 0, Math.PI*2);
+          ctx.fillStyle = `rgba(${color}, 0.3)`; ctx.fill();
+          // Solid center
+          ctx.beginPath(); ctx.arc(point.x, point.y, 6, 0, Math.PI*2);
+          ctx.fillStyle = `rgb(${color})`; ctx.fill();
+          // Label
+          ctx.fillStyle = "white"; ctx.font = "bold 14px Arial";
+          ctx.fillText(label, point.x - 10, point.y - 18);
+      };
+
+      drawNode(state.s1, "167, 139, 250", "S₁"); // Purple source
+      drawNode(state.s2, "244, 114, 182", "S₂"); // Pink source
+      drawNode(state.p, "251, 191, 36", "P");    // Yellow Probe
+
+      requestAnimationFrame(animate);
+    }
+
+    // Start Simulation
+    updateUI();
+    animate();
+
+  </script>
+</body>
+</html>
