@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Standing Waves: Harmonics & Length</title>
+  <style>
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: #0f172a;
+      color: #e2e8f0;
+      overflow: hidden; 
+    }
+
+    canvas {
+      display: block;
+      width: 100vw;
+      height: 100vh;
+      position: absolute;
+      top: 0;
+      left: 0;
+      z-index: 1;
+      touch-action: none;
+    }
+
+    .toggle-btn {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      background: rgba(15, 23, 42, 0.85);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      color: white;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      padding: 10px 16px;
+      border-radius: 8px;
+      font-size: 1rem;
+      font-weight: bold;
+      cursor: pointer;
+      z-index: 5;
+      transition: background 0.2s;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    }
+    .toggle-btn:hover { background: rgba(255, 255, 255, 0.2); }
+
+    .controls-panel {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      width: 380px;
+      max-height: calc(100vh - 40px);
+      overflow-y: auto;
+      z-index: 10;
+      background: rgba(15, 23, 42, 0.85);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      border-radius: 16px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      padding: 20px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.4);
+      transition: transform 0.3s ease, opacity 0.3s ease;
+    }
+
+    .controls-panel.hidden {
+      transform: translateX(120%);
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .close-btn {
+      position: absolute;
+      top: 15px;
+      right: 15px;
+      background: none;
+      border: none;
+      color: #94a3b8;
+      font-size: 1.2rem;
+      cursor: pointer;
+      padding: 0;
+      line-height: 1;
+    }
+    .close-btn:hover { color: white; }
+
+    .controls-panel::-webkit-scrollbar { width: 6px; }
+    .controls-panel::-webkit-scrollbar-thumb { background: #475569; border-radius: 3px; }
+
+    .title {
+      margin: 0 0 15px;
+      font-size: 1.2rem;
+      font-weight: 700;
+      color: #f8fafc;
+      text-align: center;
+      border-bottom: 1px solid #334155;
+      padding-bottom: 10px;
+      padding-right: 20px;
+    }
+
+    .control-section {
+      background: rgba(0,0,0,0.2);
+      border-radius: 10px;
+      border: 1px solid #334155;
+      padding: 15px;
+      margin-bottom: 15px;
+    }
+
+    .control-group { margin-bottom: 15px; }
+    .control-group:last-child { margin-bottom: 0; }
+
+    .control-group label {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: #cbd5e1;
+      margin-bottom: 8px;
+    }
+
+    .val-container { display: flex; align-items: center; gap: 6px; }
+
+    button.step-btn {
+      flex: none; width: 26px; height: 26px; min-height: 0; padding: 0;
+      border-radius: 6px; background: rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.2); color: white;
+      font-size: 1.1rem; display: flex; align-items: center; justify-content: center;
+      line-height: 1; cursor: pointer; transition: background 0.1s;
+    }
+    button.step-btn:hover { background: rgba(255, 255, 255, 0.25); }
+    button.step-btn:active { transform: scale(0.9); }
+
+    .val-text {
+      min-width: 50px; text-align: right;
+      font-family: 'Courier New', Courier, monospace; font-weight: bold;
+    }
+
+    input[type="range"] { width: 100%; min-height: 30px; cursor: pointer; }
+
+    /* Lab Worksheet Section */
+    .lab-panel {
+      background: rgba(0,0,0,0.5);
+      border: 1px solid #10b981;
+      border-radius: 12px;
+      padding: 15px;
+      margin-bottom: 0;
+    }
+    .lab-header {
+      font-size: 1.05rem; color: #10b981; font-weight: bold;
+      text-transform: uppercase; margin-bottom: 12px; text-align: center;
+      letter-spacing: 1px; border-bottom: 1px solid #334155; padding-bottom: 8px;
+    }
+
+    .general-formula {
+      text-align: center; font-family: "Courier New", Courier, monospace;
+      font-size: 1.1rem; color: #e2e8f0; margin-bottom: 15px; font-weight: bold;
+    }
+    .general-formula span { color: #94a3b8; font-size: 0.8em; font-family: sans-serif; font-weight: normal;}
+
+    .string-calc {
+      background: #1e293b; padding: 10px; border-radius: 6px; margin-bottom: 10px;
+      font-family: "Courier New", Courier, monospace; font-weight: bold; font-size: 0.95rem;
+    }
+    .string-calc:last-child { margin-bottom: 0; }
+    
+    .calc-title { font-size: 0.8rem; font-family: sans-serif; text-transform: uppercase; margin-bottom: 4px; }
+    .calc-line { margin-bottom: 3px; color: #cbd5e1; }
+    .highlight-val { color: white; }
+
+  </style>
+</head>
+<body>
+
+  <canvas id="simCanvas"></canvas>
+
+  <button id="toggleBtn" class="toggle-btn">⚙️ Settings & Lab</button>
+
+  <div id="controlsPanel" class="controls-panel">
+    <button id="closeBtn" class="close-btn">✖</button>
+    <div class="title">Standing Wave Harmonics</div>
+
+    <div class="control-section" style="border-top: 4px solid white;">
+      <div class="control-group">
+        <label>
+          <span>String Length (L)</span>
+          <div class="val-container">
+            <button class="step-btn" onclick="step('L', -0.1)">-</button>
+            <span id="valL" class="val-text" style="color: white;">2.0 m</span>
+            <button class="step-btn" onclick="step('L', 0.1)">+</button>
+          </div>
+        </label>
+        <input type="range" id="slL" min="0.5" max="3.0" step="0.1" value="2.0">
+      </div>
+      
+      <div class="control-group" style="margin-bottom: 0;">
+        <label>
+          <span style="color: #94a3b8;">Animation Speed</span>
+          <div class="val-container">
+            <button class="step-btn" onclick="step('speed', -0.1)">-</button>
+            <span id="valSpeed" class="val-text" style="color: #94a3b8;">1.0&times;</span>
+            <button class="step-btn" onclick="step('speed', 0.1)">+</button>
+          </div>
+        </label>
+        <input type="range" id="slSpeed" min="0" max="3" step="0.1" value="1.0">
+      </div>
+    </div>
+
+    <div class="control-section" style="border-left: 4px solid #fbbf24;">
+      <div class="control-group" style="margin-bottom: 0;">
+        <label>
+          <span style="color: #fbbf24;">String 1: Harmonic (n<sub>1</sub>)</span>
+          <div class="val-container">
+            <button class="step-btn" onclick="step('n1', -1)">-</button>
+            <span id="valN1" class="val-text" style="color: #fbbf24;">1</span>
+            <button class="step-btn" onclick="step('n1', 1)">+</button>
+          </div>
+        </label>
+        <input type="range" id="slN1" min="1" max="8" step="1" value="1">
+      </div>
+    </div>
+
+    <div class="control-section" style="border-left: 4px solid #38bdf8;">
+      <div class="control-group" style="margin-bottom: 0;">
+        <label>
+          <span style="color: #38bdf8;">String 2: Harmonic (n<sub>2</sub>)</span>
+          <div class="val-container">
+            <button class="step-btn" onclick="step('n2', -1)">-</button>
+            <span id="valN2" class="val-text" style="color: #38bdf8;">2</span>
+            <button class="step-btn" onclick="step('n2', 1)">+</button>
+          </div>
+        </label>
+        <input type="range" id="slN2" min="1" max="8" step="1" value="2">
+      </div>
+    </div>
+
+    <div class="control-section" style="border-left: 4px solid #f472b6; margin-bottom: 20px;">
+      <div class="control-group" style="margin-bottom: 0;">
+        <label>
+          <span style="color: #f472b6;">String 3: Harmonic (n<sub>3</sub>)</span>
+          <div class="val-container">
+            <button class="step-btn" onclick="step('n3', -1)">-</button>
+            <span id="valN3" class="val-text" style="color: #f472b6;">3</span>
+            <button class="step-btn" onclick="step('n3', 1)">+</button>
+          </div>
+        </label>
+        <input type="range" id="slN3" min="1" max="8" step="1" value="3">
+      </div>
+    </div>
+
+    <div class="lab-panel">
+      <div class="lab-header">Calculations</div>
+      
+      <div class="general-formula">
+        &lambda; = 2L / n <br>
+        f = v / &lambda; <br>
+        <span>(Assumed wave speed v = 100 m/s)</span>
+      </div>
+
+      <div class="string-calc" style="border-left: 3px solid #fbbf24;">
+        <div class="calc-title" style="color: #fbbf24;">String 1 (n=<span id="eqN1">1</span>)</div>
+        <div class="calc-line">&lambda; = 2(<span class="eqL">2.0</span>) / <span id="eqN1_sub">1</span> = <span id="eqLam1" class="highlight-val">4.00 m</span></div>
+        <div class="calc-line">f = 100 / <span id="eqLam1_sub">4.00</span> = <span id="eqF1" class="highlight-val" style="color: #fbbf24;">25.0 Hz</span></div>
+      </div>
+
+      <div class="string-calc" style="border-left: 3px solid #38bdf8;">
+        <div class="calc-title" style="color: #38bdf8;">String 2 (n=<span id="eqN2">2</span>)</div>
+        <div class="calc-line">&lambda; = 2(<span class="eqL">2.0</span>) / <span id="eqN2_sub">2</span> = <span id="eqLam2" class="highlight-val">2.00 m</span></div>
+        <div class="calc-line">f = 100 / <span id="eqLam2_sub">2.00</span> = <span id="eqF2" class="highlight-val" style="color: #38bdf8;">50.0 Hz</span></div>
+      </div>
+
+      <div class="string-calc" style="border-left: 3px solid #f472b6;">
+        <div class="calc-title" style="color: #f472b6;">String 3 (n=<span id="eqN3">3</span>)</div>
+        <div class="calc-line">&lambda; = 2(<span class="eqL">2.0</span>) / <span id="eqN3_sub">3</span> = <span id="eqLam3" class="highlight-val">1.33 m</span></div>
+        <div class="calc-line">f = 100 / <span id="eqLam3_sub">1.33</span> = <span id="eqF3" class="highlight-val" style="color: #f472b6;">75.0 Hz</span></div>
+      </div>
+
+    </div>
+
+  </div>
+
+  <script>
+    // --- STATE ---
+    const state = {
+      L: 2.0,       // String length in meters
+      v: 100,       // Constant wave speed (m/s)
+      n1: 1, n2: 2, n3: 3, // Harmonics
+      speed: 1.0,   // Time multiplier
+      t: 0          // Internal phase clock
+    };
+
+    const baseAmp = 35; // Visual base amplitude in pixels
+
+    // --- DOM ---
+    const els = {
+      slL: document.getElementById('slL'), valL: document.getElementById('valL'),
+      slSpeed: document.getElementById('slSpeed'), valSpeed: document.getElementById('valSpeed'),
+      slN1: document.getElementById('slN1'), valN1: document.getElementById('valN1'),
+      slN2: document.getElementById('slN2'), valN2: document.getElementById('valN2'),
+      slN3: document.getElementById('slN3'), valN3: document.getElementById('valN3'),
+      
+      // Math Elements
+      eqL_arr: document.querySelectorAll('.eqL'),
+      eqN1: document.getElementById('eqN1'), eqN1_sub: document.getElementById('eqN1_sub'), eqLam1: document.getElementById('eqLam1'), eqLam1_sub: document.getElementById('eqLam1_sub'), eqF1: document.getElementById('eqF1'),
+      eqN2: document.getElementById('eqN2'), eqN2_sub: document.getElementById('eqN2_sub'), eqLam2: document.getElementById('eqLam2'), eqLam2_sub: document.getElementById('eqLam2_sub'), eqF2: document.getElementById('eqF2'),
+      eqN3: document.getElementById('eqN3'), eqN3_sub: document.getElementById('eqN3_sub'), eqLam3: document.getElementById('eqLam3'), eqLam3_sub: document.getElementById('eqLam3_sub'), eqF3: document.getElementById('eqF3'),
+
+      toggleBtn: document.getElementById('toggleBtn'), controlsPanel: document.getElementById('controlsPanel'), closeBtn: document.getElementById('closeBtn')
+    };
+
+    const canvas = document.getElementById('simCanvas');
+    const ctx = canvas.getContext('2d');
+    let cx, h;
+
+    function resizeCanvas() {
+      const dpr = window.devicePixelRatio || 1;
+      canvas.width = window.innerWidth * dpr;
+      canvas.height = window.innerHeight * dpr;
+      ctx.setTransform(1, 0, 0, 1, 0, 0); 
+      ctx.scale(dpr, dpr);
+      
+      cx = window.innerWidth / 2;
+      h = window.innerHeight;
+      
+      updateMath();
+    }
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas();
+
+    // --- UI LOGIC ---
+    els.toggleBtn.addEventListener('click', () => { els.controlsPanel.classList.remove('hidden'); });
+    els.closeBtn.addEventListener('click', () => { els.controlsPanel.classList.add('hidden'); });
+
+    function updateMath() {
+      // Clamping limits
+      state.L = Math.max(0.5, Math.min(3.0, state.L));
+      state.n1 = Math.max(1, Math.min(8, Math.round(state.n1)));
+      state.n2 = Math.max(1, Math.min(8, Math.round(state.n2)));
+      state.n3 = Math.max(1, Math.min(8, Math.round(state.n3)));
+      state.speed = Math.max(0, Math.min(3, state.speed));
+
+      // UI Sliders Text
+      els.slL.value = state.L; els.valL.textContent = `${state.L.toFixed(1)} m`;
+      els.slSpeed.value = state.speed; els.valSpeed.textContent = `${state.speed.toFixed(1)}\times`;
+      els.slN1.value = state.n1; els.valN1.textContent = state.n1;
+      els.slN2.value = state.n2; els.valN2.textContent = state.n2;
+      els.slN3.value = state.n3; els.valN3.textContent = state.n3;
+
+      // Update Math HUD Length
+      els.eqL_arr.forEach(el => el.textContent = state.L.toFixed(1));
+
+      // Calculate Physics for all 3 strings
+      const updateHUDString = (n, idN, idN_sub, idLam, idLam_sub, idF) => {
+          const lambda = (2 * state.L) / n;
+          const f = state.v / lambda;
+          
+          idN.textContent = n;
+          idN_sub.textContent = n;
+          idLam.textContent = `${lambda.toFixed(2)} m`;
+          idLam_sub.textContent = lambda.toFixed(2);
+          idF.textContent = `${f.toFixed(1)} Hz`;
+      };
+
+      updateHUDString(state.n1, els.eqN1, els.eqN1_sub, els.eqLam1, els.eqLam1_sub, els.eqF1);
+      updateHUDString(state.n2, els.eqN2, els.eqN2_sub, els.eqLam2, els.eqLam2_sub, els.eqF2);
+      updateHUDString(state.n3, els.eqN3, els.eqN3_sub, els.eqLam3, els.eqLam3_sub, els.eqF3);
+    }
+
+    window.step = function(param, amount) {
+      state[param] = Math.round((state[param] + amount) * 10) / 10;
+      updateMath();
+    };
+
+    els.slL.addEventListener('input', (e) => { state.L = parseFloat(e.target.value); updateMath(); });
+    els.slN1.addEventListener('input', (e) => { state.n1 = parseFloat(e.target.value); updateMath(); });
+    els.slN2.addEventListener('input', (e) => { state.n2 = parseFloat(e.target.value); updateMath(); });
+    els.slN3.addEventListener('input', (e) => { state.n3 = parseFloat(e.target.value); updateMath(); });
+    els.slSpeed.addEventListener('input', (e) => { state.speed = parseFloat(e.target.value); updateMath(); });
+
+    // --- DRAWING LOGIC ---
+    function animate() {
+      // Global clock tick
+      state.t += 0.0003 * state.speed; 
+
+      const w = window.innerWidth;
+      ctx.clearRect(0, 0, w, h);
+
+      // Map physical length L (max 3.0) to screen width (max 80%)
+      const maxVisualW = w * 0.75;
+      const pixelLength = (state.L / 3.0) * maxVisualW;
+      const startX = cx - (pixelLength / 2);
+      const endX = cx + (pixelLength / 2);
+
+      // Y positions for the 3 strings
+      const stringYs = [
+          { y: h * 0.25, n: state.n1, color: "#fbbf24" }, // Yellow
+          { y: h * 0.50, n: state.n2, color: "#38bdf8" }, // Blue
+          { y: h * 0.75, n: state.n3, color: "#f472b6" }  // Pink
+      ];
+
+      // Draw L Dimension Line at the bottom
+      const dimY = h * 0.90;
+      ctx.strokeStyle = "#475569"; ctx.lineWidth = 2;
+      // Main line
+      ctx.beginPath(); ctx.moveTo(startX, dimY); ctx.lineTo(endX, dimY); ctx.stroke();
+      // Tick marks
+      ctx.beginPath(); ctx.moveTo(startX, dimY - 10); ctx.lineTo(startX, dimY + 10); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(endX, dimY - 10); ctx.lineTo(endX, dimY + 10); ctx.stroke();
+      // Text
+      ctx.fillStyle = "white"; ctx.font = "bold 16px Arial"; ctx.textAlign = "center";
+      ctx.fillText(`L = ${state.L.toFixed(1)} m`, cx, dimY + 25);
+
+      // Draw the 3 strings
+      stringYs.forEach((str, index) => {
+          const lambda = (2 * state.L) / str.n;
+          const f = state.v / lambda;
+          
+          // Math constants for animation
+          const k = (str.n * Math.PI) / state.L; 
+          const omega = 2 * Math.PI * f;
+          const phase = omega * state.t; // Real physics relative time!
+
+          // 1. Equilibrium Line
+          ctx.strokeStyle = "rgba(255, 255, 255, 0.15)";
+          ctx.lineWidth = 1;
+          ctx.beginPath(); ctx.moveTo(startX, str.y); ctx.lineTo(endX, str.y); ctx.stroke();
+
+          // 2. Amplitude Envelope (Faint dashed)
+          ctx.strokeStyle = `rgba(255, 255, 255, 0.1)`;
+          ctx.setLineDash([4, 4]);
+          ctx.beginPath();
+          for (let i = 0; i <= 100; i++) {
+              let ratio = i / 100;
+              let px = startX + ratio * pixelLength;
+              let py = str.y - 2 * baseAmp * Math.abs(Math.sin(k * ratio * state.L));
+              if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+          }
+          ctx.stroke();
+          ctx.beginPath();
+          for (let i = 0; i <= 100; i++) {
+              let ratio = i / 100;
+              let px = startX + ratio * pixelLength;
+              let py = str.y + 2 * baseAmp * Math.abs(Math.sin(k * ratio * state.L));
+              if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+          }
+          ctx.stroke();
+          ctx.setLineDash([]);
+
+          // 3. Standing Wave Line
+          ctx.strokeStyle = str.color;
+          ctx.lineWidth = 4;
+          ctx.lineJoin = 'round';
+          ctx.beginPath();
+          for (let i = 0; i <= 200; i++) {
+              let ratio = i / 200;
+              let x = ratio * state.L; // physical x
+              // y(x,t) = 2A sin(kx) cos(wt)
+              let current_y = 2 * baseAmp * Math.sin(k * x) * Math.cos(phase);
+              let px = startX + ratio * pixelLength; // mapped to canvas
+              let py = str.y - current_y;
+              if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+          }
+          ctx.stroke();
+
+          // 4. Draw Nodes
+          ctx.fillStyle = str.color;
+          for (let m = 0; m <= str.n; m++) {
+              let nodeRatio = m / str.n;
+              let px = startX + nodeRatio * pixelLength;
+              ctx.beginPath(); ctx.arc(px, str.y, 6, 0, Math.PI*2); ctx.fill();
+              ctx.strokeStyle = "#020617"; ctx.lineWidth = 2; ctx.stroke(); // Dark border
+          }
+
+          // 5. Draw Anchor Blocks
+          ctx.fillStyle = "#475569";
+          ctx.fillRect(startX - 15, str.y - 25, 15, 50);
+          ctx.fillRect(endX, str.y - 25, 15, 50);
+
+          // 6. Label String Number
+          ctx.fillStyle = str.color; ctx.font = "bold 14px Arial"; ctx.textAlign = "left";
+          ctx.fillText(`String ${index + 1}`, startX - 80, str.y);
+      });
+
+      requestAnimationFrame(animate);
+    }
+
+    // Start Simulation
+    animate();
+
+  </script>
+</body>
+</html>
