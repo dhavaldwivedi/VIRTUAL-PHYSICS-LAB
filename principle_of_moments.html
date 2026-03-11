@@ -23,7 +23,8 @@
       top: 0;
       left: 0;
       z-index: 1;
-      touch-action: none; /* Crucial for touch dragging */
+      /* Crucial for iPad: stops the browser from hijacking the drag gesture */
+      touch-action: none; 
     }
 
     .toggle-btn {
@@ -149,7 +150,7 @@
     }
     .lab-header {
       font-size: 1.05rem; color: #10b981; font-weight: bold;
-       margin-bottom: 12px; text-align: center;
+      text-transform: uppercase; margin-bottom: 12px; text-align: center;
       letter-spacing: 1px; border-bottom: 1px solid #334155; padding-bottom: 8px;
     }
 
@@ -285,7 +286,7 @@
     </div>
 
     <div class="lab-panel">
-      <div class="lab-header">Lab Workspace (g = 10)</div>
+      <div class="lab-header">Lab Workspace (g = 9.81)</div>
       
       <div class="measurements">
         <div class="meas-row">
@@ -326,7 +327,7 @@
       initialized: false
     };
 
-    const g = 10;
+    const g = 9.81;
     let cx, h, groundY, fulcrumY, pxPerMeter, maxAngle;
 
     // --- DOM ---
@@ -358,10 +359,14 @@
       
       cx = window.innerWidth / 2;
       h = window.innerHeight;
-      groundY = h * 0.85;
+      groundY = h * 0.85; // Move ground line down to 85% of screen height
       fulcrumY = groundY - 100;
       
-      updateMath(); // Recalculate scales and positions
+      if (!state.initialized && window.innerWidth > 0) {
+          state.initialized = true;
+      }
+      
+      updateMath(); 
     }
     window.addEventListener('resize', resizeCanvas);
     
@@ -393,12 +398,11 @@
       const halfLen = state.beamL / 2;
       pxPerMeter = Math.max(20, Math.min(100, (window.innerWidth * 0.4) / halfLen));
       
-      // Calculate max tilt angle before beam hits the ground (100px drop to ground)
-      // Calculate max tilt angle before beam hits the ground
-const beamThickness = 24;
-const groundClearance = 6;
-maxAngle = Math.asin((100 - beamThickness / 2 - groundClearance) / (halfLen * pxPerMeter));
-
+      // Calculate exact crash angle minus 12px (half of 24px beam thickness)
+      // so the bottom edge stops right on the ground line!
+      const actualBeamHalfWidthPx = halfLen * pxPerMeter;
+      const dropRatio = (groundY - fulcrumY - 12) / actualBeamHalfWidthPx;
+      maxAngle = Math.asin(Math.min(0.99, dropRatio)); 
 
       let acw = 0;
       let cw = 0;
@@ -411,7 +415,7 @@ maxAngle = Math.asin((100 - beamThickness / 2 - groundClearance) / (halfLen * px
           
           // Clamp mass parameters
           m.m = Math.max(5, Math.min(50, m.m));
-          m.d = Math.max(-halfLen, Math.min(halfLen, m.d)); // Don't let it fall off!
+          m.d = Math.max(-halfLen, Math.min(halfLen, m.d)); 
 
           // Sync DOM
           els.slM[i].value = m.m; els.valM[i].textContent = `${m.m} kg`;
@@ -475,38 +479,36 @@ maxAngle = Math.asin((100 - beamThickness / 2 - groundClearance) / (halfLen * px
     }
 
     function handleDragStart(e) {
-  // If it's a touch event, prevent the iPad from trying to scroll or zoom
-  if (e.touches) {
-    // Only prevent default if we are actually touching a mass
-    // (We check this inside the loop below)
-  }
-  
-  if(e.target !== canvas) return;
-  const pos = getPointerPos(e);
-  
-  for (let i = 0; i < state.masses.length; i++) {
-      let m = state.masses[i];
-      if (!m.active) continue;
+      // If it's a touch event, prevent the iPad from trying to scroll or zoom,
+      // but ONLY if we actually grabbed a mass (handled inside the loop).
       
-      // PHYSICS TEACHER TIP: Fingers are less precise than mice.
-      // Let's add a "touch buffer" of 20px for iPad users.
-      const hitBuffer = e.touches ? 20 : 0;
-      const size = (40 + (m.m - 5) * 0.8) + hitBuffer;
+      if(e.target !== canvas) return;
+      const pos = getPointerPos(e);
       
-      if (Math.abs(pos.x - m.globalX) < size/2 && Math.abs(pos.y - m.globalY) < size/2) {
-          state.dragNode = m.id;
-          canvas.style.cursor = 'grabbing';
-          if (e.touches) e.preventDefault(); // This is the magic line for iPad
-          break;
+      for (let i = 0; i < state.masses.length; i++) {
+          let m = state.masses[i];
+          if (!m.active) continue;
+          
+          // PHYSICS TEACHER TIP: Fingers are less precise than mice.
+          // Let's add a "touch buffer" of 25px for iPad/Mobile users.
+          const hitBuffer = e.touches ? 25 : 0;
+          const size = (40 + (m.m - 5) * 0.8) + hitBuffer;
+          
+          // Since globalX/Y is the CENTER of the block, check bounds
+          if (Math.abs(pos.x - m.globalX) < size/2 && Math.abs(pos.y - m.globalY) < size/2) {
+              state.dragNode = m.id;
+              canvas.style.cursor = 'grabbing';
+              if (e.touches) e.preventDefault(); // Magic line for iPad dragging!
+              break;
+          }
       }
-  }
-}
+    }
 
     function handleDragMove(e) {
       const pos = getPointerPos(e);
       
       if (state.dragNode === null) {
-          // Hover logic
+          // Hover logic for mouse users
           let hovered = false;
           for (let m of state.masses) {
               if (!m.active) continue;
@@ -519,17 +521,18 @@ maxAngle = Math.asin((100 - beamThickness / 2 - groundClearance) / (halfLen * px
           return;
       }
       
+      // Stop screen scroll while actively dragging
       if(e.touches) e.preventDefault(); 
       
       // We project the mouse X coordinate onto the tilted beam to find local distance 'd'
-      // Account for the tilt (cos angle) so it feels 1-to-1 with the mouse
+      // Account for the tilt (cos angle) so it feels 1-to-1 with the mouse/finger
       let new_d = (pos.x - cx) / (pxPerMeter * Math.cos(state.beamAngle));
       
       // Snap to nearest 0.1m for clean UI
       new_d = Math.round(new_d * 10) / 10;
       
       state.masses[state.dragNode].d = new_d;
-      updateMath(); // Live updates slider and torque!
+      updateMath(); 
     }
 
     function handleDragEnd() { 
@@ -540,6 +543,8 @@ maxAngle = Math.asin((100 - beamThickness / 2 - groundClearance) / (halfLen * px
     canvas.addEventListener('mousedown', handleDragStart);
     window.addEventListener('mousemove', handleDragMove);
     window.addEventListener('mouseup', handleDragEnd);
+    
+    // Set passive: false so we are allowed to use e.preventDefault() on touch events
     canvas.addEventListener('touchstart', handleDragStart, { passive: false });
     window.addEventListener('touchmove', handleDragMove, { passive: false });
     window.addEventListener('touchend', handleDragEnd);
@@ -566,7 +571,7 @@ maxAngle = Math.asin((100 - beamThickness / 2 - groundClearance) / (halfLen * px
       });
 
       // 2. Draw Ground
-      ctx.fillStyle = "#0f172a"; // Background color below ground
+      ctx.fillStyle = "#0f172a"; 
       ctx.fillRect(0, groundY, canvas.width, canvas.height - groundY);
       ctx.strokeStyle = "#475569"; ctx.lineWidth = 4;
       ctx.beginPath(); ctx.moveTo(0, groundY); ctx.lineTo(canvas.width, groundY); ctx.stroke();
