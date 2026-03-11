@@ -23,7 +23,7 @@
       top: 0;
       left: 0;
       z-index: 1;
-      /* Crucial for iPad: stops the browser from hijacking the drag gesture */
+      /* Crucial for iPad: stops the browser from hijacking the drag gesture on canvas */
       touch-action: none; 
     }
 
@@ -107,7 +107,6 @@
       margin-bottom: 15px;
     }
     
-    /* Toggle Button for Mass 3 */
     .action-btn {
       width: 100%; padding: 10px; border-radius: 8px; font-weight: bold;
       font-size: 0.95rem; cursor: pointer; border: none; transition: 0.2s;
@@ -143,7 +142,6 @@
 
     input[type="range"] { width: 100%; min-height: 24px; cursor: pointer; }
 
-    /* Lab Worksheet Section */
     .lab-panel {
       background: rgba(0,0,0,0.5); border: 1px solid #10b981;
       border-radius: 12px; padding: 15px; margin-bottom: 0;
@@ -323,7 +321,7 @@
       ],
       beamAngle: 0,
       targetAngle: 0,
-      dragNode: null, // Holds the ID of the mass being dragged
+      dragNode: null, 
       initialized: false
     };
 
@@ -359,7 +357,7 @@
       
       cx = window.innerWidth / 2;
       h = window.innerHeight;
-      groundY = h * 0.75; // Move ground line down to 85% of screen height
+      groundY = h * 0.75; 
       fulcrumY = groundY - 100;
       
       if (!state.initialized && window.innerWidth > 0) {
@@ -394,12 +392,11 @@
       els.slBeamL.value = state.beamL;
       els.valBeamL.textContent = `${state.beamL} m`;
 
-      // Visual scaling: ensure the beam always takes up ~80% of screen width
+      // Visual scaling
       const halfLen = state.beamL / 2;
       pxPerMeter = Math.max(20, Math.min(100, (window.innerWidth * 0.4) / halfLen));
       
-      // Calculate exact crash angle minus 12px (half of 24px beam thickness)
-      // so the bottom edge stops right on the ground line!
+      // Exact crash angle minus 12px
       const actualBeamHalfWidthPx = halfLen * pxPerMeter;
       const dropRatio = (groundY - fulcrumY - 12) / actualBeamHalfWidthPx;
       maxAngle = Math.asin(Math.min(0.99, dropRatio)); 
@@ -409,19 +406,15 @@
 
       // 2. Process Masses
       state.masses.forEach((m, i) => {
-          // Update Slider Bounds for Position based on new Beam Length
           els.slP[i].min = -halfLen;
           els.slP[i].max = halfLen;
           
-          // Clamp mass parameters
           m.m = Math.max(5, Math.min(50, m.m));
           m.d = Math.max(-halfLen, Math.min(halfLen, m.d)); 
 
-          // Sync DOM
           els.slM[i].value = m.m; els.valM[i].textContent = `${m.m} kg`;
           els.slP[i].value = m.d; els.valP[i].textContent = `${m.d.toFixed(1)} m`;
 
-          // Torque Math
           if (m.active) {
               let wForce = m.m * g;
               if (m.d < 0) acw += wForce * Math.abs(m.d);
@@ -435,7 +428,6 @@
       els.labCW.innerHTML = `${cw.toFixed(1)} N&middot;m`;
       els.labNet.innerHTML = `${Math.abs(net).toFixed(1)} N&middot;m`;
 
-      // 0.5 N*m tolerance for snapping perfectly to balance
       if (Math.abs(net) < 0.5) {
           state.targetAngle = 0;
           els.badge.textContent = "BALANCED (Equilibrium)";
@@ -451,18 +443,15 @@
       }
     }
 
-    // Step functions for buttons
     window.stepGlobal = function(param, amount) {
         state[param] += amount; updateMath();
     };
     window.stepMass = function(index, param, amount) {
         state.masses[index][param] += amount;
-        // Fix rounding errors for clean UI
         state.masses[index][param] = Math.round(state.masses[index][param] * 10) / 10;
         updateMath();
     };
 
-    // Slider Event Listeners
     for(let i=0; i<3; i++) {
         els.slM[i].addEventListener('input', (e) => { state.masses[i].m = parseFloat(e.target.value); updateMath(); });
         els.slP[i].addEventListener('input', (e) => { state.masses[i].d = parseFloat(e.target.value); updateMath(); });
@@ -480,52 +469,51 @@
 
     function handleDragStart(e) {
       if(e.target !== canvas) return;
-      
-      // KILL IOS GESTURES INSTANTLY: Stop scroll/zoom right away
-      if (e.touches) e.preventDefault(); 
-      
       const pos = getPointerPos(e);
       
       for (let i = 0; i < state.masses.length; i++) {
           let m = state.masses[i];
           if (!m.active) continue;
           
-          // MASSIVE hit buffer for iPad users (60px = width of a fingertip)
           const hitBuffer = e.touches ? 60 : 0; 
           const size = (40 + (m.m - 5) * 0.8) + hitBuffer;
           
-          // Since globalX/Y is the CENTER of the block, check bounds
           if (Math.abs(pos.x - m.globalX) < size/2 && Math.abs(pos.y - m.globalY) < size/2) {
               state.dragNode = m.id;
               canvas.style.cursor = 'grabbing';
-              break; // Found our block, stop checking
+              
+              // ONLY prevent default scroll if we actually grabbed a block!
+              // This fixes the control panel scrolling bug.
+              if (e.touches && e.cancelable) e.preventDefault(); 
+              break; 
           }
       }
     }
 
     function handleDragMove(e) {
-      if(e.touches) e.preventDefault(); // Unconditional scroll lock while moving
       const pos = getPointerPos(e);
-      
+
+      // If we are NOT dragging a block, let the browser behave normally
+      // so the control panel can be scrolled!
       if (state.dragNode === null) {
-          // Hover logic for mouse users
-          let hovered = false;
-          for (let m of state.masses) {
-              if (!m.active) continue;
-              const size = 40 + (m.m - 5) * 0.8;
-              if (Math.abs(pos.x - m.globalX) < size/2 && Math.abs(pos.y - m.globalY) < size/2) {
-                  hovered = true; break;
+          if (!e.touches) {
+              let hovered = false;
+              for (let m of state.masses) {
+                  if (!m.active) continue;
+                  const size = 40 + (m.m - 5) * 0.8;
+                  if (Math.abs(pos.x - m.globalX) < size/2 && Math.abs(pos.y - m.globalY) < size/2) {
+                      hovered = true; break;
+                  }
               }
+              canvas.style.cursor = hovered ? 'grab' : 'default';
           }
-          canvas.style.cursor = hovered ? 'grab' : 'default';
-          return;
+          return; 
       }
       
-      // We project the mouse X coordinate onto the tilted beam to find local distance 'd'
-      // Account for the tilt (cos angle) so it feels 1-to-1 with the mouse/finger
-      let new_d = (pos.x - cx) / (pxPerMeter * Math.cos(state.beamAngle));
+      // We ARE dragging a block. Lock the screen scroll so it's smooth.
+      if (e.touches && e.cancelable) e.preventDefault(); 
       
-      // Snap to nearest 0.1m for clean UI
+      let new_d = (pos.x - cx) / (pxPerMeter * Math.cos(state.beamAngle));
       new_d = Math.round(new_d * 10) / 10;
       
       state.masses[state.dragNode].d = new_d;
@@ -533,7 +521,6 @@
     }
 
     function handleDragEnd(e) { 
-      if (e && e.touches) e.preventDefault(); // Stop lingering gestures
       state.dragNode = null; 
       canvas.style.cursor = 'default';
     }
@@ -542,7 +529,6 @@
     window.addEventListener('mousemove', handleDragMove);
     window.addEventListener('mouseup', handleDragEnd);
     
-    // Set passive: false so we are legally allowed to use e.preventDefault() on touch events
     canvas.addEventListener('touchstart', handleDragStart, { passive: false });
     window.addEventListener('touchmove', handleDragMove, { passive: false });
     window.addEventListener('touchend', handleDragEnd, { passive: false });
@@ -552,29 +538,24 @@
       if (!canvas.width) return;
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-      // Smooth tilting animation (Spring physics)
       state.beamAngle += (state.targetAngle - state.beamAngle) * 0.1;
 
-      // 1. Update Global Positions for hit-detection
       const beamThick = 24;
       state.masses.forEach(m => {
           if (!m.active) return;
           const size = 40 + (m.m - 5) * 0.8;
           const localX = m.d * pxPerMeter;
-          const localY = -(beamThick/2) - (size/2); // Center of block sitting on beam
+          const localY = -(beamThick/2) - (size/2); 
           
-          // Rotation Matrix applied to local coordinates to find Global Screen Coordinates
           m.globalX = cx + Math.cos(state.beamAngle)*localX - Math.sin(state.beamAngle)*localY;
           m.globalY = fulcrumY + Math.sin(state.beamAngle)*localX + Math.cos(state.beamAngle)*localY;
       });
 
-      // 2. Draw Ground
       ctx.fillStyle = "#0f172a"; 
       ctx.fillRect(0, groundY, canvas.width, canvas.height - groundY);
       ctx.strokeStyle = "#475569"; ctx.lineWidth = 4;
       ctx.beginPath(); ctx.moveTo(0, groundY); ctx.lineTo(canvas.width, groundY); ctx.stroke();
 
-      // 3. Draw Fulcrum Pivot (Triangle)
       ctx.fillStyle = "#94a3b8";
       ctx.beginPath();
       ctx.moveTo(cx, fulcrumY);
@@ -584,50 +565,41 @@
       ctx.strokeStyle = "#cbd5e1"; ctx.lineWidth = 2; ctx.stroke();
       ctx.beginPath(); ctx.arc(cx, fulcrumY, 6, 0, Math.PI*2); ctx.fillStyle="#0f172a"; ctx.fill();
 
-      // 4. Draw Beam & Attached Masses (Inside rotated context)
       ctx.save();
       ctx.translate(cx, fulcrumY);
       ctx.rotate(state.beamAngle);
       
       const halfLenPx = (state.beamL / 2) * pxPerMeter;
       
-      // The Seesaw Beam (Dark Grey so white text pops!)
       ctx.fillStyle = "#334155";
       ctx.fillRect(-halfLenPx, -beamThick/2, halfLenPx * 2, beamThick);
       ctx.strokeStyle = "#94a3b8"; ctx.lineWidth = 2;
       ctx.strokeRect(-halfLenPx, -beamThick/2, halfLenPx * 2, beamThick);
 
-      // White Ruler Markings on the Beam
       ctx.fillStyle = "#ffffff"; ctx.font = "bold 14px Arial"; ctx.textAlign="center"; ctx.textBaseline="top";
       for(let i = -(state.beamL/2); i <= (state.beamL/2); i += 1) {
-          if (i === 0) continue; // Skip center pivot
+          if (i === 0) continue; 
           let px = i * pxPerMeter;
           
-          // White Tick Line
           ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 2;
           ctx.beginPath(); ctx.moveTo(px, -beamThick/2); ctx.lineTo(px, beamThick/2); ctx.stroke();
           
-          // White Text below beam
           ctx.fillText(`${Math.abs(i)}m`, px, beamThick/2 + 8);
       }
       
-      // Draw Blocks
       state.masses.forEach(m => {
           if (!m.active) return;
           const size = 40 + (m.m - 5) * 0.8;
           const localX = m.d * pxPerMeter;
-          const localY = -(beamThick/2) - (size/2); // Center of block
+          const localY = -(beamThick/2) - (size/2); 
           
-          // Square Box
           ctx.fillStyle = m.color;
           ctx.fillRect(localX - size/2, localY - size/2, size, size);
           
-          // Border highlight if dragging
           ctx.strokeStyle = state.dragNode === m.id ? "#ffffff" : "rgba(0,0,0,0.5)"; 
           ctx.lineWidth = state.dragNode === m.id ? 4 : 2;
           ctx.strokeRect(localX - size/2, localY - size/2, size, size);
           
-          // Counter-rotate the text so it's always readable right-side up!
           ctx.save();
           ctx.translate(localX, localY);
           ctx.rotate(-state.beamAngle); 
@@ -637,12 +609,10 @@
       });
       ctx.restore();
 
-      // 5. Draw Gravity Force Vectors (Globally straight down)
       state.masses.forEach(m => {
           if (!m.active) return;
-          const forceScale = 40 + (m.m * 1.2); // Visual arrow length
+          const forceScale = 40 + (m.m * 1.2); 
           
-          // Draw arrow pointing straight down from the global center of the mass
           drawArrow(ctx, m.globalX, m.globalY, m.globalX, m.globalY + forceScale, "rgba(255, 255, 255, 0.8)", `W = ${(m.m * g).toFixed(0)} N`);
       });
 
@@ -652,10 +622,9 @@
     function drawArrow(ctx, fromX, fromY, toX, toY, color, label) {
       const dx = toX - fromX; const dy = toY - fromY;
       const angle = Math.atan2(dy, dx);
-      const startOffset = 25; // Push start of arrow outside the box
+      const startOffset = 25; 
       
       const rStart_Y = fromY + startOffset;
-
       const headlen = 10; 
       
       ctx.beginPath(); ctx.moveTo(fromX, rStart_Y); ctx.lineTo(toX, toY);
@@ -671,7 +640,6 @@
       ctx.fillText(label, toX + 10, toY - 15);
     }
 
-    // Boot sequence
     window.addEventListener("load", () => {
       resizeCanvas();
       animate();
