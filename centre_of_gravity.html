@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta
     name="viewport"
-    content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
+    content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"
   />
   <title>Centre of Gravity of an Irregular Lamina</title>
   <style>
@@ -22,7 +22,10 @@
       --radius: 18px;
     }
 
-    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    * {
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+    }
 
     html, body {
       margin: 0;
@@ -31,16 +34,24 @@
       background: linear-gradient(180deg, #dff0ff 0%, #eef7ff 40%, #f8fbff 100%);
       color: var(--ink);
       overscroll-behavior: none;
+      width: 100%;
+      min-height: 100dvh;
     }
 
     body {
-      min-height: 100vh;
+      min-height: 100dvh;
+      width: 100%;
+      overflow-x: hidden;
+      touch-action: manipulation;
+      -webkit-user-select: none;
+      user-select: none;
     }
 
     .app {
       max-width: 1440px;
       margin: 0 auto;
       padding: 18px;
+      min-height: 100dvh;
     }
 
     .topbar {
@@ -95,9 +106,10 @@
     canvas {
       display: block;
       width: 100%;
-      height: min(78vh, 820px);
+      height: min(78dvh, 820px);
       min-height: 520px;
       touch-action: none;
+      -webkit-user-select: none;
       user-select: none;
     }
 
@@ -223,6 +235,7 @@
       font-size: 0.94rem;
       max-height: 220px;
       overflow: auto;
+      -webkit-overflow-scrolling: touch;
     }
 
     .mini-grid {
@@ -281,7 +294,27 @@
       }
 
       canvas {
-        height: 66vh;
+        height: 66dvh;
+      }
+    }
+
+    @media (hover: none) and (pointer: coarse) {
+      button {
+        min-height: 46px;
+        font-size: 1rem;
+      }
+
+      .sim-overlay {
+        font-size: 0.95rem;
+        line-height: 1.45;
+      }
+
+      .status-box,
+      .theory,
+      .instructions,
+      .obs-text,
+      .result-text {
+        font-size: 1rem;
       }
     }
 
@@ -308,7 +341,7 @@
 
       canvas {
         min-height: 430px;
-        height: 56vh;
+        height: 56dvh;
       }
 
       .sim-overlay {
@@ -432,8 +465,6 @@
       const resultText = document.getElementById("resultText");
       const simHint = document.getElementById("simHint");
 
-      const DPR = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
-
       const state = {
         w: 0,
         h: 0,
@@ -455,7 +486,6 @@
       };
 
       const lamina = {
-        // Base polygon points around local coordinate system.
         points: [
           { x: -120, y: -95 },
           { x: -35, y: -125 },
@@ -466,7 +496,6 @@
           { x: -92, y: 104 },
           { x: -132, y: 18 }
         ],
-        // A known centre of gravity in local coordinates.
         cg: { x: 8, y: 14 },
         holes: [
           { x: -78, y: -78, name: "Hole 1" },
@@ -493,9 +522,11 @@
 
       function resize() {
         const rect = canvas.getBoundingClientRect();
-        canvas.width = Math.round(rect.width * DPR);
-        canvas.height = Math.round(rect.height * DPR);
-        ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+        const dpr = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
+
+        canvas.width = Math.round(rect.width * dpr);
+        canvas.height = Math.round(rect.height * dpr);
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
         state.w = rect.width;
         state.h = rect.height;
@@ -534,9 +565,6 @@
 
       function computeTargetAngleForHole(index) {
         const hole = lamina.holes[index];
-        // Rotate so CG lies vertically below hole.
-        // After rotation, x component of (cg - hole) becomes zero.
-        // angle = 90° - atan2(dy, dx)
         const dx = lamina.cg.x - hole.x;
         const dy = lamina.cg.y - hole.y;
         return Math.PI / 2 - Math.atan2(dy, dx);
@@ -559,8 +587,6 @@
         const hole = getCurrentHole();
         if (!hole) return null;
 
-        // In local coordinates, plumb line is global vertical.
-        // Convert two world points on vertical line back into local coordinates.
         const p1World = { x: state.standX, y: state.hookY - 240 * state.scale };
         const p2World = { x: state.standX, y: state.hookY + 330 * state.scale };
 
@@ -691,7 +717,6 @@
         ctx.fillStyle = skyGrad;
         ctx.fillRect(0, 0, state.w, state.h);
 
-        // Ground strip
         const groundY = state.h * 0.87;
         ctx.fillStyle = "#dbeafe";
         ctx.fillRect(0, groundY, state.w, state.h - groundY);
@@ -703,7 +728,6 @@
         ctx.lineTo(state.w, groundY);
         ctx.stroke();
 
-        // Stand
         const sx = state.standX;
         const baseY = groundY;
         ctx.fillStyle = "#64748b";
@@ -722,11 +746,9 @@
         ctx.fillStyle = "#475569";
         ctx.fillRect(sx - 5 * state.scale, state.topY, 10 * state.scale, state.hookY - state.topY);
 
-        // Top support beam
         ctx.fillStyle = "#334155";
         ctx.fillRect(sx - 160 * state.scale, state.topY - 8 * state.scale, 170 * state.scale, 14 * state.scale);
 
-        // Hook
         ctx.strokeStyle = "#1f2937";
         ctx.lineWidth = 3;
         ctx.beginPath();
@@ -738,14 +760,12 @@
         const hole = getCurrentHole();
         const activeHole = hole || lamina.holes[0];
 
-        // Construction traces on lamina
         if (state.showConstruction) {
           state.traces.forEach((trace, index) => {
             drawInfiniteLocalLine(trace.p1, trace.p2, "rgba(220, 38, 38, 0.85)", index + 1);
           });
         }
 
-        // Lamina body
         ctx.beginPath();
         lamina.points.forEach((p, i) => {
           const w = toWorld(p, state.angle, activeHole);
@@ -769,7 +789,6 @@
         ctx.lineWidth = 3;
         ctx.stroke();
 
-        // Hole markers
         lamina.holes.forEach((h, i) => {
           const w = toWorld(h, state.angle, activeHole);
           ctx.beginPath();
@@ -787,7 +806,6 @@
           ctx.fillText(String(i + 1), w.x, w.y - 12 * state.scale);
         });
 
-        // Plumb line
         if (state.suspendedHoleIndex != null) {
           const plumbTopX = state.standX;
           const plumbTopY = state.hookY;
@@ -807,7 +825,6 @@
           ctx.strokeStyle = "#1f2937";
           ctx.stroke();
 
-          // dashed guide
           if (state.showConstruction) {
             ctx.save();
             ctx.setLineDash([8, 8]);
@@ -821,7 +838,6 @@
           }
         }
 
-        // Draw actual CG marker only when requested
         if (state.showCG) {
           const cg = estimateIntersection() || lamina.cg;
           const cgWorld = toWorld(cg, state.angle, activeHole);
@@ -864,7 +880,6 @@
         ctx.stroke();
         ctx.restore();
 
-        // Trace label
         const mid = toWorld({ x: p1.x, y: p1.y }, state.angle, hole);
         ctx.fillStyle = "#991b1b";
         ctx.font = `700 ${Math.max(12, 14 * state.scale)}px Segoe UI`;
@@ -875,7 +890,6 @@
 
       function updatePhysics() {
         if (state.suspendedHoleIndex != null) {
-          // Damped motion toward target angle
           const restoring = (state.targetAngle - state.angle) * 0.08;
           state.beamSwingVelocity += restoring;
           state.beamSwingVelocity *= 0.9;
@@ -952,7 +966,6 @@
         const dx = p.x - state.standX;
         const approxAngle = Math.atan2(dy, dx) - Math.PI / 2;
 
-        // Limit manual displacement
         const delta = approxAngle - state.targetAngle;
         const clamped = Math.max(-0.9, Math.min(0.9, delta));
         state.angle = state.targetAngle + clamped;
@@ -974,18 +987,25 @@
       btnReset.addEventListener("click", resetExperiment);
       btnToggleLines.addEventListener("click", toggleConstruction);
 
-      // Pointer events for desktop + iPad
-      canvas.addEventListener("pointerdown", startDrag, { passive: true });
-      window.addEventListener("pointermove", moveDrag, { passive: false });
-      window.addEventListener("pointerup", endDrag, { passive: true });
-      window.addEventListener("pointercancel", endDrag, { passive: true });
+      if (window.PointerEvent) {
+        canvas.addEventListener("pointerdown", startDrag, { passive: true });
+        window.addEventListener("pointermove", moveDrag, { passive: false });
+        window.addEventListener("pointerup", endDrag, { passive: true });
+        window.addEventListener("pointercancel", endDrag, { passive: true });
+      } else {
+        canvas.addEventListener("touchstart", startDrag, { passive: true });
+        window.addEventListener("touchmove", moveDrag, { passive: false });
+        window.addEventListener("touchend", endDrag, { passive: true });
 
-      // Touch fallback for older Safari/iPad
-      canvas.addEventListener("touchstart", startDrag, { passive: true });
-      window.addEventListener("touchmove", moveDrag, { passive: false });
-      window.addEventListener("touchend", endDrag, { passive: true });
+        canvas.addEventListener("mousedown", startDrag, { passive: true });
+        window.addEventListener("mousemove", moveDrag, { passive: false });
+        window.addEventListener("mouseup", endDrag, { passive: true });
+      }
 
       window.addEventListener("resize", resize);
+      window.addEventListener("orientationchange", () => {
+        setTimeout(resize, 150);
+      });
 
       function init() {
         resize();
