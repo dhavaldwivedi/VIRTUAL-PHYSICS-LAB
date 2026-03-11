@@ -1,0 +1,671 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Principle of Moments Lab</title>
+  <style>
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: #0f172a;
+      color: #e2e8f0;
+      overflow: hidden; 
+    }
+
+    canvas {
+      display: block;
+      width: 100vw;
+      height: 100vh;
+      position: absolute;
+      top: 0;
+      left: 0;
+      z-index: 1;
+      touch-action: none; /* Crucial for touch dragging */
+    }
+
+    .toggle-btn {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      background: rgba(15, 23, 42, 0.85);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      color: white;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      padding: 10px 16px;
+      border-radius: 8px;
+      font-size: 1rem;
+      font-weight: bold;
+      cursor: pointer;
+      z-index: 5;
+      transition: background 0.2s;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    }
+    .toggle-btn:hover { background: rgba(255, 255, 255, 0.2); }
+
+    .controls-panel {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      width: 360px;
+      max-height: calc(100vh - 40px);
+      overflow-y: auto;
+      z-index: 10;
+      background: rgba(15, 23, 42, 0.85);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      border-radius: 16px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      padding: 20px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.4);
+      transition: transform 0.3s ease, opacity 0.3s ease;
+    }
+
+    .controls-panel.hidden {
+      transform: translateX(120%);
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .close-btn {
+      position: absolute;
+      top: 15px;
+      right: 15px;
+      background: none;
+      border: none;
+      color: #94a3b8;
+      font-size: 1.2rem;
+      cursor: pointer;
+      padding: 0;
+      line-height: 1;
+    }
+    .close-btn:hover { color: white; }
+
+    .controls-panel::-webkit-scrollbar { width: 6px; }
+    .controls-panel::-webkit-scrollbar-thumb { background: #475569; border-radius: 3px; }
+
+    .title {
+      margin: 0 0 15px;
+      font-size: 1.2rem;
+      font-weight: 700;
+      color: #f8fafc;
+      text-align: center;
+      border-bottom: 1px solid #334155;
+      padding-bottom: 10px;
+      padding-right: 20px;
+    }
+
+    .control-section {
+      background: rgba(0,0,0,0.2);
+      border-radius: 10px;
+      border: 1px solid #334155;
+      padding: 15px;
+      margin-bottom: 15px;
+    }
+    
+    /* Toggle Button for Mass 3 */
+    .action-btn {
+      width: 100%; padding: 10px; border-radius: 8px; font-weight: bold;
+      font-size: 0.95rem; cursor: pointer; border: none; transition: 0.2s;
+      background: #475569; color: white; margin-bottom: 15px;
+    }
+    .action-btn:hover { background: #64748b; }
+    .action-btn.active { background: #fbbf24; color: #0f172a; }
+
+    .control-group { margin-bottom: 15px; }
+    .control-group:last-child { margin-bottom: 0; }
+
+    .control-group label {
+      display: flex; justify-content: space-between; align-items: center;
+      font-size: 0.85rem; font-weight: 600; color: #cbd5e1; margin-bottom: 6px;
+    }
+
+    .val-container { display: flex; align-items: center; gap: 6px; }
+
+    button.step-btn {
+      flex: none; width: 24px; height: 24px; min-height: 0; padding: 0;
+      border-radius: 6px; background: rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.2); color: white;
+      font-size: 1rem; display: flex; align-items: center; justify-content: center;
+      line-height: 1; cursor: pointer; transition: background 0.1s;
+    }
+    button.step-btn:hover { background: rgba(255, 255, 255, 0.25); }
+    button.step-btn:active { transform: scale(0.9); }
+
+    .val-text {
+      min-width: 50px; text-align: right;
+      font-family: 'Courier New', Courier, monospace; font-weight: bold;
+    }
+
+    input[type="range"] { width: 100%; min-height: 24px; cursor: pointer; }
+
+    /* Lab Worksheet Section */
+    .lab-panel {
+      background: rgba(0,0,0,0.5); border: 1px solid #10b981;
+      border-radius: 12px; padding: 15px; margin-bottom: 0;
+    }
+    .lab-header {
+      font-size: 1.05rem; color: #10b981; font-weight: bold;
+       margin-bottom: 12px; text-align: center;
+      letter-spacing: 1px; border-bottom: 1px solid #334155; padding-bottom: 8px;
+    }
+
+    .measurements {
+      display: flex; flex-direction: column; gap: 6px;
+      background: #1e293b; padding: 12px; border-radius: 6px; margin-bottom: 12px;
+      font-family: "Courier New", Courier, monospace; font-weight: bold; font-size: 1.05rem;
+    }
+    .meas-row { display: flex; justify-content: space-between; align-items: center; }
+    
+    .net-box {
+      text-align: center; background: #020617; border: 1px solid #475569; border-radius: 6px;
+      padding: 10px; font-family: "Courier New", Courier, monospace; font-size: 1.1rem;
+    }
+
+    .status-badge {
+      display: block; text-align: center; font-weight: bold; font-size: 0.95rem;
+      padding: 10px; border-radius: 6px; margin-top: 10px; letter-spacing: 1px;
+      transition: background 0.3s, color 0.3s;
+    }
+    .status-balanced { background: #10b981; color: white; box-shadow: 0 0 10px rgba(16,185,129,0.4); }
+    .status-left { background: #ef4444; color: white; box-shadow: 0 0 10px rgba(239,68,68,0.4); }
+    .status-right { background: #3b82f6; color: white; box-shadow: 0 0 10px rgba(59,130,246,0.4); }
+
+    .drag-hint {
+      position: absolute; bottom: 20px; left: 20px;
+      background: rgba(15, 23, 42, 0.7); padding: 10px 15px; border-radius: 8px;
+      border: 1px solid #334155; color: #ffffff; font-size: 0.9rem; font-weight: bold;
+      pointer-events: none; z-index: 10;
+    }
+  </style>
+</head>
+<body>
+
+  <canvas id="simCanvas"></canvas>
+  <div class="drag-hint">👆 Drag the blocks on the seesaw OR use the sliders.</div>
+
+  <button id="toggleBtn" class="toggle-btn">⚙️ Settings & Lab</button>
+
+  <div id="controlsPanel" class="controls-panel">
+    <button id="closeBtn" class="close-btn">✖</button>
+    <div class="title">Principle of Moments</div>
+
+    <div class="control-section" style="border-top: 4px solid white;">
+      <div class="control-group" style="margin-bottom: 0;">
+        <label>
+          <span>Seesaw Total Length (L)</span>
+          <div class="val-container">
+            <button class="step-btn" onclick="stepGlobal('beamL', -1)">-</button>
+            <span id="valBeamL" class="val-text" style="color: white;">10 m</span>
+            <button class="step-btn" onclick="stepGlobal('beamL', 1)">+</button>
+          </div>
+        </label>
+        <input type="range" id="slBeamL" min="2" max="16" step="1" value="10">
+      </div>
+    </div>
+
+    <div class="control-section" style="border-left: 4px solid #ef4444;">
+      <div class="control-group">
+        <label>
+          <span style="color: #ef4444;">Mass 1 (Red)</span>
+          <div class="val-container">
+            <button class="step-btn" onclick="stepMass(0, 'm', -5)">-</button>
+            <span id="valM1" class="val-text" style="color: white;">10 kg</span>
+            <button class="step-btn" onclick="stepMass(0, 'm', 5)">+</button>
+          </div>
+        </label>
+        <input type="range" id="slM1" min="5" max="50" step="5" value="10">
+      </div>
+      <div class="control-group" style="margin-bottom: 0;">
+        <label>
+          <span>Position (d)</span>
+          <div class="val-container">
+            <button class="step-btn" onclick="stepMass(0, 'd', -0.5)">-</button>
+            <span id="valP1" class="val-text" style="color: #94a3b8;">-3.0 m</span>
+            <button class="step-btn" onclick="stepMass(0, 'd', 0.5)">+</button>
+          </div>
+        </label>
+        <input type="range" id="slP1" min="-5" max="5" step="0.1" value="-3.0">
+      </div>
+    </div>
+
+    <div class="control-section" style="border-left: 4px solid #3b82f6;">
+      <div class="control-group">
+        <label>
+          <span style="color: #3b82f6;">Mass 2 (Blue)</span>
+          <div class="val-container">
+            <button class="step-btn" onclick="stepMass(1, 'm', -5)">-</button>
+            <span id="valM2" class="val-text" style="color: white;">15 kg</span>
+            <button class="step-btn" onclick="stepMass(1, 'm', 5)">+</button>
+          </div>
+        </label>
+        <input type="range" id="slM2" min="5" max="50" step="5" value="15">
+      </div>
+      <div class="control-group" style="margin-bottom: 0;">
+        <label>
+          <span>Position (d)</span>
+          <div class="val-container">
+            <button class="step-btn" onclick="stepMass(1, 'd', -0.5)">-</button>
+            <span id="valP2" class="val-text" style="color: #94a3b8;">2.0 m</span>
+            <button class="step-btn" onclick="stepMass(1, 'd', 0.5)">+</button>
+          </div>
+        </label>
+        <input type="range" id="slP2" min="-5" max="5" step="0.1" value="2.0">
+      </div>
+    </div>
+
+    <button id="btnToggleM3" class="action-btn">+ Add Mass 3 (Yellow)</button>
+
+    <div id="panelM3" class="control-section" style="border-left: 4px solid #fbbf24; display: none;">
+      <div class="control-group">
+        <label>
+          <span style="color: #fbbf24;">Mass 3 (Yellow)</span>
+          <div class="val-container">
+            <button class="step-btn" onclick="stepMass(2, 'm', -5)">-</button>
+            <span id="valM3" class="val-text" style="color: white;">10 kg</span>
+            <button class="step-btn" onclick="stepMass(2, 'm', 5)">+</button>
+          </div>
+        </label>
+        <input type="range" id="slM3" min="5" max="50" step="5" value="10">
+      </div>
+      <div class="control-group" style="margin-bottom: 0;">
+        <label>
+          <span>Position (d)</span>
+          <div class="val-container">
+            <button class="step-btn" onclick="stepMass(2, 'd', -0.5)">-</button>
+            <span id="valP3" class="val-text" style="color: #94a3b8;">0.0 m</span>
+            <button class="step-btn" onclick="stepMass(2, 'd', 0.5)">+</button>
+          </div>
+        </label>
+        <input type="range" id="slP3" min="-5" max="5" step="0.1" value="0.0">
+      </div>
+    </div>
+
+    <div class="lab-panel">
+      <div class="lab-header">Lab Workspace (g = 10)</div>
+      
+      <div class="measurements">
+        <div class="meas-row">
+          <span style="color: #ef4444;">ACW Moments (Left)</span>
+          <span id="labACW">0.0 N&middot;m</span>
+        </div>
+        <div class="meas-row">
+          <span style="color: #3b82f6;">CW Moments (Right)</span>
+          <span id="labCW">0.0 N&middot;m</span>
+        </div>
+      </div>
+      
+      <div class="net-box">
+        <div style="font-size: 0.8rem; color: #94a3b8; font-family: sans-serif; margin-bottom: 4px;">NET MOMENT DIFFERENCE</div>
+        <span id="labNet" style="color: white; font-weight: bold;">0.0 N&middot;m</span>
+      </div>
+
+      <div id="badge" class="status-badge status-balanced">
+        BALANCED (Equilibrium)
+      </div>
+      
+    </div>
+
+  </div>
+
+  <script>
+    // --- STATE ---
+    const state = {
+      beamL: 10, // Total length in meters
+      masses: [
+        { id: 0, active: true, color: "#ef4444", m: 10, d: -3.0, globalX: 0, globalY: 0 },
+        { id: 1, active: true, color: "#3b82f6", m: 15, d: 2.0, globalX: 0, globalY: 0 },
+        { id: 2, active: false, color: "#fbbf24", m: 10, d: 0.0, globalX: 0, globalY: 0 }
+      ],
+      beamAngle: 0,
+      targetAngle: 0,
+      dragNode: null, // Holds the ID of the mass being dragged
+      initialized: false
+    };
+
+    const g = 10;
+    let cx, h, groundY, fulcrumY, pxPerMeter, maxAngle;
+
+    // --- DOM ---
+    const els = {
+      slBeamL: document.getElementById('slBeamL'), valBeamL: document.getElementById('valBeamL'),
+      
+      slM: [document.getElementById('slM1'), document.getElementById('slM2'), document.getElementById('slM3')],
+      valM: [document.getElementById('valM1'), document.getElementById('valM2'), document.getElementById('valM3')],
+      slP: [document.getElementById('slP1'), document.getElementById('slP2'), document.getElementById('slP3')],
+      valP: [document.getElementById('valP1'), document.getElementById('valP2'), document.getElementById('valP3')],
+      
+      btnToggleM3: document.getElementById('btnToggleM3'),
+      panelM3: document.getElementById('panelM3'),
+
+      labACW: document.getElementById('labACW'), labCW: document.getElementById('labCW'), 
+      labNet: document.getElementById('labNet'), badge: document.getElementById('badge'),
+      toggleBtn: document.getElementById('toggleBtn'), controlsPanel: document.getElementById('controlsPanel'), closeBtn: document.getElementById('closeBtn')
+    };
+
+    const canvas = document.getElementById('simCanvas');
+    const ctx = canvas.getContext('2d');
+
+    function resizeCanvas() {
+      const dpr = window.devicePixelRatio || 1;
+      canvas.width = window.innerWidth * dpr;
+      canvas.height = window.innerHeight * dpr;
+      ctx.setTransform(1, 0, 0, 1, 0, 0); 
+      ctx.scale(dpr, dpr);
+      
+      cx = window.innerWidth / 2;
+      h = window.innerHeight;
+      groundY = h * 0.85;
+      fulcrumY = groundY - 100;
+      
+      updateMath(); // Recalculate scales and positions
+    }
+    window.addEventListener('resize', resizeCanvas);
+    
+    // --- UI LOGIC ---
+    els.toggleBtn.addEventListener('click', () => { els.controlsPanel.classList.remove('hidden'); });
+    els.closeBtn.addEventListener('click', () => { els.controlsPanel.classList.add('hidden'); });
+
+    els.btnToggleM3.addEventListener('click', () => {
+        state.masses[2].active = !state.masses[2].active;
+        if (state.masses[2].active) {
+            els.panelM3.style.display = 'block';
+            els.btnToggleM3.textContent = "- Remove Mass 3";
+            els.btnToggleM3.className = "action-btn active";
+        } else {
+            els.panelM3.style.display = 'none';
+            els.btnToggleM3.textContent = "+ Add Mass 3 (Yellow)";
+            els.btnToggleM3.className = "action-btn";
+        }
+        updateMath();
+    });
+
+    function updateMath() {
+      // 1. Clamp Beam Length
+      state.beamL = Math.max(2, Math.min(16, state.beamL));
+      els.slBeamL.value = state.beamL;
+      els.valBeamL.textContent = `${state.beamL} m`;
+
+      // Visual scaling: ensure the beam always takes up ~80% of screen width
+      const halfLen = state.beamL / 2;
+      pxPerMeter = Math.max(20, Math.min(100, (window.innerWidth * 0.4) / halfLen));
+      
+      // Calculate max tilt angle before beam hits the ground (100px drop to ground)
+      // Calculate max tilt angle before beam hits the ground
+const beamThickness = 24;
+const groundClearance = 6;
+maxAngle = Math.asin((100 - beamThickness / 2 - groundClearance) / (halfLen * pxPerMeter));
+
+
+      let acw = 0;
+      let cw = 0;
+
+      // 2. Process Masses
+      state.masses.forEach((m, i) => {
+          // Update Slider Bounds for Position based on new Beam Length
+          els.slP[i].min = -halfLen;
+          els.slP[i].max = halfLen;
+          
+          // Clamp mass parameters
+          m.m = Math.max(5, Math.min(50, m.m));
+          m.d = Math.max(-halfLen, Math.min(halfLen, m.d)); // Don't let it fall off!
+
+          // Sync DOM
+          els.slM[i].value = m.m; els.valM[i].textContent = `${m.m} kg`;
+          els.slP[i].value = m.d; els.valP[i].textContent = `${m.d.toFixed(1)} m`;
+
+          // Torque Math
+          if (m.active) {
+              let wForce = m.m * g;
+              if (m.d < 0) acw += wForce * Math.abs(m.d);
+              if (m.d > 0) cw += wForce * m.d;
+          }
+      });
+
+      // 3. Resolve Equilibrium
+      const net = cw - acw;
+      els.labACW.innerHTML = `${acw.toFixed(1)} N&middot;m`;
+      els.labCW.innerHTML = `${cw.toFixed(1)} N&middot;m`;
+      els.labNet.innerHTML = `${Math.abs(net).toFixed(1)} N&middot;m`;
+
+      // 0.5 N*m tolerance for snapping perfectly to balance
+      if (Math.abs(net) < 0.5) {
+          state.targetAngle = 0;
+          els.badge.textContent = "BALANCED (Equilibrium)";
+          els.badge.className = "status-badge status-balanced";
+      } else if (net < 0) {
+          state.targetAngle = -maxAngle;
+          els.badge.textContent = "\u25C0 TILTING LEFT";
+          els.badge.className = "status-badge status-left";
+      } else {
+          state.targetAngle = maxAngle;
+          els.badge.textContent = "TILTING RIGHT \u25B6";
+          els.badge.className = "status-badge status-right";
+      }
+    }
+
+    // Step functions for buttons
+    window.stepGlobal = function(param, amount) {
+        state[param] += amount; updateMath();
+    };
+    window.stepMass = function(index, param, amount) {
+        state.masses[index][param] += amount;
+        // Fix rounding errors for clean UI
+        state.masses[index][param] = Math.round(state.masses[index][param] * 10) / 10;
+        updateMath();
+    };
+
+    // Slider Event Listeners
+    for(let i=0; i<3; i++) {
+        els.slM[i].addEventListener('input', (e) => { state.masses[i].m = parseFloat(e.target.value); updateMath(); });
+        els.slP[i].addEventListener('input', (e) => { state.masses[i].d = parseFloat(e.target.value); updateMath(); });
+    }
+    els.slBeamL.addEventListener('input', (e) => { state.beamL = parseFloat(e.target.value); updateMath(); });
+
+
+    // --- PHYSICS & DRAGGING LOGIC ---
+    function getPointerPos(e) {
+      const rect = canvas.getBoundingClientRect();
+      const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+      const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+      return { x: clientX - rect.left, y: clientY - rect.top };
+    }
+
+    function handleDragStart(e) {
+      if(e.target !== canvas) return;
+      const pos = getPointerPos(e);
+      
+      // Exact Bounding Box Check based on global coordinates
+      for (let i = 0; i < state.masses.length; i++) {
+          let m = state.masses[i];
+          if (!m.active) continue;
+          
+          const size = 40 + (m.m - 5) * 0.8; // Match visual drawing size
+          
+          // Since globalX/Y is the CENTER of the block, check bounds
+          if (Math.abs(pos.x - m.globalX) < size/2 && Math.abs(pos.y - m.globalY) < size/2) {
+              state.dragNode = m.id;
+              canvas.style.cursor = 'grabbing';
+              break;
+          }
+      }
+    }
+
+    function handleDragMove(e) {
+      const pos = getPointerPos(e);
+      
+      if (state.dragNode === null) {
+          // Hover logic
+          let hovered = false;
+          for (let m of state.masses) {
+              if (!m.active) continue;
+              const size = 40 + (m.m - 5) * 0.8;
+              if (Math.abs(pos.x - m.globalX) < size/2 && Math.abs(pos.y - m.globalY) < size/2) {
+                  hovered = true; break;
+              }
+          }
+          canvas.style.cursor = hovered ? 'grab' : 'default';
+          return;
+      }
+      
+      if(e.touches) e.preventDefault(); 
+      
+      // We project the mouse X coordinate onto the tilted beam to find local distance 'd'
+      // Account for the tilt (cos angle) so it feels 1-to-1 with the mouse
+      let new_d = (pos.x - cx) / (pxPerMeter * Math.cos(state.beamAngle));
+      
+      // Snap to nearest 0.1m for clean UI
+      new_d = Math.round(new_d * 10) / 10;
+      
+      state.masses[state.dragNode].d = new_d;
+      updateMath(); // Live updates slider and torque!
+    }
+
+    function handleDragEnd() { 
+      state.dragNode = null; 
+      canvas.style.cursor = 'default';
+    }
+
+    canvas.addEventListener('mousedown', handleDragStart);
+    window.addEventListener('mousemove', handleDragMove);
+    window.addEventListener('mouseup', handleDragEnd);
+    canvas.addEventListener('touchstart', handleDragStart, { passive: false });
+    window.addEventListener('touchmove', handleDragMove, { passive: false });
+    window.addEventListener('touchend', handleDragEnd);
+
+    // --- DRAWING LOGIC ---
+    function animate() {
+      if (!canvas.width) return;
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      // Smooth tilting animation (Spring physics)
+      state.beamAngle += (state.targetAngle - state.beamAngle) * 0.1;
+
+      // 1. Update Global Positions for hit-detection
+      const beamThick = 24;
+      state.masses.forEach(m => {
+          if (!m.active) return;
+          const size = 40 + (m.m - 5) * 0.8;
+          const localX = m.d * pxPerMeter;
+          const localY = -(beamThick/2) - (size/2); // Center of block sitting on beam
+          
+          // Rotation Matrix applied to local coordinates to find Global Screen Coordinates
+          m.globalX = cx + Math.cos(state.beamAngle)*localX - Math.sin(state.beamAngle)*localY;
+          m.globalY = fulcrumY + Math.sin(state.beamAngle)*localX + Math.cos(state.beamAngle)*localY;
+      });
+
+      // 2. Draw Ground
+      ctx.fillStyle = "#0f172a"; // Background color below ground
+      ctx.fillRect(0, groundY, canvas.width, canvas.height - groundY);
+      ctx.strokeStyle = "#475569"; ctx.lineWidth = 4;
+      ctx.beginPath(); ctx.moveTo(0, groundY); ctx.lineTo(canvas.width, groundY); ctx.stroke();
+
+      // 3. Draw Fulcrum Pivot (Triangle)
+      ctx.fillStyle = "#94a3b8";
+      ctx.beginPath();
+      ctx.moveTo(cx, fulcrumY);
+      ctx.lineTo(cx - 40, groundY);
+      ctx.lineTo(cx + 40, groundY);
+      ctx.fill();
+      ctx.strokeStyle = "#cbd5e1"; ctx.lineWidth = 2; ctx.stroke();
+      ctx.beginPath(); ctx.arc(cx, fulcrumY, 6, 0, Math.PI*2); ctx.fillStyle="#0f172a"; ctx.fill();
+
+      // 4. Draw Beam & Attached Masses (Inside rotated context)
+      ctx.save();
+      ctx.translate(cx, fulcrumY);
+      ctx.rotate(state.beamAngle);
+      
+      const halfLenPx = (state.beamL / 2) * pxPerMeter;
+      
+      // The Seesaw Beam (Dark Grey so white text pops!)
+      ctx.fillStyle = "#334155";
+      ctx.fillRect(-halfLenPx, -beamThick/2, halfLenPx * 2, beamThick);
+      ctx.strokeStyle = "#94a3b8"; ctx.lineWidth = 2;
+      ctx.strokeRect(-halfLenPx, -beamThick/2, halfLenPx * 2, beamThick);
+
+      // White Ruler Markings on the Beam
+      ctx.fillStyle = "#ffffff"; ctx.font = "bold 14px Arial"; ctx.textAlign="center"; ctx.textBaseline="top";
+      for(let i = -(state.beamL/2); i <= (state.beamL/2); i += 1) {
+          if (i === 0) continue; // Skip center pivot
+          let px = i * pxPerMeter;
+          
+          // White Tick Line
+          ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 2;
+          ctx.beginPath(); ctx.moveTo(px, -beamThick/2); ctx.lineTo(px, beamThick/2); ctx.stroke();
+          
+          // White Text below beam
+          ctx.fillText(`${Math.abs(i)}m`, px, beamThick/2 + 8);
+      }
+      
+      // Draw Blocks
+      state.masses.forEach(m => {
+          if (!m.active) return;
+          const size = 40 + (m.m - 5) * 0.8;
+          const localX = m.d * pxPerMeter;
+          const localY = -(beamThick/2) - (size/2); // Center of block
+          
+          // Square Box
+          ctx.fillStyle = m.color;
+          ctx.fillRect(localX - size/2, localY - size/2, size, size);
+          
+          // Border highlight if dragging
+          ctx.strokeStyle = state.dragNode === m.id ? "#ffffff" : "rgba(0,0,0,0.5)"; 
+          ctx.lineWidth = state.dragNode === m.id ? 4 : 2;
+          ctx.strokeRect(localX - size/2, localY - size/2, size, size);
+          
+          // Counter-rotate the text so it's always readable right-side up!
+          ctx.save();
+          ctx.translate(localX, localY);
+          ctx.rotate(-state.beamAngle); 
+          ctx.fillStyle = "#0f172a"; ctx.font = "bold 16px Arial"; ctx.textBaseline="middle";
+          ctx.fillText(`${m.m}kg`, 0, 0);
+          ctx.restore();
+      });
+      ctx.restore();
+
+      // 5. Draw Gravity Force Vectors (Globally straight down)
+      state.masses.forEach(m => {
+          if (!m.active) return;
+          const forceScale = 40 + (m.m * 1.2); // Visual arrow length
+          
+          // Draw arrow pointing straight down from the global center of the mass
+          drawArrow(ctx, m.globalX, m.globalY, m.globalX, m.globalY + forceScale, "rgba(255, 255, 255, 0.8)", `W = ${(m.m * g).toFixed(0)} N`);
+      });
+
+      requestAnimationFrame(animate);
+    }
+
+    function drawArrow(ctx, fromX, fromY, toX, toY, color, label) {
+      const dx = toX - fromX; const dy = toY - fromY;
+      const angle = Math.atan2(dy, dx);
+      const startOffset = 25; // Push start of arrow outside the box
+      
+      const rStart_Y = fromY + startOffset;
+
+      const headlen = 10; 
+      
+      ctx.beginPath(); ctx.moveTo(fromX, rStart_Y); ctx.lineTo(toX, toY);
+      ctx.strokeStyle = color; ctx.lineWidth = 3; ctx.stroke();
+      
+      ctx.beginPath(); ctx.moveTo(toX, toY);
+      ctx.lineTo(toX - headlen * Math.cos(angle - Math.PI / 6), toY - headlen * Math.sin(angle - Math.PI / 6));
+      ctx.lineTo(toX - headlen * Math.cos(angle + Math.PI / 6), toY - headlen * Math.sin(angle + Math.PI / 6));
+      ctx.fillStyle = color; ctx.fill();
+
+      ctx.textBaseline = "middle"; ctx.textAlign = "left";
+      ctx.fillStyle = color; ctx.font = "bold 14px Arial";
+      ctx.fillText(label, toX + 10, toY - 15);
+    }
+
+    // Boot sequence
+    window.addEventListener("load", () => {
+      resizeCanvas();
+      animate();
+    });
+
+  </script>
+</body>
+</html>
