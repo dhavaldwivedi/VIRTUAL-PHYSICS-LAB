@@ -475,24 +475,32 @@ maxAngle = Math.asin((100 - beamThickness / 2 - groundClearance) / (halfLen * px
     }
 
     function handleDragStart(e) {
-      if(e.target !== canvas) return;
-      const pos = getPointerPos(e);
+  // If it's a touch event, prevent the iPad from trying to scroll or zoom
+  if (e.touches) {
+    // Only prevent default if we are actually touching a mass
+    // (We check this inside the loop below)
+  }
+  
+  if(e.target !== canvas) return;
+  const pos = getPointerPos(e);
+  
+  for (let i = 0; i < state.masses.length; i++) {
+      let m = state.masses[i];
+      if (!m.active) continue;
       
-      // Exact Bounding Box Check based on global coordinates
-      for (let i = 0; i < state.masses.length; i++) {
-          let m = state.masses[i];
-          if (!m.active) continue;
-          
-          const size = 40 + (m.m - 5) * 0.8; // Match visual drawing size
-          
-          // Since globalX/Y is the CENTER of the block, check bounds
-          if (Math.abs(pos.x - m.globalX) < size/2 && Math.abs(pos.y - m.globalY) < size/2) {
-              state.dragNode = m.id;
-              canvas.style.cursor = 'grabbing';
-              break;
-          }
+      // PHYSICS TEACHER TIP: Fingers are less precise than mice.
+      // Let's add a "touch buffer" of 20px for iPad users.
+      const hitBuffer = e.touches ? 20 : 0;
+      const size = (40 + (m.m - 5) * 0.8) + hitBuffer;
+      
+      if (Math.abs(pos.x - m.globalX) < size/2 && Math.abs(pos.y - m.globalY) < size/2) {
+          state.dragNode = m.id;
+          canvas.style.cursor = 'grabbing';
+          if (e.touches) e.preventDefault(); // This is the magic line for iPad
+          break;
       }
-    }
+  }
+}
 
     function handleDragMove(e) {
       const pos = getPointerPos(e);
