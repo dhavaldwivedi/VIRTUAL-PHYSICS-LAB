@@ -1,0 +1,1002 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
+  />
+  <title>Centre of Gravity of an Irregular Lamina</title>
+  <style>
+    :root {
+      --bg: #eaf3fb;
+      --panel: rgba(255, 255, 255, 0.92);
+      --panel-strong: #ffffff;
+      --ink: #1f2937;
+      --muted: #5b6472;
+      --accent: #2563eb;
+      --accent-2: #0f766e;
+      --danger: #dc2626;
+      --warm: #f59e0b;
+      --shadow: 0 12px 30px rgba(0, 0, 0, 0.12);
+      --radius: 18px;
+    }
+
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(180deg, #dff0ff 0%, #eef7ff 40%, #f8fbff 100%);
+      color: var(--ink);
+      overscroll-behavior: none;
+    }
+
+    body {
+      min-height: 100vh;
+    }
+
+    .app {
+      max-width: 1440px;
+      margin: 0 auto;
+      padding: 18px;
+    }
+
+    .topbar {
+      background: var(--panel);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 18px 20px;
+      margin-bottom: 16px;
+      border: 1px solid rgba(255,255,255,0.65);
+    }
+
+    .title {
+      margin: 0;
+      font-size: clamp(1.35rem, 2.8vw, 2.2rem);
+      color: #0f172a;
+    }
+
+    .subtitle {
+      margin: 8px 0 0;
+      color: var(--muted);
+      font-size: 0.98rem;
+      line-height: 1.5;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: minmax(0, 2.1fr) minmax(320px, 1fr);
+      gap: 16px;
+      align-items: start;
+    }
+
+    .card {
+      background: var(--panel);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      border: 1px solid rgba(255,255,255,0.68);
+    }
+
+    .sim-card {
+      padding: 12px;
+    }
+
+    .sim-wrap {
+      position: relative;
+      overflow: hidden;
+      border-radius: 16px;
+      background: linear-gradient(180deg, #eff8ff 0%, #f8fbff 100%);
+      border: 1px solid #d7e9fb;
+      min-height: 600px;
+    }
+
+    canvas {
+      display: block;
+      width: 100%;
+      height: min(78vh, 820px);
+      min-height: 520px;
+      touch-action: none;
+      user-select: none;
+    }
+
+    .sim-overlay {
+      position: absolute;
+      left: 14px;
+      bottom: 14px;
+      background: rgba(15, 23, 42, 0.82);
+      color: white;
+      padding: 10px 14px;
+      border-radius: 12px;
+      font-size: 0.92rem;
+      line-height: 1.35;
+      box-shadow: 0 8px 20px rgba(0,0,0,0.2);
+      max-width: min(430px, calc(100% - 28px));
+      pointer-events: none;
+    }
+
+    .sim-tag {
+      position: absolute;
+      top: 14px;
+      left: 14px;
+      background: rgba(37, 99, 235, 0.1);
+      color: #1d4ed8;
+      border: 1px solid rgba(37, 99, 235, 0.2);
+      padding: 8px 12px;
+      border-radius: 999px;
+      font-weight: 700;
+      font-size: 0.88rem;
+      backdrop-filter: blur(4px);
+    }
+
+    .side {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .section {
+      padding: 16px;
+    }
+
+    .section h2 {
+      margin: 0 0 10px;
+      font-size: 1.05rem;
+      color: #0f172a;
+    }
+
+    .theory, .instructions, .obs-text, .result-text {
+      color: var(--muted);
+      line-height: 1.55;
+      font-size: 0.95rem;
+    }
+
+    .controls-grid {
+      display: grid;
+      gap: 10px;
+    }
+
+    .btn-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    button {
+      appearance: none;
+      border: none;
+      border-radius: 12px;
+      padding: 12px 14px;
+      font-size: 0.95rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: transform 0.14s ease, box-shadow 0.2s ease, opacity 0.2s ease;
+      color: white;
+      box-shadow: 0 8px 18px rgba(0,0,0,0.12);
+      touch-action: manipulation;
+    }
+
+    button:hover { opacity: 0.95; }
+    button:active { transform: scale(0.98); }
+
+    .btn-hole-1 { background: #2563eb; }
+    .btn-hole-2 { background: #0f766e; }
+    .btn-hole-3 { background: #8b5cf6; }
+    .btn-trace { background: #d97706; }
+    .btn-show { background: #059669; }
+    .btn-reset { background: #dc2626; }
+    .btn-toggle { background: #475569; }
+
+    .btn-wide {
+      width: 100%;
+    }
+
+    .status-box {
+      background: #eff6ff;
+      border: 1px solid #bfdbfe;
+      border-radius: 14px;
+      padding: 12px;
+      font-size: 0.95rem;
+      color: #1e3a8a;
+      line-height: 1.5;
+    }
+
+    .notebook {
+      background: #fcfcfd;
+      border: 1px solid #e5e7eb;
+      border-radius: 14px;
+      padding: 12px;
+    }
+
+    .note-title {
+      font-weight: 800;
+      margin-bottom: 8px;
+      color: #111827;
+    }
+
+    .obs-list {
+      margin: 0;
+      padding-left: 18px;
+      color: #4b5563;
+      line-height: 1.55;
+      font-size: 0.94rem;
+      max-height: 220px;
+      overflow: auto;
+    }
+
+    .mini-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-top: 10px;
+    }
+
+    .metric {
+      background: #f8fafc;
+      border: 1px solid #e5e7eb;
+      border-radius: 12px;
+      padding: 12px;
+    }
+
+    .metric-label {
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: #64748b;
+      margin-bottom: 4px;
+      font-weight: 700;
+    }
+
+    .metric-value {
+      font-size: 1rem;
+      font-weight: 800;
+      color: #0f172a;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: #ecfdf5;
+      color: #065f46;
+      padding: 8px 12px;
+      border-radius: 999px;
+      font-weight: 700;
+      border: 1px solid #a7f3d0;
+      margin-top: 10px;
+      flex-wrap: wrap;
+    }
+
+    .footer-note {
+      margin-top: 8px;
+      color: #64748b;
+      font-size: 0.9rem;
+      line-height: 1.45;
+    }
+
+    @media (max-width: 1100px) {
+      .layout {
+        grid-template-columns: 1fr;
+      }
+
+      canvas {
+        height: 66vh;
+      }
+    }
+
+    @media (max-width: 700px) {
+      .app {
+        padding: 12px;
+      }
+
+      .topbar, .section {
+        padding: 14px;
+      }
+
+      .btn-row {
+        grid-template-columns: 1fr;
+      }
+
+      .mini-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .sim-wrap {
+        min-height: 440px;
+      }
+
+      canvas {
+        min-height: 430px;
+        height: 56vh;
+      }
+
+      .sim-overlay {
+        font-size: 0.86rem;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <div class="topbar card">
+      <h1 class="title">Determination of the Centre of Gravity of an Irregular Lamina</h1>
+      <p class="subtitle">
+        Virtual physics lab: suspend the irregular lamina from different holes, draw the plumb-line traces,
+        and locate the centre of gravity at the intersection of those vertical lines.
+      </p>
+    </div>
+
+    <div class="layout">
+      <div class="sim-card card">
+        <div class="sim-wrap">
+          <div class="sim-tag">Interactive Simulation</div>
+          <canvas id="simCanvas"></canvas>
+          <div class="sim-overlay" id="simHint">
+            Tap or drag the lamina gently to disturb it, then let it settle. Use the controls to suspend from different holes and draw the plumb-line trace.
+          </div>
+        </div>
+      </div>
+
+      <div class="side">
+        <div class="card section">
+          <h2>Controls</h2>
+          <div class="controls-grid">
+            <div class="btn-row">
+              <button class="btn-hole-1" id="btnHole1">Suspend from Hole 1</button>
+              <button class="btn-hole-2" id="btnHole2">Suspend from Hole 2</button>
+            </div>
+            <div class="btn-row">
+              <button class="btn-hole-3" id="btnHole3">Suspend from Hole 3</button>
+              <button class="btn-trace" id="btnTrace">Draw Plumb Line Trace</button>
+            </div>
+            <div class="btn-row">
+              <button class="btn-show" id="btnShowCG">Show Centre of Gravity</button>
+              <button class="btn-reset" id="btnReset">Reset Experiment</button>
+            </div>
+            <button class="btn-toggle btn-wide" id="btnToggleLines">Hide Construction Lines</button>
+          </div>
+
+          <div class="status-box" id="statusBox" style="margin-top:12px;">
+            Select a suspension hole to begin the experiment.
+          </div>
+
+          <div class="mini-grid">
+            <div class="metric">
+              <div class="metric-label">Current Suspension</div>
+              <div class="metric-value" id="metricHole">None</div>
+            </div>
+            <div class="metric">
+              <div class="metric-label">Traces Drawn</div>
+              <div class="metric-value" id="metricTraces">0</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card section">
+          <h2>Theory</h2>
+          <div class="theory">
+            When an irregular lamina is suspended freely from a point, it rotates until its centre of gravity lies vertically below the point of suspension. A plumb line hung from the same point gives that vertical direction. If the lamina is suspended from two or more different holes, the vertical traces intersect at the centre of gravity.
+          </div>
+        </div>
+
+        <div class="card section">
+          <h2>Procedure</h2>
+          <div class="instructions">
+            1. Suspend the lamina from one hole.<br />
+            2. Observe the plumb line hanging vertically downward.<br />
+            3. Draw the trace of the plumb line on the lamina.<br />
+            4. Repeat from another hole.<br />
+            5. The intersection of the traces gives the centre of gravity.
+          </div>
+        </div>
+
+        <div class="card section">
+          <h2>Virtual Notebook</h2>
+          <div class="notebook">
+            <div class="note-title">Observations</div>
+            <ol class="obs-list" id="obsList"></ol>
+          </div>
+          <div class="badge" id="resultBadge" style="display:none;">
+            Result ready
+          </div>
+          <div class="result-text footer-note" id="resultText">
+            Draw at least two traces to determine the centre of gravity.
+          </div>
+          <div class="obs-text footer-note">
+            Conclusion: The centre of gravity of the irregular lamina is the point where the traced vertical lines intersect.
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    (() => {
+      const canvas = document.getElementById("simCanvas");
+      const ctx = canvas.getContext("2d");
+
+      const btnHole1 = document.getElementById("btnHole1");
+      const btnHole2 = document.getElementById("btnHole2");
+      const btnHole3 = document.getElementById("btnHole3");
+      const btnTrace = document.getElementById("btnTrace");
+      const btnShowCG = document.getElementById("btnShowCG");
+      const btnReset = document.getElementById("btnReset");
+      const btnToggleLines = document.getElementById("btnToggleLines");
+
+      const statusBox = document.getElementById("statusBox");
+      const metricHole = document.getElementById("metricHole");
+      const metricTraces = document.getElementById("metricTraces");
+      const obsList = document.getElementById("obsList");
+      const resultBadge = document.getElementById("resultBadge");
+      const resultText = document.getElementById("resultText");
+      const simHint = document.getElementById("simHint");
+
+      const DPR = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
+
+      const state = {
+        w: 0,
+        h: 0,
+        scale: 1,
+        standX: 0,
+        topY: 0,
+        hookY: 0,
+        showConstruction: true,
+        suspendedHoleIndex: null,
+        traces: [],
+        showCG: false,
+        cgFound: false,
+        dragActive: false,
+        dragPointerId: null,
+        beamSwingVelocity: 0,
+        angle: 0,
+        targetAngle: 0,
+        manualKick: 0
+      };
+
+      const lamina = {
+        // Base polygon points around local coordinate system.
+        points: [
+          { x: -120, y: -95 },
+          { x: -35, y: -125 },
+          { x: 68, y: -98 },
+          { x: 118, y: -24 },
+          { x: 98, y: 86 },
+          { x: 18, y: 126 },
+          { x: -92, y: 104 },
+          { x: -132, y: 18 }
+        ],
+        // A known centre of gravity in local coordinates.
+        cg: { x: 8, y: 14 },
+        holes: [
+          { x: -78, y: -78, name: "Hole 1" },
+          { x: 72, y: -72, name: "Hole 2" },
+          { x: 98, y: 18, name: "Hole 3" }
+        ],
+        color: "#d9b87b"
+      };
+
+      function addObservation(text) {
+        const li = document.createElement("li");
+        li.textContent = text;
+        obsList.appendChild(li);
+        obsList.scrollTop = obsList.scrollHeight;
+      }
+
+      function clearObservations() {
+        obsList.innerHTML = "";
+      }
+
+      function setStatus(text) {
+        statusBox.textContent = text;
+      }
+
+      function resize() {
+        const rect = canvas.getBoundingClientRect();
+        canvas.width = Math.round(rect.width * DPR);
+        canvas.height = Math.round(rect.height * DPR);
+        ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+
+        state.w = rect.width;
+        state.h = rect.height;
+        state.scale = Math.min(state.w, state.h) / 780;
+        state.standX = state.w * 0.48;
+        state.topY = 86 * state.scale;
+        state.hookY = 144 * state.scale;
+      }
+
+      function toWorld(local, angle, hole) {
+        const dx = local.x - hole.x;
+        const dy = local.y - hole.y;
+        const c = Math.cos(angle);
+        const s = Math.sin(angle);
+        return {
+          x: state.standX + (dx * c - dy * s) * state.scale,
+          y: state.hookY + (dx * s + dy * c) * state.scale
+        };
+      }
+
+      function worldToLocal(world, angle, hole) {
+        const dx = (world.x - state.standX) / state.scale;
+        const dy = (world.y - state.hookY) / state.scale;
+        const c = Math.cos(angle);
+        const s = Math.sin(angle);
+        return {
+          x: hole.x + dx * c + dy * s,
+          y: hole.y - dx * s + dy * c
+        };
+      }
+
+      function getCurrentHole() {
+        if (state.suspendedHoleIndex == null) return null;
+        return lamina.holes[state.suspendedHoleIndex];
+      }
+
+      function computeTargetAngleForHole(index) {
+        const hole = lamina.holes[index];
+        // Rotate so CG lies vertically below hole.
+        // After rotation, x component of (cg - hole) becomes zero.
+        // angle = 90° - atan2(dy, dx)
+        const dx = lamina.cg.x - hole.x;
+        const dy = lamina.cg.y - hole.y;
+        return Math.PI / 2 - Math.atan2(dy, dx);
+      }
+
+      function suspendFromHole(index) {
+        state.suspendedHoleIndex = index;
+        state.targetAngle = computeTargetAngleForHole(index);
+        state.manualKick = 0.22 * (index === 1 ? -1 : 1);
+        state.beamSwingVelocity += state.manualKick;
+        state.showCG = false;
+        resultBadge.style.display = state.cgFound ? "inline-flex" : "none";
+
+        metricHole.textContent = lamina.holes[index].name;
+        setStatus(`${lamina.holes[index].name} selected. The lamina rotates until its centre of gravity lies vertically below the hole.`);
+        addObservation(`Lamina suspended from ${lamina.holes[index].name}. It begins rotating to equilibrium.`);
+      }
+
+      function lineFromCurrentPlumb() {
+        const hole = getCurrentHole();
+        if (!hole) return null;
+
+        // In local coordinates, plumb line is global vertical.
+        // Convert two world points on vertical line back into local coordinates.
+        const p1World = { x: state.standX, y: state.hookY - 240 * state.scale };
+        const p2World = { x: state.standX, y: state.hookY + 330 * state.scale };
+
+        const p1Local = worldToLocal(p1World, state.angle, hole);
+        const p2Local = worldToLocal(p2World, state.angle, hole);
+
+        return {
+          holeIndex: state.suspendedHoleIndex,
+          p1: p1Local,
+          p2: p2Local
+        };
+      }
+
+      function drawTrace() {
+        if (state.suspendedHoleIndex == null) {
+          setStatus("Choose a suspension hole first.");
+          return;
+        }
+
+        const existing = state.traces.find(t => t.holeIndex === state.suspendedHoleIndex);
+        if (existing) {
+          setStatus("A trace from this hole is already drawn. Choose another hole or reset.");
+          return;
+        }
+
+        const trace = lineFromCurrentPlumb();
+        state.traces.push(trace);
+        metricTraces.textContent = String(state.traces.length);
+
+        addObservation(`A vertical trace was drawn through ${lamina.holes[state.suspendedHoleIndex].name}.`);
+        setStatus(`Trace drawn from ${lamina.holes[state.suspendedHoleIndex].name}. Suspend from another hole and repeat.`);
+
+        if (state.traces.length >= 2) {
+          const cg = estimateIntersection();
+          if (cg) {
+            state.cgFound = true;
+            resultBadge.style.display = "inline-flex";
+            resultBadge.textContent = "Intersection located";
+            resultText.textContent = "Two or more traces intersect at the centre of gravity. You may now reveal the marked C.G. point.";
+            addObservation("The traced vertical lines intersect at a common point, identifying the centre of gravity.");
+          }
+        }
+      }
+
+      function lineIntersection(a1, a2, b1, b2) {
+        const x1 = a1.x, y1 = a1.y, x2 = a2.x, y2 = a2.y;
+        const x3 = b1.x, y3 = b1.y, x4 = b2.x, y4 = b2.y;
+        const den = (x1 - x2) * (y3 - y4) - (y1 - y2) * (x3 - x4);
+        if (Math.abs(den) < 1e-6) return null;
+        const px =
+          ((x1 * y2 - y1 * x2) * (x3 - x4) - (x1 - x2) * (x3 * y4 - y3 * x4)) / den;
+        const py =
+          ((x1 * y2 - y1 * x2) * (y3 - y4) - (y1 - y2) * (x3 * y4 - y3 * x4)) / den;
+        return { x: px, y: py };
+      }
+
+      function estimateIntersection() {
+        if (state.traces.length < 2) return null;
+
+        const points = [];
+        for (let i = 0; i < state.traces.length; i++) {
+          for (let j = i + 1; j < state.traces.length; j++) {
+            const A = state.traces[i];
+            const B = state.traces[j];
+            const inter = lineIntersection(A.p1, A.p2, B.p1, B.p2);
+            if (inter) points.push(inter);
+          }
+        }
+        if (!points.length) return null;
+
+        const avg = points.reduce((acc, p) => {
+          acc.x += p.x;
+          acc.y += p.y;
+          return acc;
+        }, { x: 0, y: 0 });
+
+        return {
+          x: avg.x / points.length,
+          y: avg.y / points.length
+        };
+      }
+
+      function showCG() {
+        if (state.traces.length < 2) {
+          setStatus("Draw at least two plumb-line traces first.");
+          return;
+        }
+        state.showCG = true;
+        state.cgFound = true;
+        resultBadge.style.display = "inline-flex";
+        resultBadge.textContent = "C.G. revealed";
+        resultText.textContent = "The centre of gravity is the point where the traced vertical lines intersect.";
+        setStatus("The centre of gravity has been marked on the lamina.");
+        addObservation("The centre of gravity was identified and marked as C.G.");
+      }
+
+      function resetExperiment() {
+        state.suspendedHoleIndex = null;
+        state.traces = [];
+        state.showCG = false;
+        state.cgFound = false;
+        state.angle = 0;
+        state.targetAngle = 0;
+        state.beamSwingVelocity = 0;
+        state.manualKick = 0;
+        state.dragActive = false;
+        state.dragPointerId = null;
+        metricHole.textContent = "None";
+        metricTraces.textContent = "0";
+        resultBadge.style.display = "none";
+        resultText.textContent = "Draw at least two traces to determine the centre of gravity.";
+        clearObservations();
+        setStatus("Experiment reset. Select a suspension hole to begin again.");
+        addObservation("Experiment reset.");
+      }
+
+      function toggleConstruction() {
+        state.showConstruction = !state.showConstruction;
+        btnToggleLines.textContent = state.showConstruction
+          ? "Hide Construction Lines"
+          : "Show Construction Lines";
+      }
+
+      function drawBackground() {
+        const skyGrad = ctx.createLinearGradient(0, 0, 0, state.h);
+        skyGrad.addColorStop(0, "#eff8ff");
+        skyGrad.addColorStop(1, "#ffffff");
+        ctx.fillStyle = skyGrad;
+        ctx.fillRect(0, 0, state.w, state.h);
+
+        // Ground strip
+        const groundY = state.h * 0.87;
+        ctx.fillStyle = "#dbeafe";
+        ctx.fillRect(0, groundY, state.w, state.h - groundY);
+
+        ctx.strokeStyle = "#93c5fd";
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(0, groundY);
+        ctx.lineTo(state.w, groundY);
+        ctx.stroke();
+
+        // Stand
+        const sx = state.standX;
+        const baseY = groundY;
+        ctx.fillStyle = "#64748b";
+
+        ctx.beginPath();
+        ctx.moveTo(sx - 55 * state.scale, baseY);
+        ctx.lineTo(sx, state.hookY - 5 * state.scale);
+        ctx.lineTo(sx + 55 * state.scale, baseY);
+        ctx.closePath();
+        ctx.fill();
+
+        ctx.strokeStyle = "#334155";
+        ctx.lineWidth = 2;
+        ctx.stroke();
+
+        ctx.fillStyle = "#475569";
+        ctx.fillRect(sx - 5 * state.scale, state.topY, 10 * state.scale, state.hookY - state.topY);
+
+        // Top support beam
+        ctx.fillStyle = "#334155";
+        ctx.fillRect(sx - 160 * state.scale, state.topY - 8 * state.scale, 170 * state.scale, 14 * state.scale);
+
+        // Hook
+        ctx.strokeStyle = "#1f2937";
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.arc(sx, state.hookY - 8 * state.scale, 12 * state.scale, Math.PI * 0.1, Math.PI * 1.2, false);
+        ctx.stroke();
+      }
+
+      function drawLamina() {
+        const hole = getCurrentHole();
+        const activeHole = hole || lamina.holes[0];
+
+        // Construction traces on lamina
+        if (state.showConstruction) {
+          state.traces.forEach((trace, index) => {
+            drawInfiniteLocalLine(trace.p1, trace.p2, "rgba(220, 38, 38, 0.85)", index + 1);
+          });
+        }
+
+        // Lamina body
+        ctx.beginPath();
+        lamina.points.forEach((p, i) => {
+          const w = toWorld(p, state.angle, activeHole);
+          if (i === 0) ctx.moveTo(w.x, w.y);
+          else ctx.lineTo(w.x, w.y);
+        });
+        ctx.closePath();
+
+        const grad = ctx.createLinearGradient(
+          state.standX - 150 * state.scale,
+          state.hookY - 140 * state.scale,
+          state.standX + 150 * state.scale,
+          state.hookY + 160 * state.scale
+        );
+        grad.addColorStop(0, "#efd7aa");
+        grad.addColorStop(1, "#c89e62");
+        ctx.fillStyle = grad;
+        ctx.fill();
+
+        ctx.strokeStyle = "#8b5e34";
+        ctx.lineWidth = 3;
+        ctx.stroke();
+
+        // Hole markers
+        lamina.holes.forEach((h, i) => {
+          const w = toWorld(h, state.angle, activeHole);
+          ctx.beginPath();
+          ctx.arc(w.x, w.y, 8 * state.scale, 0, Math.PI * 2);
+          ctx.fillStyle = i === state.suspendedHoleIndex ? "#1d4ed8" : "#ffffff";
+          ctx.fill();
+          ctx.lineWidth = 2.5;
+          ctx.strokeStyle = "#334155";
+          ctx.stroke();
+
+          ctx.fillStyle = "#0f172a";
+          ctx.font = `${Math.max(11, 13 * state.scale)}px Segoe UI`;
+          ctx.textAlign = "center";
+          ctx.textBaseline = "bottom";
+          ctx.fillText(String(i + 1), w.x, w.y - 12 * state.scale);
+        });
+
+        // Plumb line
+        if (state.suspendedHoleIndex != null) {
+          const plumbTopX = state.standX;
+          const plumbTopY = state.hookY;
+          const bobY = state.h * 0.73;
+
+          ctx.strokeStyle = "#111827";
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.moveTo(plumbTopX, plumbTopY);
+          ctx.lineTo(plumbTopX, bobY);
+          ctx.stroke();
+
+          ctx.fillStyle = "#475569";
+          ctx.beginPath();
+          ctx.arc(plumbTopX, bobY + 16 * state.scale, 16 * state.scale, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.strokeStyle = "#1f2937";
+          ctx.stroke();
+
+          // dashed guide
+          if (state.showConstruction) {
+            ctx.save();
+            ctx.setLineDash([8, 8]);
+            ctx.strokeStyle = "rgba(37, 99, 235, 0.55)";
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(plumbTopX, plumbTopY - 18 * state.scale);
+            ctx.lineTo(plumbTopX, bobY + 35 * state.scale);
+            ctx.stroke();
+            ctx.restore();
+          }
+        }
+
+        // Draw actual CG marker only when requested
+        if (state.showCG) {
+          const cg = estimateIntersection() || lamina.cg;
+          const cgWorld = toWorld(cg, state.angle, activeHole);
+
+          ctx.beginPath();
+          ctx.arc(cgWorld.x, cgWorld.y, 8 * state.scale, 0, Math.PI * 2);
+          ctx.fillStyle = "#ef4444";
+          ctx.fill();
+          ctx.lineWidth = 3;
+          ctx.strokeStyle = "#ffffff";
+          ctx.stroke();
+
+          ctx.font = `700 ${Math.max(13, 16 * state.scale)}px Segoe UI`;
+          ctx.textAlign = "left";
+          ctx.textBaseline = "middle";
+          ctx.fillStyle = "#b91c1c";
+          ctx.fillText("C.G.", cgWorld.x + 12 * state.scale, cgWorld.y);
+        }
+      }
+
+      function drawInfiniteLocalLine(p1, p2, color, labelNumber) {
+        const hole = getCurrentHole() || lamina.holes[0];
+        const dir = { x: p2.x - p1.x, y: p2.y - p1.y };
+        const len = Math.hypot(dir.x, dir.y) || 1;
+        dir.x /= len;
+        dir.y /= len;
+
+        const A = { x: p1.x - dir.x * 900, y: p1.y - dir.y * 900 };
+        const B = { x: p1.x + dir.x * 900, y: p1.y + dir.y * 900 };
+        const Aw = toWorld(A, state.angle, hole);
+        const Bw = toWorld(B, state.angle, hole);
+
+        ctx.save();
+        ctx.setLineDash([10, 7]);
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 2.5;
+        ctx.beginPath();
+        ctx.moveTo(Aw.x, Aw.y);
+        ctx.lineTo(Bw.x, Bw.y);
+        ctx.stroke();
+        ctx.restore();
+
+        // Trace label
+        const mid = toWorld({ x: p1.x, y: p1.y }, state.angle, hole);
+        ctx.fillStyle = "#991b1b";
+        ctx.font = `700 ${Math.max(12, 14 * state.scale)}px Segoe UI`;
+        ctx.textAlign = "left";
+        ctx.textBaseline = "bottom";
+        ctx.fillText(`Trace ${labelNumber}`, mid.x + 8 * state.scale, mid.y - 8 * state.scale);
+      }
+
+      function updatePhysics() {
+        if (state.suspendedHoleIndex != null) {
+          // Damped motion toward target angle
+          const restoring = (state.targetAngle - state.angle) * 0.08;
+          state.beamSwingVelocity += restoring;
+          state.beamSwingVelocity *= 0.9;
+          state.angle += state.beamSwingVelocity;
+
+          if (!state.dragActive && Math.abs(state.targetAngle - state.angle) < 0.0007 && Math.abs(state.beamSwingVelocity) < 0.0007) {
+            state.angle = state.targetAngle;
+            state.beamSwingVelocity = 0;
+          }
+        }
+      }
+
+      function render() {
+        updatePhysics();
+        drawBackground();
+        drawLamina();
+        requestAnimationFrame(render);
+      }
+
+      function pointerPos(evt) {
+        const rect = canvas.getBoundingClientRect();
+        let clientX, clientY;
+
+        if (evt.touches && evt.touches.length) {
+          clientX = evt.touches[0].clientX;
+          clientY = evt.touches[0].clientY;
+        } else if (evt.changedTouches && evt.changedTouches.length) {
+          clientX = evt.changedTouches[0].clientX;
+          clientY = evt.changedTouches[0].clientY;
+        } else {
+          clientX = evt.clientX;
+          clientY = evt.clientY;
+        }
+
+        return {
+          x: clientX - rect.left,
+          y: clientY - rect.top
+        };
+      }
+
+      function pointInPolygon(point, polygonWorld) {
+        let inside = false;
+        for (let i = 0, j = polygonWorld.length - 1; i < polygonWorld.length; j = i++) {
+          const xi = polygonWorld[i].x, yi = polygonWorld[i].y;
+          const xj = polygonWorld[j].x, yj = polygonWorld[j].y;
+          const intersect =
+            ((yi > point.y) !== (yj > point.y)) &&
+            point.x < ((xj - xi) * (point.y - yi)) / ((yj - yi) || 1e-9) + xi;
+          if (intersect) inside = !inside;
+        }
+        return inside;
+      }
+
+      function currentPolygonWorld() {
+        const hole = getCurrentHole() || lamina.holes[0];
+        return lamina.points.map(p => toWorld(p, state.angle, hole));
+      }
+
+      function startDrag(evt) {
+        if (state.suspendedHoleIndex == null) return;
+        const p = pointerPos(evt);
+        const poly = currentPolygonWorld();
+        if (!pointInPolygon(p, poly)) return;
+
+        state.dragActive = true;
+        state.dragPointerId = evt.pointerId ?? "touch";
+        simHint.textContent = "Lamina disturbed. Release it and it will settle back to equilibrium.";
+      }
+
+      function moveDrag(evt) {
+        if (!state.dragActive) return;
+        const p = pointerPos(evt);
+        const dy = p.y - state.hookY;
+        const dx = p.x - state.standX;
+        const approxAngle = Math.atan2(dy, dx) - Math.PI / 2;
+
+        // Limit manual displacement
+        const delta = approxAngle - state.targetAngle;
+        const clamped = Math.max(-0.9, Math.min(0.9, delta));
+        state.angle = state.targetAngle + clamped;
+        state.beamSwingVelocity = 0;
+        evt.preventDefault();
+      }
+
+      function endDrag() {
+        if (!state.dragActive) return;
+        state.dragActive = false;
+        state.beamSwingVelocity += 0.02;
+      }
+
+      btnHole1.addEventListener("click", () => suspendFromHole(0));
+      btnHole2.addEventListener("click", () => suspendFromHole(1));
+      btnHole3.addEventListener("click", () => suspendFromHole(2));
+      btnTrace.addEventListener("click", drawTrace);
+      btnShowCG.addEventListener("click", showCG);
+      btnReset.addEventListener("click", resetExperiment);
+      btnToggleLines.addEventListener("click", toggleConstruction);
+
+      // Pointer events for desktop + iPad
+      canvas.addEventListener("pointerdown", startDrag, { passive: true });
+      window.addEventListener("pointermove", moveDrag, { passive: false });
+      window.addEventListener("pointerup", endDrag, { passive: true });
+      window.addEventListener("pointercancel", endDrag, { passive: true });
+
+      // Touch fallback for older Safari/iPad
+      canvas.addEventListener("touchstart", startDrag, { passive: true });
+      window.addEventListener("touchmove", moveDrag, { passive: false });
+      window.addEventListener("touchend", endDrag, { passive: true });
+
+      window.addEventListener("resize", resize);
+
+      function init() {
+        resize();
+        clearObservations();
+        addObservation("The irregular lamina is ready for suspension.");
+        setStatus("Select a suspension hole to begin the experiment.");
+        render();
+      }
+
+      init();
+    })();
+  </script>
+</body>
+</html>
