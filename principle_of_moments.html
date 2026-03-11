@@ -479,32 +479,32 @@
     }
 
     function handleDragStart(e) {
-      // If it's a touch event, prevent the iPad from trying to scroll or zoom,
-      // but ONLY if we actually grabbed a mass (handled inside the loop).
-      
       if(e.target !== canvas) return;
+      
+      // KILL IOS GESTURES INSTANTLY: Stop scroll/zoom right away
+      if (e.touches) e.preventDefault(); 
+      
       const pos = getPointerPos(e);
       
       for (let i = 0; i < state.masses.length; i++) {
           let m = state.masses[i];
           if (!m.active) continue;
           
-          // PHYSICS TEACHER TIP: Fingers are less precise than mice.
-          // Let's add a "touch buffer" of 25px for iPad/Mobile users.
-          const hitBuffer = e.touches ? 25 : 0;
+          // MASSIVE hit buffer for iPad users (60px = width of a fingertip)
+          const hitBuffer = e.touches ? 60 : 0; 
           const size = (40 + (m.m - 5) * 0.8) + hitBuffer;
           
           // Since globalX/Y is the CENTER of the block, check bounds
           if (Math.abs(pos.x - m.globalX) < size/2 && Math.abs(pos.y - m.globalY) < size/2) {
               state.dragNode = m.id;
               canvas.style.cursor = 'grabbing';
-              if (e.touches) e.preventDefault(); // Magic line for iPad dragging!
-              break;
+              break; // Found our block, stop checking
           }
       }
     }
 
     function handleDragMove(e) {
+      if(e.touches) e.preventDefault(); // Unconditional scroll lock while moving
       const pos = getPointerPos(e);
       
       if (state.dragNode === null) {
@@ -521,9 +521,6 @@
           return;
       }
       
-      // Stop screen scroll while actively dragging
-      if(e.touches) e.preventDefault(); 
-      
       // We project the mouse X coordinate onto the tilted beam to find local distance 'd'
       // Account for the tilt (cos angle) so it feels 1-to-1 with the mouse/finger
       let new_d = (pos.x - cx) / (pxPerMeter * Math.cos(state.beamAngle));
@@ -535,7 +532,8 @@
       updateMath(); 
     }
 
-    function handleDragEnd() { 
+    function handleDragEnd(e) { 
+      if (e && e.touches) e.preventDefault(); // Stop lingering gestures
       state.dragNode = null; 
       canvas.style.cursor = 'default';
     }
@@ -544,10 +542,10 @@
     window.addEventListener('mousemove', handleDragMove);
     window.addEventListener('mouseup', handleDragEnd);
     
-    // Set passive: false so we are allowed to use e.preventDefault() on touch events
+    // Set passive: false so we are legally allowed to use e.preventDefault() on touch events
     canvas.addEventListener('touchstart', handleDragStart, { passive: false });
     window.addEventListener('touchmove', handleDragMove, { passive: false });
-    window.addEventListener('touchend', handleDragEnd);
+    window.addEventListener('touchend', handleDragEnd, { passive: false });
 
     // --- DRAWING LOGIC ---
     function animate() {
