@@ -1,0 +1,1191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Timed Work on an Inclined Plane</title>
+  <style>
+    * { box-sizing: border-box; }
+
+    :root {
+      --bg: #0f172a;
+      --panel: rgba(15, 23, 42, 0.86);
+      --panel-solid: #162338;
+      --line: #334155;
+      --text: #e2e8f0;
+      --muted: #94a3b8;
+      --accent: #38bdf8;
+      --force: #fbbf24;
+      --gravity: #ef4444;
+      --disp: #22c55e;
+      --height: #60a5fa;
+      --warn: #f97316;
+      --ok: #10b981;
+      --shadow: 0 18px 50px rgba(0, 0, 0, 0.35);
+      --radius: 18px;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: "Avenir Next", "Segoe UI", sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(circle at top left, rgba(56, 189, 248, 0.14), transparent 30%),
+        radial-gradient(circle at bottom right, rgba(251, 191, 36, 0.14), transparent 28%),
+        linear-gradient(160deg, #09101f 0%, #0f172a 55%, #111c31 100%);
+      overflow: hidden;
+    }
+
+    .app {
+      height: 100vh;
+      display: grid;
+      grid-template-columns: minmax(0, 1.35fr) minmax(360px, 440px);
+      gap: 18px;
+      padding: 18px;
+    }
+
+    .stage-card,
+    .panel {
+      background: var(--panel);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      border-radius: var(--radius);
+    }
+
+    .stage-card {
+      position: relative;
+      overflow: hidden;
+      min-height: 0;
+    }
+
+    canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+      touch-action: none;
+    }
+
+    .stage-overlay {
+      position: absolute;
+      left: 18px;
+      right: 18px;
+      top: 18px;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 12px;
+      pointer-events: none;
+    }
+
+    .pill,
+    .readout {
+      background: rgba(9, 16, 31, 0.72);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 999px;
+      padding: 10px 14px;
+      font-size: 0.94rem;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+    }
+
+    .readout {
+      border-radius: 16px;
+      min-width: 210px;
+      line-height: 1.45;
+    }
+
+    .status-on { color: #fde68a; }
+    .status-off { color: #cbd5e1; }
+    .status-done { color: #86efac; }
+    .status-warn { color: #fdba74; }
+
+    .timeline {
+      position: absolute;
+      left: 18px;
+      right: 18px;
+      bottom: 18px;
+      background: rgba(9, 16, 31, 0.82);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 16px;
+      padding: 14px;
+    }
+
+    .timeline-row {
+      position: relative;
+      height: 14px;
+      border-radius: 999px;
+      background: rgba(148, 163, 184, 0.18);
+      overflow: hidden;
+      margin-top: 8px;
+    }
+
+    .timeline-force {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      border-radius: 999px;
+      background: linear-gradient(90deg, rgba(251, 191, 36, 0.8), rgba(249, 115, 22, 0.95));
+    }
+
+    .timeline-progress {
+      position: absolute;
+      top: -4px;
+      width: 3px;
+      bottom: -4px;
+      background: #fff;
+      box-shadow: 0 0 12px rgba(255, 255, 255, 0.65);
+    }
+
+    .timeline-labels,
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .timeline small,
+    .summary-tile span,
+    .calc-title,
+    .theory-card h4 {
+      color: var(--muted);
+    }
+
+    .panel {
+      min-height: 0;
+      overflow: auto;
+      padding: 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .panel::-webkit-scrollbar { width: 8px; }
+    .panel::-webkit-scrollbar-thumb { background: #475569; border-radius: 999px; }
+
+    .panel-header h1 {
+      margin: 0;
+      font-size: 1.35rem;
+      line-height: 1.2;
+    }
+
+    .panel-header p {
+      margin: 6px 0 0;
+      color: var(--muted);
+      font-size: 0.94rem;
+      line-height: 1.45;
+    }
+
+    .action-row {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    button {
+      border: 0;
+      border-radius: 12px;
+      padding: 12px 14px;
+      font: inherit;
+      font-weight: 700;
+      cursor: pointer;
+      color: white;
+      background: #2563eb;
+      box-shadow: 0 8px 20px rgba(37, 99, 235, 0.24);
+      transition: transform 0.15s ease, filter 0.15s ease;
+    }
+
+    button:active { transform: scale(0.98); }
+    button.secondary { background: #475569; box-shadow: none; }
+    button.warn { background: #ef4444; box-shadow: 0 8px 20px rgba(239, 68, 68, 0.24); }
+    button.example { background: #0f766e; box-shadow: 0 8px 20px rgba(15, 118, 110, 0.24); }
+
+    .control-card,
+    .calc-card,
+    .theory-card,
+    .summary-card {
+      background: rgba(2, 6, 23, 0.46);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 14px;
+    }
+
+    .section-title {
+      margin: 0 0 12px;
+      font-size: 0.92rem;
+      text-transform: uppercase;
+      letter-spacing: 0.09em;
+      color: #f8fafc;
+    }
+
+    .controls-grid {
+      display: grid;
+      gap: 12px;
+    }
+
+    .control-group {
+      display: grid;
+      gap: 8px;
+    }
+
+    .control-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: center;
+      font-size: 0.92rem;
+      font-weight: 600;
+    }
+
+    .control-head span:last-child {
+      font-family: "SFMono-Regular", Consolas, monospace;
+      color: #f8fafc;
+    }
+
+    .control-inputs {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 92px;
+      gap: 10px;
+      align-items: center;
+    }
+
+    input[type="range"] {
+      width: 100%;
+      accent-color: var(--accent);
+      min-height: 34px;
+    }
+
+    input[type="number"] {
+      width: 100%;
+      border-radius: 10px;
+      border: 1px solid #475569;
+      background: rgba(15, 23, 42, 0.9);
+      color: #f8fafc;
+      padding: 10px 12px;
+      font: inherit;
+      min-height: 42px;
+    }
+
+    .summary-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .summary-tile {
+      background: rgba(15, 23, 42, 0.72);
+      border: 1px solid rgba(255, 255, 255, 0.07);
+      border-radius: 12px;
+      padding: 12px;
+    }
+
+    .summary-tile span {
+      display: block;
+      font-size: 0.8rem;
+      margin-bottom: 6px;
+    }
+
+    .summary-tile strong {
+      font-size: 1.15rem;
+      color: #f8fafc;
+    }
+
+    .final-tile {
+      border-color: rgba(251, 191, 36, 0.45);
+      background: linear-gradient(180deg, rgba(251, 191, 36, 0.14), rgba(15, 23, 42, 0.78));
+    }
+
+    .warning {
+      display: none;
+      border-radius: 12px;
+      border: 1px solid rgba(249, 115, 22, 0.45);
+      background: rgba(124, 45, 18, 0.35);
+      color: #fdba74;
+      padding: 12px 14px;
+      font-weight: 700;
+      line-height: 1.45;
+    }
+
+    .warning.show { display: block; }
+
+    .calc-card {
+      font-family: "SFMono-Regular", Consolas, monospace;
+      line-height: 1.55;
+    }
+
+    .calc-title {
+      margin-bottom: 8px;
+      font-size: 0.82rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    .formula {
+      color: #f8fafc;
+      font-size: 1rem;
+      font-weight: 700;
+    }
+
+    .substitution,
+    .result {
+      margin-top: 6px;
+    }
+
+    .result strong { color: var(--force); }
+
+    details {
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      background: rgba(2, 6, 23, 0.5);
+      padding: 14px;
+    }
+
+    summary {
+      cursor: pointer;
+      font-weight: 800;
+      color: #f8fafc;
+    }
+
+    .theory-grid {
+      display: grid;
+      gap: 12px;
+      margin-top: 12px;
+    }
+
+    .theory-card h4 {
+      margin: 0 0 6px;
+      font-size: 0.86rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    .theory-card p {
+      margin: 0;
+      color: #d6e2f0;
+      line-height: 1.55;
+      font-size: 0.93rem;
+    }
+
+    @media (max-width: 980px) {
+      body { overflow: auto; }
+      .app {
+        min-height: 100vh;
+        height: auto;
+        grid-template-columns: 1fr;
+      }
+      .stage-card {
+        min-height: 58vh;
+      }
+    }
+
+    @media (max-width: 620px) {
+      .app { padding: 12px; gap: 12px; }
+      .action-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .control-inputs { grid-template-columns: 1fr; }
+      .timeline-labels,
+      .summary-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .stage-overlay {
+        flex-direction: column;
+        align-items: stretch;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <section class="stage-card">
+      <canvas id="simCanvas" aria-label="Interactive inclined plane simulation"></canvas>
+      <div class="stage-overlay">
+        <div class="pill" id="forceStatus">Force OFF</div>
+        <div class="readout" id="liveReadout">
+          Time: 0.00 s<br>
+          Displacement: 0.00 m<br>
+          Height: 0.00 m
+        </div>
+      </div>
+      <div class="timeline">
+        <small>Timeline: before force starts, force active, force stopped</small>
+        <div class="timeline-row">
+          <div class="timeline-force" id="timelineForce"></div>
+          <div class="timeline-progress" id="timelineProgress"></div>
+        </div>
+      <div class="timeline-labels" style="margin-top:10px;">
+          <small id="beforeLabel"></small>
+          <small id="startLabel">Start: 0.00 s</small>
+          <small id="stopLabel">Stop: 0.00 s</small>
+          <small id="afterLabel"></small>
+        </div>
+      </div>
+    </section>
+
+    <aside class="panel">
+      <section class="panel-header">
+        <h1>Work on an Inclined Plane</h1>
+        <p>Timed force application with live motion, step-by-step calculations, and a classroom-friendly model of work, height, and gravitational opposition.</p>
+      </section>
+
+      <section class="action-row">
+        <button id="btnStart">Start Force</button>
+        <button id="btnStopForce" class="example">Stop Force</button>
+        <button id="btnReset" class="warn">Reset</button>
+      </section>
+
+      <div id="warning" class="warning">Stop time must be greater than start time. Please correct the timing values before running the simulation.</div>
+
+      <section class="control-card">
+        <h2 class="section-title">Controls</h2>
+        <div class="controls-grid" id="controlsGrid"></div>
+      </section>
+
+      <section class="summary-card">
+        <h2 class="section-title">Live Summary</h2>
+        <div class="summary-grid">
+          <div class="summary-tile"><span>Current Time</span><strong id="sumTime">0.00 s</strong></div>
+          <div class="summary-tile"><span>Force Active Time</span><strong id="sumForceTime">0.00 s</strong></div>
+          <div class="summary-tile"><span>Current Velocity</span><strong id="sumVelocity">0.00 m/s</strong></div>
+          <div class="summary-tile"><span>Current Displacement</span><strong id="sumS">0.00 m</strong></div>
+          <div class="summary-tile"><span>Current Height</span><strong id="sumH">0.00 m</strong></div>
+          <div class="summary-tile"><span>Force Status</span><strong id="sumForceState">OFF</strong></div>
+          <div class="summary-tile final-tile"><span>Final Stopping Height</span><strong id="sumFinalH">0.00 m</strong></div>
+          <div class="summary-tile final-tile"><span>Final Work by Force</span><strong id="sumFinalW">0.00 J</strong></div>
+        </div>
+      </section>
+
+      <section>
+        <h2 class="section-title">Calculations</h2>
+        <div class="calc-card">
+          <div class="calc-title">1. Applied Work</div>
+          <div class="formula">W = F s cos(θ)</div>
+          <div class="substitution" id="calcWorkSub">W = (40.0)(0.00)cos(0.0°)</div>
+          <div class="result" id="calcWorkRes">W = <strong>0.00 J</strong></div>
+        </div>
+        <div class="calc-card">
+          <div class="calc-title">2. Height</div>
+          <div class="formula">h = s sin(θ)</div>
+          <div class="substitution" id="calcHeightSub">h = (0.00)sin(0.0°)</div>
+          <div class="result" id="calcHeightRes">h = <strong>0.00 m</strong></div>
+        </div>
+        <div class="calc-card">
+          <div class="calc-title">3. Gravitational Work</div>
+          <div class="formula">Wg = m g h</div>
+          <div class="substitution" id="calcGravitySub">Wg = (5.0)(9.8)(0.00)</div>
+          <div class="result" id="calcGravityRes">Wg = <strong>0.00 J</strong></div>
+        </div>
+        <div class="calc-card">
+          <div class="calc-title">4. Force Duration</div>
+          <div class="formula">t = t_stop - t_start</div>
+          <div class="substitution" id="calcDurationSub">t = (4.00) - (1.00)</div>
+          <div class="result" id="calcDurationRes">t = <strong>3.00 s</strong></div>
+        </div>
+        <div class="calc-card">
+          <div class="calc-title">5. Motion Values</div>
+          <div id="calcMotion">
+            a_on = (F cos(θ) - m g sin(θ)) / m<br>
+            a_off = -g sin(θ)<br><br>
+            Current time = 0.00 s<br>
+            Current displacement = 0.00 m<br>
+            Current height = 0.00 m<br>
+            Current velocity = 0.00 m/s<br>
+            Force = OFF
+          </div>
+        </div>
+      </section>
+
+      <details open>
+        <summary>Show Theory</summary>
+        <div class="theory-grid">
+          <div class="theory-card">
+            <h4>Why cos(θ) appears in work</h4>
+            <p>Work depends on the component of force along the displacement. Since the block moves along the incline, only the along-the-incline part of the applied force contributes to W = F s cos(θ).</p>
+          </div>
+          <div class="theory-card">
+            <h4>Why h = s sin(θ)</h4>
+            <p>The block travels along the sloping side of a right triangle. The vertical rise is the opposite side, so height is the displacement times sin(θ).</p>
+          </div>
+          <div class="theory-card">
+            <h4>Why gravitational work uses mgh</h4>
+            <p>Gravity depends only on the vertical change, not the path length. Once height is known, the work done against gravity is Wg = m g h.</p>
+          </div>
+          <div class="theory-card">
+            <h4>Why timing matters</h4>
+            <p>The applied force acts only between the chosen start and stop times. A longer force interval gives more time for acceleration, so the block reaches a different displacement, speed, and final height.</p>
+          </div>
+        </div>
+      </details>
+    </aside>
+  </main>
+
+  <script>
+    const canvas = document.getElementById("simCanvas");
+    const ctx = canvas.getContext("2d");
+
+    const state = {
+      F: 40,
+      theta: 0,
+      forceAngle: 0,
+      m: 5,
+      g: 9.8,
+      startTime: 0,
+      stopTime: 0,
+      useTimerControls: false,
+      running: false,
+      paused: false,
+      forceManualOn: false,
+      forceStarted: false,
+      elapsed: 0,
+      activeForceTime: 0,
+      s: 0,
+      v: 0,
+      finalS: 0,
+      finalH: 0,
+      finalWork: 0,
+      finalGravityWork: 0,
+      hasStopped: false,
+      completed: false,
+      lastTs: 0
+    };
+
+    const defaults = { ...state };
+
+    const els = {
+      forceStatus: document.getElementById("forceStatus"),
+      liveReadout: document.getElementById("liveReadout"),
+      timelineForce: document.getElementById("timelineForce"),
+      timelineProgress: document.getElementById("timelineProgress"),
+      beforeLabel: document.getElementById("beforeLabel"),
+      startLabel: document.getElementById("startLabel"),
+      stopLabel: document.getElementById("stopLabel"),
+      afterLabel: document.getElementById("afterLabel"),
+      warning: document.getElementById("warning"),
+      controlsGrid: document.getElementById("controlsGrid"),
+      sumTime: document.getElementById("sumTime"),
+      sumForceTime: document.getElementById("sumForceTime"),
+      sumVelocity: document.getElementById("sumVelocity"),
+      sumS: document.getElementById("sumS"),
+      sumH: document.getElementById("sumH"),
+      sumForceState: document.getElementById("sumForceState"),
+      sumFinalH: document.getElementById("sumFinalH"),
+      sumFinalW: document.getElementById("sumFinalW"),
+      calcWorkSub: document.getElementById("calcWorkSub"),
+      calcWorkRes: document.getElementById("calcWorkRes"),
+      calcHeightSub: document.getElementById("calcHeightSub"),
+      calcHeightRes: document.getElementById("calcHeightRes"),
+      calcGravitySub: document.getElementById("calcGravitySub"),
+      calcGravityRes: document.getElementById("calcGravityRes"),
+      calcDurationSub: document.getElementById("calcDurationSub"),
+      calcDurationRes: document.getElementById("calcDurationRes"),
+      calcMotion: document.getElementById("calcMotion"),
+      btnStart: document.getElementById("btnStart"),
+      btnStopForce: document.getElementById("btnStopForce"),
+      btnReset: document.getElementById("btnReset")
+    };
+
+    const controls = [
+      { key: "F", label: "Applied Force", unit: "N", min: 0, max: 120, step: 1, color: "#fbbf24" },
+      { key: "theta", label: "Incline Angle", unit: "deg", min: 0, max: 45, step: 1, color: "#38bdf8" },
+      { key: "forceAngle", label: "Force Angle", unit: "deg", min: -90, max: 180, step: 1, color: "#f59e0b" },
+      { key: "m", label: "Mass", unit: "kg", min: 1, max: 20, step: 0.1, color: "#a78bfa" },
+      { key: "g", label: "Gravity", unit: "m/s²", min: 1, max: 20, step: 0.1, color: "#f87171" },
+      { key: "startTime", label: "Start Force Time", unit: "s", min: 0, max: 10, step: 0.1, color: "#10b981" },
+      { key: "stopTime", label: "Stop Force Time", unit: "s", min: 0.1, max: 12, step: 0.1, color: "#f97316" }
+    ];
+
+    let view = { w: 0, h: 0, dpr: 1, originX: 0, originY: 0, pxPerMeter: 0, rampPx: 0 };
+    let dragMode = null;
+
+    function makeControls() {
+      const timerToggle = `
+        <div class="control-group" data-key="useTimerControls">
+          <div class="control-head">
+            <span style="color:#f8fafc">Use Timer Controls</span>
+            <span id="val-useTimerControls">Off</span>
+          </div>
+          <div class="control-inputs">
+            <input id="range-useTimerControls" type="range" min="0" max="1" step="1">
+            <input id="num-useTimerControls" type="number" min="0" max="1" step="1" inputmode="numeric">
+          </div>
+        </div>
+      `;
+
+      els.controlsGrid.innerHTML = timerToggle + controls.map((cfg) => `
+        <div class="control-group" data-key="${cfg.key}">
+          <div class="control-head">
+            <span style="color:${cfg.color}">${cfg.label}</span>
+            <span id="val-${cfg.key}"></span>
+          </div>
+          <div class="control-inputs">
+            <input id="range-${cfg.key}" type="range" min="${cfg.min}" max="${cfg.max}" step="${cfg.step}">
+            <input id="num-${cfg.key}" type="number" min="${cfg.min}" max="${cfg.max}" step="${cfg.step}" inputmode="decimal">
+          </div>
+        </div>
+      `).join("");
+
+      const timerRange = document.getElementById("range-useTimerControls");
+      const timerNum = document.getElementById("num-useTimerControls");
+      const timerVal = document.getElementById("val-useTimerControls");
+      const syncTimer = (value) => {
+        state.useTimerControls = Number(value) === 1;
+        timerRange.value = state.useTimerControls ? 1 : 0;
+        timerNum.value = state.useTimerControls ? 1 : 0;
+        timerVal.textContent = state.useTimerControls ? "On" : "Off";
+        updateUI();
+      };
+      timerRange.addEventListener("input", (e) => syncTimer(e.target.value));
+      timerNum.addEventListener("input", (e) => syncTimer(e.target.value));
+      syncTimer(0);
+
+      controls.forEach((cfg) => {
+        const range = document.getElementById(`range-${cfg.key}`);
+        const num = document.getElementById(`num-${cfg.key}`);
+        const val = document.getElementById(`val-${cfg.key}`);
+
+        const sync = (value) => {
+          const parsed = clamp(parseFloat(value), cfg.min, cfg.max);
+          state[cfg.key] = parsed;
+          range.value = parsed;
+          num.value = parsed;
+          val.textContent = `${formatValue(parsed, cfg.step)} ${cfg.unit}`;
+          if (!state.running) {
+            state.finalS = state.s;
+            state.finalH = getHeight();
+            state.finalWork = getAppliedWork();
+          }
+          updateUI();
+        };
+
+        range.addEventListener("input", (e) => sync(e.target.value));
+        num.addEventListener("input", (e) => sync(e.target.value));
+        sync(state[cfg.key]);
+      });
+    }
+
+    function clamp(value, min, max) {
+      return Math.max(min, Math.min(max, Number.isFinite(value) ? value : min));
+    }
+
+    function formatValue(value, step) {
+      if (step >= 1) return Math.round(value).toString();
+      return value.toFixed(step === 0.1 ? 1 : 2);
+    }
+
+    function rad() {
+      return state.theta * Math.PI / 180;
+    }
+
+    function forceRad() {
+      return state.forceAngle * Math.PI / 180;
+    }
+
+    function betaRad() {
+      return Math.abs(forceRad() - rad());
+    }
+
+    function duration() {
+      return state.stopTime - state.startTime;
+    }
+
+    function getHeight(s = state.s) {
+      return s * Math.sin(rad());
+    }
+
+    function getAppliedWork(s = state.s) {
+      return state.F * s * Math.cos(betaRad());
+    }
+
+    function getGravityWork(s = state.s) {
+      return state.m * state.g * getHeight(s);
+    }
+
+    function getAccelOn() {
+      return 0.28 * ((state.F * Math.cos(betaRad()) - state.m * state.g * Math.sin(rad())) / state.m);
+    }
+
+    function getAccelOff() {
+      return 0;
+    }
+
+    function maxTravelMeters() {
+      return view.rampPx > 0 && view.pxPerMeter > 0 ? view.rampPx / view.pxPerMeter : 12;
+    }
+
+    function isForceOnAt(time) {
+      if (!state.useTimerControls) return state.forceManualOn;
+      return time >= state.startTime && time < state.stopTime;
+    }
+
+    function isValidTiming() {
+      return !state.useTimerControls || state.stopTime > state.startTime;
+    }
+
+    function resetMotion() {
+      state.running = false;
+      state.paused = false;
+      state.forceManualOn = false;
+      state.forceStarted = false;
+      if (!state.useTimerControls) {
+        state.startTime = 0;
+        state.stopTime = 0;
+      }
+      state.elapsed = 0;
+      state.activeForceTime = 0;
+      state.s = 0;
+      state.v = 0;
+      state.finalS = 0;
+      state.finalH = 0;
+      state.finalWork = 0;
+      state.finalGravityWork = 0;
+      state.hasStopped = false;
+      state.completed = false;
+      state.lastTs = 0;
+    }
+
+    function startSimulation() {
+      if (!isValidTiming()) {
+        updateUI();
+        return;
+      }
+      if (state.completed) {
+        resetMotion();
+      }
+      if (!state.useTimerControls && state.forceStarted && !state.forceManualOn && state.running) {
+        return;
+      }
+      if (!state.useTimerControls && !state.forceStarted) {
+        state.startTime = state.elapsed;
+        state.forceStarted = true;
+      }
+      state.forceManualOn = !state.useTimerControls;
+      state.running = true;
+      state.paused = false;
+      state.lastTs = 0;
+      updateUI();
+    }
+
+    function stopForceApplication() {
+      if (!state.running) return;
+      if (state.useTimerControls) {
+        state.stopTime = Math.max(state.startTime + 0.1, state.elapsed);
+      }
+      if (state.forceManualOn) {
+        state.forceManualOn = false;
+      }
+      state.stopTime = state.elapsed;
+      state.activeForceTime = Math.max(0, state.stopTime - state.startTime);
+      state.v = 0;
+      state.running = false;
+      state.completed = true;
+      state.hasStopped = true;
+      state.finalS = state.s;
+      state.finalH = getHeight(state.s);
+      state.finalWork = getAppliedWork(state.s);
+      state.finalGravityWork = getGravityWork(state.s);
+      updateUI();
+    }
+
+    function updatePhysics(dt) {
+      if (!state.running || state.paused || !isValidTiming()) return;
+
+      state.elapsed += dt;
+      const forceOn = isForceOnAt(state.elapsed);
+      const afterStop = state.useTimerControls ? state.elapsed >= state.stopTime : state.forceStarted && !state.forceManualOn;
+
+      if (forceOn) {
+        if (state.useTimerControls) {
+          state.activeForceTime = Math.min(duration(), Math.max(0, state.elapsed - state.startTime));
+        } else {
+          state.activeForceTime = Math.max(0, state.elapsed - state.startTime);
+        }
+      }
+
+      let accel = 0;
+      if (forceOn) {
+        accel = getAccelOn();
+      }
+
+      if (forceOn) {
+        state.v += accel * dt;
+        state.s += state.v * dt;
+      }
+
+      if (state.s < 0) {
+        state.s = 0;
+        state.v = 0;
+      }
+
+      if (!forceOn && afterStop) {
+        state.v = 0;
+        state.running = false;
+        state.completed = true;
+        state.hasStopped = true;
+      }
+
+      if (state.s >= maxTravelMeters()) {
+        state.s = maxTravelMeters();
+        state.v = 0;
+        state.running = false;
+        state.completed = true;
+        state.hasStopped = true;
+      }
+
+      if (state.hasStopped || state.completed) {
+        state.finalS = state.s;
+        state.finalH = getHeight(state.s);
+        state.finalWork = getAppliedWork(state.s);
+        state.finalGravityWork = getGravityWork(state.s);
+      }
+
+      if (!state.running && !state.hasStopped) {
+        state.hasStopped = true;
+        state.finalS = state.s;
+        state.finalH = getHeight(state.s);
+        state.finalWork = getAppliedWork(state.s);
+        state.finalGravityWork = getGravityWork(state.s);
+      }
+    }
+
+    function resizeCanvas() {
+      view.w = canvas.clientWidth;
+      view.h = canvas.clientHeight;
+      view.dpr = window.devicePixelRatio || 1;
+      canvas.width = view.w * view.dpr;
+      canvas.height = view.h * view.dpr;
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.scale(view.dpr, view.dpr);
+      view.originX = Math.max(84, view.w * 0.09);
+      view.originY = view.h * 0.78;
+      view.rampPx = Math.max(320, view.w - view.originX - 8);
+      view.pxPerMeter = view.rampPx / 15;
+      draw();
+    }
+
+    function updateUI() {
+      const valid = isValidTiming();
+      const forceOn = valid && isForceOnAt(state.elapsed) && state.running && !state.paused;
+      const currentHeight = getHeight();
+      const appliedWork = getAppliedWork();
+      const gravityWork = getGravityWork();
+      const accelOn = getAccelOn();
+      const accelOff = getAccelOff();
+      const shownAngle = Math.abs(state.theta).toFixed(1);
+      const betaDeg = Math.abs(state.forceAngle - state.theta).toFixed(1);
+
+      els.warning.classList.toggle("show", !valid);
+      els.forceStatus.textContent = forceOn ? "Force ON" : (state.completed ? "Motion complete" : "Force OFF");
+      els.forceStatus.className = `pill ${forceOn ? "status-on" : state.completed ? "status-done" : !valid ? "status-warn" : "status-off"}`;
+      els.liveReadout.innerHTML = `Time: ${state.elapsed.toFixed(2)} s<br>Displacement: ${state.s.toFixed(2)} m<br>Height: ${currentHeight.toFixed(2)} m`;
+
+      els.sumTime.textContent = `${state.elapsed.toFixed(2)} s`;
+      els.sumForceTime.textContent = `${Math.max(0, state.activeForceTime).toFixed(2)} s`;
+      els.sumVelocity.textContent = `${state.v.toFixed(2)} m/s`;
+      els.sumS.textContent = `${state.s.toFixed(2)} m`;
+      els.sumH.textContent = `${currentHeight.toFixed(2)} m`;
+      els.sumForceState.textContent = forceOn ? "ON" : "OFF";
+      els.sumFinalH.textContent = `${state.finalH.toFixed(2)} m`;
+      els.sumFinalW.textContent = `${state.finalWork.toFixed(2)} J`;
+
+      els.calcWorkSub.textContent = `W = (${state.F.toFixed(1)})(${state.s.toFixed(2)})cos(${betaDeg}°)`;
+      els.calcWorkRes.innerHTML = `W = <strong>${appliedWork.toFixed(2)} J</strong>`;
+
+      els.calcHeightSub.textContent = `h = (${state.s.toFixed(2)})sin(${shownAngle}°)`;
+      els.calcHeightRes.innerHTML = `h = <strong>${currentHeight.toFixed(2)} m</strong>`;
+
+      els.calcGravitySub.textContent = `Wg = (${state.m.toFixed(1)})(${state.g.toFixed(1)})(${currentHeight.toFixed(2)})`;
+      els.calcGravityRes.innerHTML = `Wg = <strong>${gravityWork.toFixed(2)} J</strong>`;
+
+      els.calcDurationSub.textContent = `t = (${state.stopTime.toFixed(2)}) - (${state.startTime.toFixed(2)})`;
+      els.calcDurationRes.innerHTML = `t = <strong>${valid ? duration().toFixed(2) : "Invalid"} ${valid ? "s" : ""}</strong>`;
+
+      els.calcMotion.innerHTML =
+        `θ = |${state.forceAngle.toFixed(1)}° - ${state.theta.toFixed(1)}°| = ${betaDeg}°<br>` +
+        `a_on = (F cos(θ) - m g sin(θ)) / m = ${accelOn.toFixed(2)} m/s²<br>` +
+        `a_off = -g sin(θ) = ${accelOff.toFixed(2)} m/s²<br><br>` +
+        `Current time = ${state.elapsed.toFixed(2)} s<br>` +
+        `Current displacement = ${state.s.toFixed(2)} m<br>` +
+        `Current height = ${currentHeight.toFixed(2)} m<br>` +
+        `Current velocity = ${state.v.toFixed(2)} m/s<br>` +
+        `Force = ${forceOn ? "ON" : "OFF"}`;
+
+      const startMark = state.useTimerControls ? state.startTime : (state.forceStarted ? state.startTime : 0);
+      const stopMark = state.useTimerControls ? state.stopTime : (state.forceStarted ? state.stopTime : 0);
+      const maxTimeline = Math.max(stopMark + 4, state.elapsed + 1, 6);
+      const startPct = (startMark / maxTimeline) * 100;
+      const stopPct = (stopMark / maxTimeline) * 100;
+      const progressPct = (Math.min(state.elapsed, maxTimeline) / maxTimeline) * 100;
+      els.timelineForce.style.left = `${startPct}%`;
+      els.timelineForce.style.width = `${Math.max(0, stopPct - startPct)}%`;
+      els.timelineProgress.style.left = `${progressPct}%`;
+      els.beforeLabel.textContent = "";
+      els.startLabel.textContent = `Start: ${startMark.toFixed(2)} s`;
+      els.stopLabel.textContent = `Stop: ${stopMark.toFixed(2)} s`;
+      els.afterLabel.textContent = "";
+
+      els.btnStopForce.disabled = !state.running || (!state.useTimerControls && !state.forceManualOn);
+      document.querySelectorAll('.control-group[data-key="startTime"], .control-group[data-key="stopTime"]').forEach((node) => {
+        node.style.display = state.useTimerControls ? "" : "none";
+      });
+      draw();
+    }
+
+    function getPointerPos(evt) {
+      const rect = canvas.getBoundingClientRect();
+      const point = evt.touches ? evt.touches[0] : evt;
+      return { x: point.clientX - rect.left, y: point.clientY - rect.top };
+    }
+
+    function getSceneGeometry() {
+      const theta = rad();
+      const phi = forceRad();
+      const beta = phi - theta;
+      const boxSize = Math.max(42, Math.min(74, view.w * 0.07));
+      const boxS = state.s * view.pxPerMeter;
+      const boxX = view.originX + boxS * Math.cos(theta);
+      const boxY = view.originY - boxS * Math.sin(theta);
+      const rampLen = view.rampPx;
+      const topX = view.originX + rampLen * Math.cos(theta);
+      const topY = view.originY - rampLen * Math.sin(theta);
+      const forceScale = 1.6;
+      const forceLen = Math.max(30, state.F * forceScale);
+      const anchorX = boxX;
+      const anchorY = boxY - boxSize / 2;
+      const forceTipX = anchorX + forceLen * Math.cos(phi);
+      const forceTipY = anchorY - forceLen * Math.sin(phi);
+      const parallelScalar = state.F * Math.cos(beta);
+      const perpScalar = state.F * Math.sin(beta);
+      const parallelLen = parallelScalar * forceScale;
+      const perpLen = perpScalar * forceScale;
+      const ux = Math.cos(theta);
+      const uy = -Math.sin(theta);
+      const nx = -Math.sin(theta);
+      const ny = -Math.cos(theta);
+      const parallelEndX = anchorX + ux * parallelLen;
+      const parallelEndY = anchorY + uy * parallelLen;
+      const perpendicularEndX = parallelEndX + nx * perpLen;
+      const perpendicularEndY = parallelEndY + ny * perpLen;
+      return {
+        theta, phi, beta, boxSize, boxS, boxX, boxY, topX, topY,
+        anchorX, anchorY, forceLen, forceTipX, forceTipY,
+        parallelScalar, perpScalar, parallelLen, perpLen, ux, uy, nx, ny,
+        parallelEndX, parallelEndY, perpendicularEndX, perpendicularEndY
+      };
+    }
+
+    function handleDragStart(evt) {
+      const pos = getPointerPos(evt);
+      const scene = getSceneGeometry();
+      if (Math.hypot(pos.x - scene.forceTipX, pos.y - scene.forceTipY) < 28) {
+        dragMode = "force";
+        if (evt.cancelable) evt.preventDefault();
+      }
+    }
+
+    function handleDragMove(evt) {
+      const pos = getPointerPos(evt);
+      if (!dragMode) {
+        const scene = getSceneGeometry();
+        canvas.style.cursor = Math.hypot(pos.x - scene.forceTipX, pos.y - scene.forceTipY) < 24 ? "grab" : "default";
+        return;
+      }
+      const scene = getSceneGeometry();
+      const dx = pos.x - scene.anchorX;
+      const dy = scene.anchorY - pos.y;
+      const angle = Math.atan2(dy, dx) * 180 / Math.PI;
+      state.forceAngle = Math.max(-90, Math.min(180, Math.round(angle)));
+      state.F = Math.max(0, Math.min(120, Math.round(Math.hypot(dx, dy) / 1.6)));
+      const fRange = document.getElementById("range-F");
+      const fNum = document.getElementById("num-F");
+      const fVal = document.getElementById("val-F");
+      const aRange = document.getElementById("range-forceAngle");
+      const aNum = document.getElementById("num-forceAngle");
+      const aVal = document.getElementById("val-forceAngle");
+      fRange.value = state.F; fNum.value = state.F; fVal.textContent = `${state.F} N`;
+      aRange.value = state.forceAngle; aNum.value = state.forceAngle; aVal.textContent = `${state.forceAngle} deg`;
+      if (evt.cancelable) evt.preventDefault();
+      updateUI();
+    }
+
+    function handleDragEnd() {
+      dragMode = null;
+      canvas.style.cursor = "default";
+    }
+
+    function drawArrow(fromX, fromY, toX, toY, color, width) {
+      const angle = Math.atan2(toY - fromY, toX - fromX);
+      const head = 12;
+      ctx.strokeStyle = color;
+      ctx.fillStyle = color;
+      ctx.lineWidth = width;
+      ctx.beginPath();
+      ctx.moveTo(fromX, fromY);
+      ctx.lineTo(toX, toY);
+      ctx.stroke();
+
+      if (Math.hypot(toX - fromX, toY - fromY) > head) {
+        ctx.beginPath();
+        ctx.moveTo(toX, toY);
+        ctx.lineTo(toX - head * Math.cos(angle - Math.PI / 6), toY - head * Math.sin(angle - Math.PI / 6));
+        ctx.lineTo(toX - head * Math.cos(angle + Math.PI / 6), toY - head * Math.sin(angle + Math.PI / 6));
+        ctx.closePath();
+        ctx.fill();
+      }
+    }
+
+    function draw() {
+      ctx.clearRect(0, 0, view.w, view.h);
+
+      const scene = getSceneGeometry();
+      const theta = scene.theta;
+      const forceOn = isValidTiming() && isForceOnAt(state.elapsed) && state.running && !state.paused;
+      const boxSize = scene.boxSize;
+      const boxX = scene.boxX;
+      const boxY = scene.boxY;
+      const topX = scene.topX;
+      const topY = scene.topY;
+
+      ctx.fillStyle = "rgba(148, 163, 184, 0.08)";
+      ctx.fillRect(0, view.originY, view.w, view.h - view.originY);
+
+      ctx.fillStyle = "#223149";
+      ctx.beginPath();
+      ctx.moveTo(view.originX - 60, view.originY);
+      ctx.lineTo(topX, view.originY);
+      ctx.lineTo(topX, topY);
+      ctx.closePath();
+      ctx.fill();
+
+      ctx.strokeStyle = "#cbd5e1";
+      ctx.lineWidth = 5;
+      ctx.beginPath();
+      ctx.moveTo(view.originX, view.originY);
+      ctx.lineTo(topX, topY);
+      ctx.stroke();
+
+      ctx.strokeStyle = "#64748b";
+      ctx.lineWidth = 4;
+      ctx.beginPath();
+      ctx.moveTo(0, view.originY);
+      ctx.lineTo(view.w, view.originY);
+      ctx.stroke();
+
+      ctx.save();
+      ctx.translate(boxX, boxY);
+      ctx.rotate(-theta);
+      ctx.fillStyle = "#42536d";
+      ctx.fillRect(-boxSize / 2, -boxSize, boxSize, boxSize);
+      ctx.strokeStyle = "#cbd5e1";
+      ctx.lineWidth = 3;
+      ctx.strokeRect(-boxSize / 2, -boxSize, boxSize, boxSize);
+      ctx.fillStyle = "white";
+      ctx.font = `bold ${Math.max(18, boxSize * 0.35)}px sans-serif`;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText("M", 0, -boxSize / 2);
+      ctx.restore();
+
+      const forceX = scene.forceTipX;
+      const forceY = scene.forceTipY;
+      ctx.save();
+      ctx.globalAlpha = forceOn ? 1 : 0.75;
+      drawArrow(scene.anchorX, scene.anchorY, forceX, forceY, "#fbbf24", 5);
+      ctx.restore();
+
+      ctx.setLineDash([6, 5]);
+      drawArrow(scene.anchorX, scene.anchorY, scene.parallelEndX, scene.parallelEndY, "#22c55e", 3);
+      ctx.setLineDash([4, 5]);
+      drawArrow(scene.parallelEndX, scene.parallelEndY, scene.perpendicularEndX, scene.perpendicularEndY, "#f87171", 3);
+      ctx.setLineDash([]);
+
+      ctx.beginPath();
+      ctx.arc(forceX, forceY, dragMode === "force" ? 11 : 8, 0, Math.PI * 2);
+      ctx.fillStyle = dragMode === "force" ? "#ffffff" : "#fbbf24";
+      ctx.fill();
+      ctx.strokeStyle = "#0f172a";
+      ctx.lineWidth = 2;
+      ctx.stroke();
+
+      const gravityLen = Math.max(58, Math.min(132, state.m * state.g * 1.1));
+      drawArrow(boxX, boxY - boxSize / 2, boxX, boxY - boxSize / 2 + gravityLen, "#ef4444", 4);
+
+      const dispX = boxX;
+      const dispY = boxY;
+      if (state.s > 0.05) {
+        drawArrow(view.originX, view.originY + 18, dispX, dispY + 18, "#22c55e", 3);
+        ctx.fillStyle = "#bbf7d0";
+        ctx.font = "bold 16px sans-serif";
+        ctx.fillText(`s = ${state.s.toFixed(2)} m`, (view.originX + dispX) / 2, (view.originY + dispY) / 2 + 10);
+      }
+
+      const height = getHeight();
+      if (state.s > 0.05) {
+        ctx.setLineDash([7, 6]);
+        ctx.strokeStyle = "#60a5fa";
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(dispX, dispY);
+        ctx.lineTo(dispX, view.originY);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.fillStyle = "#93c5fd";
+        ctx.font = "bold 16px sans-serif";
+        ctx.fillText(`h = ${height.toFixed(2)} m`, dispX + 12, dispY + (view.originY - dispY) / 2);
+      }
+
+      ctx.beginPath();
+      ctx.arc(view.originX, view.originY, 56, 0, -theta, true);
+      ctx.strokeStyle = "rgba(255,255,255,0.45)";
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      ctx.fillStyle = "white";
+      ctx.font = "bold 18px sans-serif";
+      ctx.fillText(`θ = ${state.theta.toFixed(0)}°`, view.originX + 82, view.originY - 16);
+
+      if (state.hasStopped || state.completed) {
+        ctx.fillStyle = "rgba(15, 23, 42, 0.9)";
+        ctx.strokeStyle = "rgba(255, 255, 255, 0.15)";
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.roundRect(20, 62, 290, 108, 16);
+        ctx.fill();
+        ctx.stroke();
+        ctx.fillStyle = "#f8fafc";
+        ctx.font = "bold 18px sans-serif";
+        ctx.fillText("Recorded Work", 36, 88);
+        ctx.font = "16px sans-serif";
+        ctx.fillStyle = "#fbbf24";
+        ctx.fillText(`Work done = ${state.finalWork.toFixed(2)} J`, 36, 120);
+        ctx.fillStyle = "#60a5fa";
+        ctx.fillText(`Against gravity = ${state.finalGravityWork.toFixed(2)} J`, 36, 148);
+      }
+    }
+
+    function loop(ts) {
+      if (!state.lastTs) state.lastTs = ts;
+      const dt = Math.min(0.032, (ts - state.lastTs) / 1000 || 0);
+      state.lastTs = ts;
+      updatePhysics(dt);
+      updateUI();
+      requestAnimationFrame(loop);
+    }
+
+    els.btnStart.addEventListener("click", startSimulation);
+    els.btnStopForce.addEventListener("click", stopForceApplication);
+    els.btnReset.addEventListener("click", () => {
+      resetMotion();
+      updateUI();
+    });
+
+    window.addEventListener("resize", resizeCanvas);
+    canvas.addEventListener("mousedown", handleDragStart);
+    window.addEventListener("mousemove", handleDragMove);
+    window.addEventListener("mouseup", handleDragEnd);
+    canvas.addEventListener("touchstart", handleDragStart, { passive: false });
+    window.addEventListener("touchmove", handleDragMove, { passive: false });
+    window.addEventListener("touchend", handleDragEnd, { passive: false });
+
+    makeControls();
+    resetMotion();
+    resizeCanvas();
+    updateUI();
+    requestAnimationFrame(loop);
+  </script>
+</body>
+</html>
