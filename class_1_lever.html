@@ -1,0 +1,832 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Class 1 Lever Simulation</title>
+  <style>
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: #0f172a;
+      color: #e2e8f0;
+      overflow: hidden; 
+    }
+
+    canvas {
+      display: block;
+      width: 100vw;
+      height: 100vh;
+      position: absolute;
+      top: 0;
+      left: 0;
+      z-index: 1;
+      /* Crucial for iPad: stops the browser from hijacking the drag gesture */
+      touch-action: none; 
+    }
+
+    .toggle-btn {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      background: rgba(15, 23, 42, 0.85);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      color: white;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      padding: 10px 16px;
+      border-radius: 8px;
+      font-size: 1rem;
+      font-weight: bold;
+      cursor: pointer;
+      z-index: 5;
+      transition: background 0.2s;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    }
+    .toggle-btn:hover { background: rgba(255, 255, 255, 0.2); }
+
+    .controls-panel {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      width: 380px;
+      max-height: calc(100vh - 40px);
+      overflow-y: auto;
+      z-index: 10;
+      background: rgba(15, 23, 42, 0.85);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      border-radius: 16px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      padding: 20px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.4);
+      transition: transform 0.3s ease, opacity 0.3s ease;
+    }
+
+    .controls-panel.hidden {
+      transform: translateX(120%);
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .close-btn {
+      position: absolute;
+      top: 15px;
+      right: 15px;
+      background: none;
+      border: none;
+      color: #94a3b8;
+      font-size: 1.2rem;
+      cursor: pointer;
+      padding: 0;
+      line-height: 1;
+    }
+    .close-btn:hover { color: white; }
+
+    .controls-panel::-webkit-scrollbar { width: 6px; }
+    .controls-panel::-webkit-scrollbar-thumb { background: #475569; border-radius: 3px; }
+
+    .title {
+      margin: 0 0 15px;
+      font-size: 1.2rem;
+      font-weight: 700;
+      color: #f8fafc;
+      text-align: center;
+      border-bottom: 1px solid #334155;
+      padding-bottom: 10px;
+      padding-right: 20px;
+    }
+
+    /* Action Button */
+    .action-btn {
+      width: 100%; padding: 12px; border-radius: 8px; font-weight: bold;
+      font-size: 1.05rem; cursor: pointer; border: none; transition: 0.2s;
+      background: #3b82f6; color: white; margin-bottom: 15px;
+      box-shadow: 0 4px 10px rgba(59, 130, 246, 0.4);
+    }
+    .action-btn:hover { filter: brightness(1.1); }
+    .action-btn:active { transform: scale(0.98); }
+    .action-btn.active-force { background: #ef4444; box-shadow: 0 4px 10px rgba(239, 68, 68, 0.4); }
+
+    .control-section {
+      background: rgba(0,0,0,0.2);
+      border-radius: 10px;
+      border: 1px solid #334155;
+      padding: 15px;
+      margin-bottom: 15px;
+    }
+
+    .control-group { margin-bottom: 15px; }
+    .control-group:last-child { margin-bottom: 0; }
+
+    .control-group label {
+      display: flex; justify-content: space-between; align-items: center;
+      font-size: 0.85rem; font-weight: 600; color: #cbd5e1; margin-bottom: 6px;
+    }
+
+    .val-container { display: flex; align-items: center; gap: 6px; }
+
+    button.step-btn {
+      flex: none; width: 24px; height: 24px; min-height: 0; padding: 0;
+      border-radius: 6px; background: rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.2); color: white;
+      font-size: 1rem; display: flex; align-items: center; justify-content: center;
+      line-height: 1; cursor: pointer; transition: background 0.1s;
+    }
+    button.step-btn:hover { background: rgba(255, 255, 255, 0.25); }
+    button.step-btn:active { transform: scale(0.9); }
+
+    .val-text {
+      min-width: 55px; text-align: right;
+      font-family: 'Courier New', Courier, monospace; font-weight: bold;
+    }
+
+    input[type="range"] { width: 100%; min-height: 24px; cursor: pointer; }
+
+    /* Lab Worksheet Section */
+    .lab-panel {
+      background: rgba(0,0,0,0.5); border: 1px solid #475569;
+      border-radius: 12px; padding: 15px; margin-bottom: 0;
+      transition: border-color 0.3s;
+    }
+    .lab-header {
+      font-size: 1.05rem; color: #94a3b8; font-weight: bold;
+      text-transform: uppercase; margin-bottom: 12px; text-align: center;
+      letter-spacing: 1px; border-bottom: 1px solid #334155; padding-bottom: 8px;
+    }
+
+    .calc-block {
+      background: #020617; border: 1px solid #475569; border-radius: 6px;
+      padding: 10px; margin-bottom: 10px; font-family: "Courier New", Courier, monospace;
+      text-align: center; font-size: 0.95rem; color: #e2e8f0;
+    }
+    .calc-title { color: #94a3b8; font-size: 0.8rem; margin-bottom: 5px; font-family: sans-serif; text-transform: uppercase;}
+    .highlight-val { color: #fbbf24; font-weight: bold; font-size: 1.1rem;}
+    .calc-formula { line-height: 1.55; }
+    .calc-formula + .calc-formula { margin-top: 4px; }
+    
+    .status-badge {
+      display: block; text-align: center; font-weight: bold; font-size: 0.95rem;
+      padding: 10px; border-radius: 6px; margin-top: 10px; letter-spacing: 1px;
+      transition: background 0.3s, color 0.3s, box-shadow 0.3s;
+    }
+    .status-force { background: #10b981; color: white; box-shadow: 0 0 12px rgba(16,185,129,0.5); }
+    .status-speed { background: #a855f7; color: white; box-shadow: 0 0 12px rgba(168,85,247,0.5); }
+    .status-direction { background: #64748b; color: white; }
+
+    .drag-hint {
+      position: absolute; bottom: 20px; left: 20px;
+      background: rgba(15, 23, 42, 0.7); padding: 10px 15px; border-radius: 8px;
+      border: 1px solid #334155; color: #ffffff; font-size: 0.9rem; font-weight: bold;
+      pointer-events: none; z-index: 10; line-height: 1.4;
+    }
+    .drag-hint span { color: #fbbf24; }
+  </style>
+</head>
+<body>
+
+  <canvas id="simCanvas"></canvas>
+  
+
+  <button id="toggleBtn" class="toggle-btn">⚙️ Settings & Lab</button>
+
+  <div id="controlsPanel" class="controls-panel">
+    <button id="closeBtn" class="close-btn">✖</button>
+    <div class="title">Class 1 Lever</div>
+
+    <button id="btnAnimate" class="action-btn">▶ Apply Effort</button>
+
+    <div class="control-section" style="border-left: 4px solid #ef4444;">
+      <div class="control-group" style="margin-bottom: 0;">
+        <label>
+          <span style="color: #ef4444;">Load Force (L)</span>
+          <div class="val-container">
+            <button class="step-btn" onclick="stepState('L', -10)">-</button>
+            <span id="valL" class="val-text" style="color: white;">200 N</span>
+            <button class="step-btn" onclick="stepState('L', 10)">+</button>
+          </div>
+        </label>
+        <input type="range" id="slL" min="10" max="500" step="10" value="200">
+      </div>
+    </div>
+
+    <div class="control-section" style="border-left: 4px solid #facc15;">
+      <div class="control-group">
+        <label>
+          <span style="color: #facc15;">Load Arm </span>
+          <div class="val-container">
+            <button class="step-btn" onclick="stepState('dL', -0.2)">-</button>
+            <span id="valDL" class="val-text" style="color: white;">2.0 m</span>
+            <button class="step-btn" onclick="stepState('dL', 0.2)">+</button>
+          </div>
+        </label>
+        <input type="range" id="slDL" min="1" max="9" step="0.1" value="2.0">
+      </div>
+      
+      <div class="control-group" style="margin-bottom: 0;">
+        <label>
+          <span style="color: #38bdf8;">Effort Arm <span style="color:#64748b; font-weight:normal;">(Auto)</span></span>
+          <div class="val-container">
+            <span id="valDE" class="val-text" style="color: #38bdf8;">8.0 m</span>
+          </div>
+        </label>
+      </div>
+    </div>
+
+    <div class="lab-panel" id="labPanelBorder">
+      <div class="lab-header" id="labHeader">Lab Workspace (Ideal Lever)</div>
+      
+      <div class="calc-block">
+        <div class="calc-title">Mechanical Advantage (MA)</div>
+        <div class="calc-formula">MA = Load &divide; Effort</div>
+        <div class="calc-formula">MA = Effort Arm &divide; Load Arm</div>
+        <div class="calc-formula">MA = <span id="labMASub">8.0 &divide; 2.0</span> = <span id="labMA" class="highlight-val">4.00</span></div>
+      </div>
+
+      <div class="calc-block">
+        <div class="calc-title">Velocity Ratio (VR)</div>
+        <div class="calc-formula">VR = Displacement of Effort &divide; Displacement of Load</div>
+        <div class="calc-formula">VR = s<sub>E</sub> &divide; s<sub>L</sub> = <span id="labVRSub">8.0 &divide; 2.0</span> = <span id="labVR" class="highlight-val">4.00</span></div>
+      </div>
+      
+      <div class="calc-block" style="border-color: #38bdf8;">
+        <div class="calc-title" style="color: #38bdf8;">Required Effort (E)</div>
+        E = L &divide; MA = <span id="labESub">200 &divide; 4.00</span> = <span id="labE" class="highlight-val" style="color: #38bdf8;">50.0 N</span>
+      </div>
+
+      <div id="badge" class="status-badge status-force">
+        FORCE MULTIPLIER
+      </div>
+      
+    </div>
+
+  </div>
+
+  <script>
+    // --- STATE ---
+    const state = {
+      L: 200,         // Load Force (N)
+      dL: 2.0,        // Load Arm Length (m)
+      beamTotalL: 10, // Total Beam Length (m) (Fixed)
+      
+      // Animation State
+      effortApplied: false,
+      tiltAngle: 0,
+      targetAngle: 0,
+      
+      dragNode: null, 
+      initialized: false,
+      poseInitialized: false
+    };
+
+    let w, h, cx, groundY, fulcrumY, fulcrumHeight, pxPerMeter, beamStartX;
+    const boxSize = 60;
+    const beamThick = 20;
+    const preferredRestTiltAngle = -Math.PI / 4.5;
+    const scenePadding = 40;
+    const controlsGutter = 40;
+    const minBeamPxPerMeter = 18;
+    const beamViewportMargin = 60;
+    const minFulcrumHeight = 110;
+    const maxFulcrumHeight = 140;
+    const maHudTop = 24;
+
+    // --- DOM ---
+    const els = {
+      slL: document.getElementById('slL'), valL: document.getElementById('valL'),
+      slDL: document.getElementById('slDL'), valDL: document.getElementById('valDL'),
+      valDE: document.getElementById('valDE'),
+      
+      btnAnimate: document.getElementById('btnAnimate'),
+
+      labMASub: document.getElementById('labMASub'), labMA: document.getElementById('labMA'),
+      labVRSub: document.getElementById('labVRSub'), labVR: document.getElementById('labVR'),
+      labESub: document.getElementById('labESub'), labE: document.getElementById('labE'),
+      
+      badge: document.getElementById('badge'),
+      labPanelBorder: document.getElementById('labPanelBorder'),
+      labHeader: document.getElementById('labHeader'),
+      
+      toggleBtn: document.getElementById('toggleBtn'), controlsPanel: document.getElementById('controlsPanel'), closeBtn: document.getElementById('closeBtn')
+    };
+
+    const canvas = document.getElementById('simCanvas');
+    const ctx = canvas.getContext('2d');
+
+    function getRestTiltAngle() {
+      if (!pxPerMeter || !fulcrumHeight) return preferredRestTiltAngle;
+
+      const preferredMagnitude = Math.abs(preferredRestTiltAngle);
+      const loadArmPx = state.dL * pxPerMeter;
+      const beamHalfThickness = beamThick / 2;
+      const groundClearance = 8;
+      const availableDrop = fulcrumHeight - groundClearance;
+
+      if (loadArmPx <= 0 || availableDrop <= beamHalfThickness) {
+        return 0;
+      }
+
+      const radius = Math.sqrt((loadArmPx * loadArmPx) + (beamHalfThickness * beamHalfThickness));
+      const phase = Math.atan2(beamHalfThickness, loadArmPx);
+      const clampedRatio = Math.max(-1, Math.min(1, availableDrop / radius));
+      const safeMagnitude = Math.max(0, Math.asin(clampedRatio) - phase);
+
+      return -Math.min(preferredMagnitude, safeMagnitude);
+    }
+
+    function updateSceneGeometry() {
+      const controlsWidth = els.controlsPanel ? els.controlsPanel.offsetWidth : 380;
+      const minBeamWidth = state.beamTotalL * minBeamPxPerMeter;
+      const desiredReservedRightSpace = controlsWidth + controlsGutter;
+      const maxReservableRightSpace = Math.max(0, w - (scenePadding * 2) - minBeamWidth);
+      const reservedRightSpace = Math.min(desiredReservedRightSpace, maxReservableRightSpace);
+      const availableSceneWidth = Math.max(minBeamWidth, w - (scenePadding * 2) - reservedRightSpace);
+
+      cx = scenePadding + (availableSceneWidth / 2);
+      groundY = Math.min(h - 70, h * 0.9);
+
+      // Keep the lever slightly smaller than the available scene so edge labels stay visible.
+      const targetBeamWidth = Math.max(
+        minBeamWidth,
+        Math.min(w * 0.68, availableSceneWidth - (beamViewportMargin * 2))
+      );
+      pxPerMeter = Math.max(minBeamPxPerMeter, targetBeamWidth / state.beamTotalL);
+
+      // Center the beam within the drawable scene area on the left side.
+      beamStartX = scenePadding + Math.max(0, (availableSceneWidth - (state.beamTotalL * pxPerMeter)) / 2);
+
+      // Keep fulcrum height stable while the user drags it left and right.
+      fulcrumHeight = Math.max(minFulcrumHeight, Math.min(maxFulcrumHeight, h * 0.18));
+      fulcrumY = groundY - fulcrumHeight;
+    }
+
+    function syncAnimateButton() {
+      if (state.effortApplied) {
+        els.btnAnimate.textContent = "⏹ Return to Rest Position";
+        els.btnAnimate.classList.add('active-force');
+      } else {
+        els.btnAnimate.textContent = "▶ Apply Effort";
+        els.btnAnimate.classList.remove('active-force');
+      }
+    }
+
+    function getMechanicalAdvantageInfo(ma) {
+      if (Math.abs(ma - 1.0) < 0.05) {
+        return {
+          label: "Direction Changer",
+          badgeClass: "status-badge status-direction",
+          borderColor: "#64748b",
+          accentColor: "#94a3b8"
+        };
+      }
+
+      if (ma > 1) {
+        return {
+          label: "Force Multiplier",
+          badgeClass: "status-badge status-force",
+          borderColor: "#10b981",
+          accentColor: "#10b981"
+        };
+      }
+
+      return {
+        label: "Speed/Distance Gain",
+        badgeClass: "status-badge status-speed",
+        borderColor: "#a855f7",
+        accentColor: "#a855f7"
+      };
+    }
+
+    function resizeCanvas() {
+      const dpr = window.devicePixelRatio || 1;
+      w = window.innerWidth;
+      h = window.innerHeight;
+      
+      canvas.width = w * dpr;
+      canvas.height = h * dpr;
+      ctx.setTransform(1, 0, 0, 1, 0, 0); 
+      ctx.scale(dpr, dpr);
+
+      updateSceneGeometry();
+      if (!state.poseInitialized && w > 0) {
+        state.tiltAngle = getRestTiltAngle();
+        state.targetAngle = getRestTiltAngle();
+        state.poseInitialized = true;
+      }
+      
+      if (!state.initialized && w > 0) state.initialized = true;
+      updateMathUI(); 
+    }
+    window.addEventListener('resize', resizeCanvas);
+    
+    // --- UI LOGIC ---
+    els.toggleBtn.addEventListener('click', () => { els.controlsPanel.classList.remove('hidden'); });
+    els.closeBtn.addEventListener('click', () => { els.controlsPanel.classList.add('hidden'); });
+
+    els.btnAnimate.addEventListener('click', () => {
+        state.effortApplied = !state.effortApplied;
+        state.targetAngle = state.effortApplied ? 0 : getRestTiltAngle();
+        syncAnimateButton();
+    });
+
+    function resetTilt() {
+        state.effortApplied = false;
+        state.targetAngle = getRestTiltAngle();
+        syncAnimateButton();
+    }
+
+    function updateMathUI() {
+      // Clamps
+      state.L = Math.max(10, Math.min(500, state.L));
+      state.dL = Math.max(1.0, Math.min(9.0, state.dL));
+
+      if (!w || !h) return;
+      updateSceneGeometry();
+
+      let dE = state.beamTotalL - state.dL;
+
+      // Sync UI
+      els.slL.value = state.L; els.valL.textContent = `${Math.round(state.L)} N`;
+      els.slDL.value = state.dL; els.valDL.textContent = `${state.dL.toFixed(1)} m`;
+      els.valDE.textContent = `${dE.toFixed(1)} m`;
+
+      // Math Core
+      let MA = dE / state.dL;
+      let VR = dE / state.dL;
+      let E = state.L / MA;
+      const referenceTiltAngle = Math.abs(getRestTiltAngle());
+      const sE = dE * Math.sin(referenceTiltAngle);
+      const sL = state.dL * Math.sin(referenceTiltAngle);
+
+      // Update HUD
+      els.labMASub.innerHTML = `${dE.toFixed(1)} &divide; ${state.dL.toFixed(1)}`;
+      els.labMA.textContent = `${MA.toFixed(2)}`;
+      els.labVRSub.innerHTML = `${sE.toFixed(2)} &divide; ${sL.toFixed(2)}`;
+      els.labVR.textContent = `${VR.toFixed(2)}`;
+      els.labESub.innerHTML = `${Math.round(state.L)} &divide; ${MA.toFixed(2)}`;
+      els.labE.textContent = `${E.toFixed(1)} N`;
+
+      const maInfo = getMechanicalAdvantageInfo(MA);
+      els.badge.textContent = maInfo.label.toUpperCase();
+      els.badge.className = maInfo.badgeClass;
+      els.labPanelBorder.style.borderColor = maInfo.borderColor;
+      els.labHeader.style.color = maInfo.accentColor;
+      
+      state.targetAngle = state.effortApplied ? 0 : getRestTiltAngle();
+      syncAnimateButton();
+    }
+
+    window.stepState = function(param, amount) {
+        state[param] += amount;
+        if(param === 'dL') state[param] = Math.round(state[param] * 10) / 10;
+        else state[param] = Math.round(state[param]);
+        
+        resetTilt(); // Reset animation when manually stepping values
+        updateMathUI();
+    };
+
+    els.slL.addEventListener('input', (e) => { state.L = parseFloat(e.target.value); resetTilt(); updateMathUI(); });
+    els.slDL.addEventListener('input', (e) => { state.dL = parseFloat(e.target.value); resetTilt(); updateMathUI(); });
+
+    // --- DRAGGING LOGIC ---
+    function getPointerPos(e) {
+      const rect = canvas.getBoundingClientRect();
+      const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+      const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+      return { x: clientX - rect.left, y: clientY - rect.top };
+    }
+
+    function handleDragStart(e) {
+      if(e.target !== canvas) return;
+      const pos = getPointerPos(e);
+      const hitBuffer = e.touches ? 60 : 20; 
+      
+      // Fulcrum X coordinate
+      const fulcrumX = beamStartX + state.dL * pxPerMeter;
+
+      // Hit test for Fulcrum Triangle (roughly a bounding box around the fulcrum)
+      if (Math.abs(pos.x - fulcrumX) < 40 + hitBuffer && Math.abs(pos.y - (fulcrumY + fulcrumHeight/2)) < (fulcrumHeight/2) + hitBuffer) {
+          state.dragNode = 'fulcrum';
+          canvas.style.cursor = 'ew-resize';
+          resetTilt(); // Stop animation instantly
+          if(e.touches && e.cancelable) e.preventDefault();
+      } 
+    }
+
+    function handleDragMove(e) {
+      const pos = getPointerPos(e);
+
+      if (state.dragNode === null) {
+          if (!e.touches) {
+              const fulcrumX = beamStartX + state.dL * pxPerMeter;
+              if (Math.abs(pos.x - fulcrumX) < 40 && Math.abs(pos.y - (fulcrumY + fulcrumHeight/2)) < fulcrumHeight/2) {
+                  canvas.style.cursor = 'grab';
+              } else {
+                  canvas.style.cursor = 'default';
+              }
+          }
+          return; 
+      }
+      
+      if (e.touches && e.cancelable) e.preventDefault(); 
+      
+      if (state.dragNode === 'fulcrum') {
+          // Calculate new dL based on pointer X relative to the beam's start position
+          let newDL = (pos.x - beamStartX) / pxPerMeter;
+          state.dL = Math.max(1.0, Math.min(9.0, Math.round(newDL * 10) / 10));
+          updateMathUI(); 
+      }
+    }
+
+    function handleDragEnd(e) { 
+      if (e && e.touches && e.cancelable) e.preventDefault(); 
+      state.dragNode = null; 
+      canvas.style.cursor = 'default';
+    }
+
+    function drawRoundedRectPath(x, y, width, height, radius) {
+      const safeRadius = Math.min(radius, width / 2, height / 2);
+      ctx.beginPath();
+      ctx.moveTo(x + safeRadius, y);
+      ctx.lineTo(x + width - safeRadius, y);
+      ctx.quadraticCurveTo(x + width, y, x + width, y + safeRadius);
+      ctx.lineTo(x + width, y + height - safeRadius);
+      ctx.quadraticCurveTo(x + width, y + height, x + width - safeRadius, y + height);
+      ctx.lineTo(x + safeRadius, y + height);
+      ctx.quadraticCurveTo(x, y + height, x, y + height - safeRadius);
+      ctx.lineTo(x, y + safeRadius);
+      ctx.quadraticCurveTo(x, y, x + safeRadius, y);
+      ctx.closePath();
+    }
+
+    function drawBeamDimension(startX, endX, offsetY, label, color) {
+      const tickHalf = 7;
+      const labelGap = offsetY < 0 ? -12 : 12;
+
+      ctx.save();
+      ctx.strokeStyle = color;
+      ctx.fillStyle = color;
+      ctx.lineWidth = 2;
+      ctx.lineCap = "round";
+
+      ctx.beginPath();
+      ctx.moveTo(startX, offsetY);
+      ctx.lineTo(endX, offsetY);
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.moveTo(startX, offsetY - tickHalf);
+      ctx.lineTo(startX, offsetY + tickHalf);
+      ctx.moveTo(endX, offsetY - tickHalf);
+      ctx.lineTo(endX, offsetY + tickHalf);
+      ctx.stroke();
+
+      ctx.font = "bold 14px Arial";
+      ctx.textAlign = "center";
+      ctx.textBaseline = offsetY < 0 ? "bottom" : "top";
+      ctx.fillText(label, (startX + endX) / 2, offsetY + labelGap);
+      ctx.restore();
+    }
+
+    function drawMechanicalAdvantageHud(ma) {
+      if (!state.effortApplied) return;
+
+      const maInfo = getMechanicalAdvantageInfo(ma);
+      const beamWidth = state.beamTotalL * pxPerMeter;
+      const hudWidth = Math.min(420, Math.max(280, beamWidth * 0.52));
+      const hudHeight = 96;
+      const hudX = beamStartX + (beamWidth / 2) - (hudWidth / 2);
+      const hudY = maHudTop;
+
+      ctx.save();
+      drawRoundedRectPath(hudX, hudY, hudWidth, hudHeight, 18);
+      ctx.fillStyle = "rgba(15, 23, 42, 0.9)";
+      ctx.fill();
+      ctx.strokeStyle = maInfo.borderColor;
+      ctx.lineWidth = 2;
+      ctx.stroke();
+
+      ctx.fillStyle = "#94a3b8";
+      ctx.font = "700 16px Segoe UI";
+      ctx.textAlign = "left";
+      ctx.textBaseline = "top";
+      ctx.fillText("Mechanical Advantage", hudX + 20, hudY + 14);
+
+      const tagPaddingX = 12;
+      const tagGap = 14;
+      const tagHeight = 32;
+      ctx.font = "bold 16px Arial";
+      const tagText = maInfo.label;
+      const tagWidth = ctx.measureText(tagText).width + (tagPaddingX * 2);
+      const tagX = Math.min(hudX + hudWidth + tagGap, w - tagWidth - scenePadding);
+      const tagY = hudY + 10;
+
+      drawRoundedRectPath(tagX, tagY, tagWidth, tagHeight, 13);
+      ctx.fillStyle = `${maInfo.borderColor}22`;
+      ctx.fill();
+      ctx.strokeStyle = maInfo.borderColor;
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+      ctx.fillStyle = maInfo.borderColor;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(tagText, tagX + (tagWidth / 2), tagY + (tagHeight / 2) + 0.5);
+
+      ctx.fillStyle = "#f8fafc";
+      ctx.font = "bold 36px Segoe UI";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(ma.toFixed(2), hudX + (hudWidth / 2), hudY + 64);
+      ctx.restore();
+    }
+
+    canvas.addEventListener('mousedown', handleDragStart);
+    window.addEventListener('mousemove', handleDragMove);
+    window.addEventListener('mouseup', handleDragEnd);
+    
+    canvas.addEventListener('touchstart', handleDragStart, { passive: false });
+    window.addEventListener('touchmove', handleDragMove, { passive: false });
+    window.addEventListener('touchend', handleDragEnd, { passive: false });
+
+    // --- RENDER LOOP ---
+    function animateLoop() {
+      if (!w) {
+          requestAnimationFrame(animateLoop);
+          return;
+      }
+
+      // Spring physics for smooth tilting
+      state.tiltAngle += (state.targetAngle - state.tiltAngle) * 0.1;
+
+      ctx.clearRect(0, 0, w, h);
+
+      // --- 1. Background & Ground ---
+      ctx.fillStyle = "#1e293b"; 
+      ctx.fillRect(0, groundY, w, h - groundY);
+      ctx.strokeStyle = "#475569"; ctx.lineWidth = 4;
+      ctx.beginPath(); ctx.moveTo(0, groundY); ctx.lineTo(w, groundY); ctx.stroke();
+
+      const fulcrumX = beamStartX + state.dL * pxPerMeter;
+      let dE = state.beamTotalL - state.dL;
+      const ma = dE / state.dL;
+
+      // --- 2. Draw On-Canvas MA HUD ---
+      drawMechanicalAdvantageHud(ma);
+
+
+      // --- 3. Draw Fulcrum ---
+      ctx.fillStyle = state.dragNode === 'fulcrum' ? "#cbd5e1" : "#94a3b8";
+      ctx.beginPath();
+      ctx.moveTo(fulcrumX, fulcrumY);
+      ctx.lineTo(fulcrumX - 35, groundY);
+      ctx.lineTo(fulcrumX + 35, groundY);
+      ctx.fill();
+      ctx.strokeStyle = "#cbd5e1"; ctx.lineWidth = 2; ctx.stroke();
+      
+      // Pivot dot
+      ctx.beginPath(); ctx.arc(fulcrumX, fulcrumY, 6, 0, Math.PI*2); ctx.fillStyle="#0f172a"; ctx.fill();
+
+      // =========================================================
+      // ENTER LOCAL ROTATED COORDINATE SYSTEM (Around Fulcrum)
+      // =========================================================
+      ctx.save();
+      ctx.translate(fulcrumX, fulcrumY);
+      ctx.rotate(state.tiltAngle);
+      
+      // Local coordinates for beam limits relative to fulcrum
+      const leftLimit = -state.dL * pxPerMeter;
+      const rightLimit = dE * pxPerMeter;
+
+      // 4. Draw Beam
+      ctx.fillStyle = "#334155";
+      ctx.fillRect(leftLimit, -beamThick/2, rightLimit - leftLimit, beamThick);
+      ctx.strokeStyle = "#94a3b8"; ctx.lineWidth = 2;
+      ctx.strokeRect(leftLimit, -beamThick/2, rightLimit - leftLimit, beamThick);
+
+      drawBeamDimension(leftLimit, 0, beamThick / 2 + 34, `Load Arm = ${state.dL.toFixed(1)} m`, "#facc15");
+      drawBeamDimension(0, rightLimit, -beamThick / 2 - 34, `Effort Arm = ${dE.toFixed(1)} m`, "#38bdf8");
+
+      // Ticks on beam
+      ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 2;
+      ctx.fillStyle = "#ffffff"; ctx.font = "bold 12px Arial"; ctx.textAlign="center"; ctx.textBaseline="top";
+      for(let i = 0; i <= state.beamTotalL; i++) {
+          let lx = leftLimit + i * pxPerMeter;
+          ctx.beginPath(); ctx.moveTo(lx, -beamThick/2); ctx.lineTo(lx, beamThick/2); ctx.stroke();
+      }
+
+      // 5. Draw Load Crate
+      // Size scales slightly with mass for visual intuition
+      const visualLoadSize = 40 + (state.L / 500) * 40; 
+      
+      ctx.fillStyle = "#ef4444";
+      ctx.fillRect(leftLimit, -beamThick/2 - visualLoadSize, visualLoadSize, visualLoadSize);
+      ctx.strokeStyle = "#0f172a"; ctx.lineWidth = 3;
+      ctx.strokeRect(leftLimit, -beamThick/2 - visualLoadSize, visualLoadSize, visualLoadSize);
+
+      // Load caption follows the crate while staying easy to read.
+      ctx.save();
+      ctx.translate(leftLimit + visualLoadSize/2, -beamThick/2 - visualLoadSize - 12);
+      ctx.rotate(-state.tiltAngle);
+      ctx.fillStyle = "#fecaca"; ctx.textAlign="center"; ctx.textBaseline="bottom"; ctx.font = "bold 13px Arial";
+      ctx.fillText("Load", 0, 0);
+      ctx.restore();
+      
+      // Load Label (Counter-rotated to stay upright)
+      ctx.save();
+      ctx.translate(leftLimit + visualLoadSize/2, -beamThick/2 - visualLoadSize/2);
+      ctx.rotate(-state.tiltAngle);
+      ctx.fillStyle = "white"; ctx.textBaseline="middle"; ctx.font = "bold 16px Arial";
+      ctx.fillText(`${Math.round(state.L)}N`, 0, 0);
+      ctx.restore();
+
+      // Load Force Arrow
+      drawArrow(ctx, leftLimit + visualLoadSize/2, -beamThick/2, leftLimit + visualLoadSize/2, beamThick/2 + 40, "#ef4444", 3);
+
+      // 6. Draw Effort Arrow
+      // Visual length of arrow is fixed, but we label it dynamically
+      let E_val = state.L / (dE / state.dL);
+      drawArrow(ctx, rightLimit, -beamThick/2 - 60, rightLimit, -beamThick/2, "#38bdf8", 4);
+
+      // Effort caption follows the effort side while staying easy to read.
+      ctx.save();
+      ctx.translate(rightLimit, -beamThick/2 - 92);
+      ctx.rotate(-state.tiltAngle);
+      ctx.fillStyle = "#bae6fd"; ctx.textAlign="center"; ctx.textBaseline="bottom"; ctx.font = "bold 13px Arial";
+      ctx.fillText("Effort", 0, 0);
+      ctx.restore();
+      
+      // Effort Label (Counter-rotated)
+      ctx.save();
+      ctx.translate(rightLimit, -beamThick/2 - 75);
+      ctx.rotate(-state.tiltAngle);
+      ctx.fillStyle = "#38bdf8"; ctx.textBaseline="middle"; ctx.font = "bold 16px Arial";
+      ctx.fillText(`E = ${E_val.toFixed(1)}N`, 0, 0);
+      ctx.restore();
+
+      ctx.restore();
+      // =========================================================
+      // EXIT ROTATED COORDINATE SYSTEM
+      // =========================================================
+
+      // 7. Draw Displacement Traces (From resting tilt to the current pose)
+      const restAngle = getRestTiltAngle();
+      if (Math.abs(state.tiltAngle - restAngle) > 0.01) {
+          ctx.strokeStyle = "rgba(255, 255, 255, 0.4)";
+          ctx.lineWidth = 2;
+          ctx.setLineDash([5, 5]);
+
+          // Load Displacement
+          let loadRestY = fulcrumY + ((-state.dL * pxPerMeter) * Math.sin(restAngle));
+          let loadCurrentY = fulcrumY + ((-state.dL * pxPerMeter) * Math.sin(state.tiltAngle));
+          let sL_px = Math.abs(loadCurrentY - loadRestY);
+          let sL_m = sL_px / pxPerMeter;
+          let loadX = beamStartX;
+          
+          ctx.beginPath(); ctx.moveTo(loadX, loadRestY); ctx.lineTo(loadX, loadCurrentY); ctx.stroke();
+          ctx.fillStyle = "#ef4444"; ctx.textAlign="right"; ctx.textBaseline="middle";
+          ctx.fillText(`dL = ${sL_m.toFixed(2)}m`, loadX - 10, (loadRestY + loadCurrentY)/2);
+
+          // Effort Displacement
+          let effortRestY = fulcrumY + ((dE * pxPerMeter) * Math.sin(restAngle));
+          let effortCurrentY = fulcrumY + ((dE * pxPerMeter) * Math.sin(state.tiltAngle));
+          let sE_px = Math.abs(effortCurrentY - effortRestY);
+          let sE_m = sE_px / pxPerMeter;
+          let effX = beamStartX + state.beamTotalL * pxPerMeter;
+          
+          ctx.beginPath(); ctx.moveTo(effX, effortRestY); ctx.lineTo(effX, effortCurrentY); ctx.stroke();
+          ctx.fillStyle = "#38bdf8"; ctx.textAlign="left"; ctx.textBaseline="middle";
+          ctx.fillText(`dE = ${sE_m.toFixed(2)}m`, effX + 10, (effortRestY + effortCurrentY)/2);
+          
+          ctx.setLineDash([]);
+      }
+
+      requestAnimationFrame(animateLoop);
+    }
+
+    function drawArrow(ctx, fromX, fromY, toX, toY, color, width) {
+      const headlen = 12; 
+      const angle = Math.atan2(toY - fromY, toX - fromX);
+      
+      ctx.beginPath(); ctx.moveTo(fromX, fromY); ctx.lineTo(toX, toY);
+      ctx.strokeStyle = color; ctx.lineWidth = width; ctx.stroke();
+      
+      if (Math.sqrt(Math.pow(toX-fromX,2) + Math.pow(toY-fromY,2)) > headlen) {
+          ctx.setLineDash([]); 
+          ctx.beginPath(); ctx.moveTo(toX, toY);
+          ctx.lineTo(toX - headlen * Math.cos(angle - Math.PI / 6), toY - headlen * Math.sin(angle - Math.PI / 6));
+          ctx.lineTo(toX - headlen * Math.cos(angle + Math.PI / 6), toY - headlen * Math.sin(angle + Math.PI / 6));
+          ctx.fillStyle = color; ctx.fill();
+      }
+    }
+
+    // Boot sequence
+    window.addEventListener("load", () => {
+      resizeCanvas();
+      requestAnimationFrame(animateLoop);
+    });
+
+  </script>
+</body>
+</html>
