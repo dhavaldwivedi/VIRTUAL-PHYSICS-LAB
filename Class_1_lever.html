@@ -47,6 +47,14 @@
     }
     .toggle-btn:hover { background: rgba(255, 255, 255, 0.2); }
 
+    .toggle-btn,
+    .action-btn,
+    .close-btn,
+    button.step-btn,
+    input[type="range"] {
+      touch-action: manipulation;
+    }
+
     .controls-panel {
       position: absolute;
       top: 20px;
@@ -345,7 +353,7 @@
       const availableSceneWidth = Math.max(minBeamWidth, w - (scenePadding * 2) - reservedRightSpace);
 
       cx = scenePadding + (availableSceneWidth / 2);
-      groundY = Math.min(h - 70, h * 0.9);
+      groundY = Math.min(h - 100, h * 0.86);
 
       // Keep the lever slightly smaller than the available scene so edge labels stay visible.
       const targetBeamWidth = Math.max(
@@ -541,7 +549,7 @@
     }
 
     function handleDragEnd(e) { 
-      if (e && e.touches && e.cancelable) e.preventDefault(); 
+      if (state.dragNode !== null && e && e.cancelable) e.preventDefault();
       state.dragNode = null; 
       canvas.style.cursor = 'default';
     }
@@ -649,6 +657,7 @@
     canvas.addEventListener('touchstart', handleDragStart, { passive: false });
     window.addEventListener('touchmove', handleDragMove, { passive: false });
     window.addEventListener('touchend', handleDragEnd, { passive: false });
+    window.addEventListener('touchcancel', handleDragEnd, { passive: false });
 
     // --- RENDER LOOP ---
     function animateLoop() {
