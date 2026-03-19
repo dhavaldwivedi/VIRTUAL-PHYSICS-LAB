@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Class 2 Lever (Nutcracker) Simulation</title>
+  <title>Class 2 Lever Simulation</title>
   <style>
     :root {
       --ground-band-height: 260px;
@@ -28,6 +28,7 @@
       top: 0;
       left: 0;
       z-index: 1;
+      /* Crucial for iPad: stops the browser from hijacking the drag gesture */
       touch-action: none; 
     }
 
@@ -51,7 +52,11 @@
     }
     .toggle-btn:hover { background: rgba(255, 255, 255, 0.2); }
 
-    .toggle-btn, .action-btn, .close-btn, button.step-btn, input[type="range"] {
+    .toggle-btn,
+    .action-btn,
+    .close-btn,
+    button.step-btn,
+    input[type="range"] {
       touch-action: manipulation;
     }
 
@@ -99,33 +104,61 @@
     .controls-panel::-webkit-scrollbar-thumb { background: #475569; border-radius: 3px; }
 
     .controls-header {
-      display: flex; align-items: center; justify-content: space-between; gap: 16px;
-      margin-bottom: 16px; padding-right: 30px; border-bottom: 1px solid #334155; padding-bottom: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 16px;
+      padding-right: 30px;
+      border-bottom: 1px solid #334155;
+      padding-bottom: 14px;
     }
 
-    .title { margin: 0; font-size: 1.25rem; font-weight: 700; color: #f8fafc; text-align: left; }
+    .title {
+      margin: 0;
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: #f8fafc;
+      text-align: left;
+    }
 
     .controls-layout {
-      display: grid; grid-template-columns: minmax(340px, 1.05fr) minmax(360px, 1fr);
-      gap: 16px; align-items: start;
+      display: grid;
+      grid-template-columns: minmax(340px, 1.05fr) minmax(360px, 1fr);
+      gap: 16px;
+      align-items: start;
     }
 
-    .controls-stack { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 15px; }
+    .controls-stack {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 15px;
+    }
 
+    /* Action Button */
     .action-btn {
       width: 100%; padding: 12px; border-radius: 8px; font-weight: bold;
       font-size: 1.05rem; cursor: pointer; border: none; transition: 0.2s;
       background: #3b82f6; color: white; margin-bottom: 15px;
       box-shadow: 0 4px 10px rgba(59, 130, 246, 0.4);
     }
-    .controls-header .action-btn { width: auto; min-width: 220px; margin-bottom: 0; white-space: nowrap; }
+    .controls-header .action-btn {
+      width: auto;
+      min-width: 220px;
+      margin-bottom: 0;
+      white-space: nowrap;
+    }
     .action-btn:hover { filter: brightness(1.1); }
     .action-btn:active { transform: scale(0.98); }
     .action-btn.active-force { background: #ef4444; box-shadow: 0 4px 10px rgba(239, 68, 68, 0.4); }
 
     .control-section {
-      background: rgba(0,0,0,0.2); border-radius: 10px; border: 1px solid #334155;
-      padding: 15px; margin-bottom: 0; height: 100%;
+      background: rgba(0,0,0,0.2);
+      border-radius: 10px;
+      border: 1px solid #334155;
+      padding: 15px;
+      margin-bottom: 0;
+      height: 100%;
     }
 
     .control-group { margin-bottom: 15px; }
@@ -140,24 +173,31 @@
 
     button.step-btn {
       flex: none; width: 24px; height: 24px; min-height: 0; padding: 0;
-      border-radius: 6px; background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.2);
-      color: white; font-size: 1rem; display: flex; align-items: center; justify-content: center;
+      border-radius: 6px; background: rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.2); color: white;
+      font-size: 1rem; display: flex; align-items: center; justify-content: center;
       line-height: 1; cursor: pointer; transition: background 0.1s;
     }
     button.step-btn:hover { background: rgba(255, 255, 255, 0.25); }
     button.step-btn:active { transform: scale(0.9); }
 
-    .val-text { min-width: 55px; text-align: right; font-family: 'Courier New', Courier, monospace; font-weight: bold; }
+    .val-text {
+      min-width: 55px; text-align: right;
+      font-family: 'Courier New', Courier, monospace; font-weight: bold;
+    }
+
     input[type="range"] { width: 100%; min-height: 24px; cursor: pointer; }
 
     /* Lab Worksheet Section */
     .lab-panel {
-      background: rgba(0,0,0,0.5); border: 1px solid #475569; border-radius: 12px;
-      padding: 15px; margin-bottom: 0; transition: border-color 0.3s;
+      background: rgba(0,0,0,0.5); border: 1px solid #475569;
+      border-radius: 12px; padding: 15px; margin-bottom: 0;
+      transition: border-color 0.3s;
     }
     .lab-header {
-      font-size: 1.05rem; color: #94a3b8; font-weight: bold; text-transform: uppercase;
-      margin-bottom: 12px; text-align: center; letter-spacing: 1px; border-bottom: 1px solid #334155; padding-bottom: 8px;
+      font-size: 1.05rem; color: #94a3b8; font-weight: bold;
+      text-transform: uppercase; margin-bottom: 12px; text-align: center;
+      letter-spacing: 1px; border-bottom: 1px solid #334155; padding-bottom: 8px;
     }
 
     .calc-block {
@@ -176,29 +216,79 @@
       transition: background 0.3s, color 0.3s, box-shadow 0.3s;
     }
     .status-force { background: #10b981; color: white; box-shadow: 0 0 12px rgba(16,185,129,0.5); }
+    .status-speed { background: #a855f7; color: white; box-shadow: 0 0 12px rgba(168,85,247,0.5); }
+    .status-direction { background: #64748b; color: white; }
+
+    .top-left-btn {
+      position: absolute;
+      top: 20px;
+      left: 20px;
+      width: auto;
+      margin: 0;
+      z-index: 5;
+      white-space: nowrap;
+    }
 
     .drag-hint {
-      position: absolute; top: 20px; left: 20px; background: rgba(15, 23, 42, 0.7);
-      padding: 10px 15px; border-radius: 8px; border: 1px solid #334155; color: #ffffff;
-      font-size: 0.9rem; font-weight: bold; pointer-events: none; z-index: 10; line-height: 1.4;
+      position: absolute; top: 80px; left: 20px;
+      background: rgba(15, 23, 42, 0.7); padding: 10px 15px; border-radius: 8px;
+      border: 1px solid #334155; color: #ffffff; font-size: 0.9rem; font-weight: bold;
+      pointer-events: none; z-index: 10; line-height: 1.4;
       max-width: min(340px, calc(100vw - 32px));
     }
-    .drag-hint span { color: #d97706; }
+    .drag-hint span { color: #fbbf24; }
 
     @media (max-width: 940px) {
-      .controls-panel { max-height: min(360px, calc(100vh - 48px)); }
-      .controls-header { flex-direction: column; align-items: stretch; padding-right: 0; }
-      .title { text-align: center; }
-      .controls-header .action-btn { width: 100%; min-width: 0; }
-      .controls-layout { grid-template-columns: 1fr; }
+      .controls-panel {
+        max-height: min(360px, calc(100vh - 48px));
+      }
+
+      .controls-header {
+        flex-direction: column;
+        align-items: stretch;
+        padding-right: 0;
+      }
+
+      .title {
+        text-align: center;
+      }
+
+      .controls-header .action-btn {
+        width: 100%;
+        min-width: 0;
+      }
+
+      .controls-layout {
+        grid-template-columns: 1fr;
+      }
     }
+
     @media (max-width: 720px) {
-      .controls-stack { grid-template-columns: 1fr; }
-      .controls-panel { width: calc(100vw - 20px); max-width: calc(100vw - 20px); padding: 16px; }
-      .drag-hint { top: 16px; left: 10px; }
+      .controls-stack {
+        grid-template-columns: 1fr;
+      }
+
+      .controls-panel {
+        width: calc(100vw - 20px);
+        max-width: calc(100vw - 20px);
+        padding: 16px;
+      }
+
+      .drag-hint {
+        top: 80px;
+        left: 10px;
+      }
+
+      .top-left-btn {
+        top: 16px;
+        left: 10px;
+      }
     }
+
     @media (max-height: 700px) {
-      .controls-panel { max-height: min(260px, calc(100vh - 40px)); }
+      .controls-panel {
+        max-height: min(260px, calc(100vh - 40px));
+      }
     }
   </style>
 </head>
@@ -206,7 +296,7 @@
 
   <canvas id="simCanvas"></canvas>
   
-  <div class="drag-hint">💡 Drag the <span>Nut (Load)</span> to change the Load Arm distance.</div>
+  <button id="btnAnimate" class="action-btn top-left-btn">▶ Squeeze Nutcracker</button>
 
   <button id="toggleBtn" class="toggle-btn">⚙️ Settings & Lab</button>
 
@@ -214,7 +304,6 @@
     <button id="closeBtn" class="close-btn">✖</button>
     <div class="controls-header">
       <div class="title">Class 2 Lever (Nutcracker)</div>
-      <button id="btnAnimate" class="action-btn">▶ Squeeze (Apply Effort)</button>
     </div>
 
     <div class="controls-layout">
@@ -222,35 +311,35 @@
         <div class="control-section" style="border-left: 4px solid #ef4444;">
           <div class="control-group" style="margin-bottom: 0;">
             <label>
-              <span style="color: #ef4444;">Nut Resistance (L)</span>
+              <span style="color: #ef4444;">Load Force (L)</span>
               <div class="val-container">
-                <button class="step-btn" onclick="stepState('L', -50)">-</button>
-                <span id="valL" class="val-text" style="color: white;">400 N</span>
-                <button class="step-btn" onclick="stepState('L', 50)">+</button>
+                <button class="step-btn" onclick="stepState('L', -10)">-</button>
+                <span id="valL" class="val-text" style="color: white;">200 N</span>
+                <button class="step-btn" onclick="stepState('L', 10)">+</button>
               </div>
             </label>
-            <input type="range" id="slL" min="100" max="1000" step="50" value="400">
+            <input type="range" id="slL" min="10" max="500" step="10" value="200">
           </div>
         </div>
 
         <div class="control-section" style="border-left: 4px solid #facc15;">
           <div class="control-group">
             <label>
-              <span style="color: #facc15;">Load Arm (Nut Pos)</span>
+              <span style="color: #facc15;">Load Arm </span>
               <div class="val-container">
-                <button class="step-btn" onclick="stepState('dL', -1)">-</button>
-                <span id="valDL" class="val-text" style="color: white;">4.0 cm</span>
-                <button class="step-btn" onclick="stepState('dL', 1)">+</button>
+                <button class="step-btn" onclick="stepState('dL', -0.2)">-</button>
+                <span id="valDL" class="val-text" style="color: white;">2.0 m</span>
+                <button class="step-btn" onclick="stepState('dL', 0.2)">+</button>
               </div>
             </label>
-            <input type="range" id="slDL" min="2" max="16" step="0.5" value="4.0">
+            <input type="range" id="slDL" min="1" max="9" step="0.1" value="2.0">
           </div>
           
           <div class="control-group" style="margin-bottom: 0;">
             <label>
               <span style="color: #38bdf8;">Effort Arm <span style="color:#64748b; font-weight:normal;">(Fixed)</span></span>
               <div class="val-container">
-                <span id="valDE" class="val-text" style="color: #38bdf8;">20.0 cm</span>
+                <span id="valDE" class="val-text" style="color: #38bdf8;">10.0 m</span>
               </div>
             </label>
           </div>
@@ -258,21 +347,28 @@
       </div>
 
       <div class="lab-panel" id="labPanelBorder">
-        <div class="lab-header" id="labHeader">Lab Workspace (Class 2)</div>
+        <div class="lab-header" id="labHeader">Lab Workspace (Ideal Lever)</div>
         
         <div class="calc-block">
           <div class="calc-title">Mechanical Advantage (MA)</div>
+          <div class="calc-formula">MA = Load &divide; Effort</div>
           <div class="calc-formula">MA = Effort Arm &divide; Load Arm</div>
-          <div class="calc-formula">MA = <span id="labMASub">20.0 &divide; 4.0</span> = <span id="labMA" class="highlight-val">5.00</span></div>
+          <div class="calc-formula">MA = <span id="labMASub">8.0 &divide; 2.0</span> = <span id="labMA" class="highlight-val">4.00</span></div>
+        </div>
+
+        <div class="calc-block">
+          <div class="calc-title">Velocity Ratio (VR)</div>
+          <div class="calc-formula">VR = Displacement of Effort &divide; Displacement of Load</div>
+          <div class="calc-formula">VR = s<sub>E</sub> &divide; s<sub>L</sub> = <span id="labVRSub">8.0 &divide; 2.0</span> = <span id="labVR" class="highlight-val">4.00</span></div>
         </div>
         
         <div class="calc-block" style="border-color: #38bdf8;">
-          <div class="calc-title" style="color: #38bdf8;">Required Effort to Crack (E)</div>
-          E = L &divide; MA = <span id="labESub">400 &divide; 5.00</span> = <span id="labE" class="highlight-val" style="color: #38bdf8;">80.0 N</span>
+          <div class="calc-title" style="color: #38bdf8;">Required Effort (E)</div>
+          E = L &divide; MA = <span id="labESub">200 &divide; 4.00</span> = <span id="labE" class="highlight-val" style="color: #38bdf8;">50.0 N</span>
         </div>
 
         <div id="badge" class="status-badge status-force">
-          FORCE MULTIPLIER (MA > 1)
+          FORCE MULTIPLIER
         </div>
       </div>
     </div>
@@ -281,71 +377,117 @@
   <script>
     // --- STATE ---
     const state = {
-      L: 400,         // Load Force/Resistance (N)
-      dL: 4.0,        // Load Arm Length (cm)
-      dE: 20.0,       // Effort Arm Length (Fixed handle length cm)
+      L: 200,         // Load Force (N)
+      dL: 2.0,        // Load Arm Length (m)
+      beamTotalL: 10, // Total Beam Length (m) (Fixed Effort Arm)
       
       // Animation State
       effortApplied: false,
-      tiltAngle: -0.28,  // Open resting angle
-      targetAngle: -0.28,
+      tiltAngle: 0,
+      targetAngle: 0,
       
       dragNode: null, 
-      initialized: false
+      initialized: false,
+      poseInitialized: false
     };
 
-    let w, h, pxPerCm, hingeX, hingeY, groundBandHeight;
-    const beamThick = 24;
-    const restAngle = -0.28; // Nutcracker open angle
+    let w, h, cx, groundY, fulcrumY, fulcrumHeight, pxPerMeter, beamStartX;
+    const boxSize = 60;
+    const beamThick = 20;
     const scenePadding = 48;
-    const minBeamPxPerCm = 15;
+    const minBeamPxPerMeter = 26;
+    const beamWidthViewportRatio = 0.62;
+    const minBeamViewportWidth = 520;
     const maxBeamViewportWidth = 860;
     const beamViewportMargin = 72;
+    const minFulcrumHeight = 130;
+    const maxFulcrumHeight = 180;
     const minGroundBandHeight = 130;
     const maxGroundBandHeight = 220;
     const groundBandPadding = 22;
     const minVisibleControlsHeight = 118;
     const maxVisibleControlsHeight = 190;
     const maHudTop = 24;
+    let groundBandHeight = minGroundBandHeight;
 
     // --- DOM ---
     const els = {
       slL: document.getElementById('slL'), valL: document.getElementById('valL'),
       slDL: document.getElementById('slDL'), valDL: document.getElementById('valDL'),
       valDE: document.getElementById('valDE'),
+      
       btnAnimate: document.getElementById('btnAnimate'),
+
       labMASub: document.getElementById('labMASub'), labMA: document.getElementById('labMA'),
+      labVRSub: document.getElementById('labVRSub'), labVR: document.getElementById('labVR'),
       labESub: document.getElementById('labESub'), labE: document.getElementById('labE'),
+      
       badge: document.getElementById('badge'),
       labPanelBorder: document.getElementById('labPanelBorder'),
       labHeader: document.getElementById('labHeader'),
+      
       toggleBtn: document.getElementById('toggleBtn'), controlsPanel: document.getElementById('controlsPanel'), closeBtn: document.getElementById('closeBtn')
     };
 
     const canvas = document.getElementById('simCanvas');
     const ctx = canvas.getContext('2d');
 
+    function getRestTiltAngle() {
+      if (!pxPerMeter) return -0.2;
+      const openNutH = 60; // Visual uncrushed nut height
+      const loadArmPx = state.dL * pxPerMeter;
+      const ratio = Math.min(1, openNutH / loadArmPx);
+      return -Math.asin(ratio); // Negative because canvas Y is down
+    }
+
+    function getClosedTiltAngle() {
+      if (!pxPerMeter) return 0;
+      const crushedNutH = 20; // Visual crushed nut height
+      const loadArmPx = state.dL * pxPerMeter;
+      const ratio = Math.min(1, crushedNutH / loadArmPx);
+      return -Math.asin(ratio);
+    }
+
     function updateSceneGeometry() {
       const controlsHeight = els.controlsPanel ? els.controlsPanel.offsetHeight : minGroundBandHeight;
-      const animateButtonBottom = els.btnAnimate ? els.btnAnimate.offsetTop + els.btnAnimate.offsetHeight : minVisibleControlsHeight;
-      const controlsVisibleHeight = Math.min(controlsHeight, Math.max(minVisibleControlsHeight, Math.min(maxVisibleControlsHeight, animateButtonBottom + 22)));
+      const animateButtonBottom = els.btnAnimate
+        ? els.btnAnimate.offsetTop + els.btnAnimate.offsetHeight
+        : minVisibleControlsHeight;
+      const controlsVisibleHeight = Math.min(
+        controlsHeight,
+        Math.max(
+          minVisibleControlsHeight,
+          Math.min(maxVisibleControlsHeight, animateButtonBottom + 22)
+        )
+      );
       const controlsBottomOffset = controlsVisibleHeight - controlsHeight;
-      
-      const availableSceneWidth = Math.max(state.dE * minBeamPxPerCm, w - (scenePadding * 2));
+      const beamMinWidth = state.beamTotalL * minBeamPxPerMeter;
+      const availableSceneWidth = Math.max(beamMinWidth, w - (scenePadding * 2));
+      const desiredGroundBandHeight = controlsVisibleHeight + groundBandPadding;
       const maxGroundBandByViewport = Math.min(maxGroundBandHeight, h * 0.34);
 
-      groundBandHeight = Math.max(minGroundBandHeight, Math.min(maxGroundBandByViewport, controlsVisibleHeight + groundBandPadding));
+      groundBandHeight = Math.max(
+        minGroundBandHeight,
+        Math.min(maxGroundBandByViewport, desiredGroundBandHeight)
+      );
       document.documentElement.style.setProperty('--ground-band-height', `${Math.round(groundBandHeight)}px`);
       document.documentElement.style.setProperty('--controls-bottom-offset', `${Math.round(controlsBottomOffset)}px`);
 
-      // Scale
-      const desiredBeamWidth = Math.max(state.dE * minBeamPxPerCm, availableSceneWidth * 0.65);
-      const targetBeamWidth = Math.min(maxBeamViewportWidth, desiredBeamWidth);
-      pxPerCm = Math.max(minBeamPxPerCm, targetBeamWidth / state.dE);
+      groundY = h - groundBandHeight;
+      cx = w / 2;
 
-      // Center the nutcracker
-      hingeX = (w - (state.dE * pxPerCm)) / 2;
-      hingeY = (h - groundBandHeight) / 2 + 50; // Positioned lower to accommodate open jaw above
+      // Keep the lever prominent in the center without stretching wall-to-wall.
+      const maxBeamWidthFromScene = Math.max(beamMinWidth, availableSceneWidth - (beamViewportMargin * 2));
+      const desiredBeamWidth = Math.max(beamMinWidth, Math.max(minBeamViewportWidth, availableSceneWidth * beamWidthViewportRatio));
+      const targetBeamWidth = Math.min(maxBeamViewportWidth, maxBeamWidthFromScene, desiredBeamWidth);
+      pxPerMeter = Math.max(minBeamPxPerMeter, targetBeamWidth / state.beamTotalL);
+
+      // Center the beam now that the controls live in the ground band below it.
+      beamStartX = (w - (state.beamTotalL * pxPerMeter)) / 2;
+
+      // Make the fulcrum a touch taller so the larger beam still reads clearly.
+      fulcrumHeight = Math.max(minFulcrumHeight, Math.min(maxFulcrumHeight, groundBandHeight * 0.58));
+      fulcrumY = groundY - fulcrumHeight;
     }
 
     function syncAnimateButton() {
@@ -353,7 +495,7 @@
         els.btnAnimate.textContent = "⏹ Release Nutcracker";
         els.btnAnimate.classList.add('active-force');
       } else {
-        els.btnAnimate.textContent = "▶ Squeeze (Apply Effort)";
+        els.btnAnimate.textContent = "▶ Squeeze Nutcracker";
         els.btnAnimate.classList.remove('active-force');
       }
     }
@@ -369,6 +511,12 @@
       ctx.scale(dpr, dpr);
 
       updateSceneGeometry();
+      if (!state.poseInitialized && w > 0) {
+        state.tiltAngle = getRestTiltAngle();
+        state.targetAngle = getRestTiltAngle();
+        state.poseInitialized = true;
+      }
+      
       if (!state.initialized && w > 0) state.initialized = true;
       updateMathUI(); 
     }
@@ -380,40 +528,52 @@
 
     els.btnAnimate.addEventListener('click', () => {
         state.effortApplied = !state.effortApplied;
-        // The effort crushes the nut, bringing the angle to almost 0
-        state.targetAngle = state.effortApplied ? -0.05 : restAngle;
+        state.targetAngle = state.effortApplied ? 0 : getRestTiltAngle();
         syncAnimateButton();
     });
 
     function resetTilt() {
         state.effortApplied = false;
-        state.targetAngle = restAngle;
+        state.targetAngle = getRestTiltAngle();
         syncAnimateButton();
     }
 
     function updateMathUI() {
-      state.L = Math.max(100, Math.min(1000, state.L));
-      state.dL = Math.max(2.0, Math.min(16.0, state.dL)); // Load must stay within Effort arm bounds
+      // Clamps
+      state.L = Math.max(10, Math.min(500, state.L));
+      state.dL = Math.max(1.0, Math.min(9.0, state.dL));
 
       if (!w || !h) return;
       updateSceneGeometry();
 
+      let dE = state.beamTotalL; // Fixed length handle
+
       // Sync UI
       els.slL.value = state.L; els.valL.textContent = `${Math.round(state.L)} N`;
-      els.slDL.value = state.dL; els.valDL.textContent = `${state.dL.toFixed(1)} cm`;
-      els.valDE.textContent = `${state.dE.toFixed(1)} cm`;
+      els.slDL.value = state.dL; els.valDL.textContent = `${state.dL.toFixed(1)} m`;
 
-      // Math Core for Class 2
-      let MA = state.dE / state.dL; // Always > 1
+      // Math Core
+      let MA = dE / state.dL;
+      let VR = dE / state.dL;
       let E = state.L / MA;
+      const referenceTiltAngle = Math.abs(getRestTiltAngle());
+      const sE = dE * Math.sin(referenceTiltAngle);
+      const sL = state.dL * Math.sin(referenceTiltAngle);
 
       // Update HUD
-      els.labMASub.innerHTML = `${state.dE.toFixed(1)} &divide; ${state.dL.toFixed(1)}`;
+      els.labMASub.innerHTML = `${dE.toFixed(1)} &divide; ${state.dL.toFixed(1)}`;
       els.labMA.textContent = `${MA.toFixed(2)}`;
+      els.labVRSub.innerHTML = `${sE.toFixed(2)} &divide; ${sL.toFixed(2)}`;
+      els.labVR.textContent = `${VR.toFixed(2)}`;
       els.labESub.innerHTML = `${Math.round(state.L)} &divide; ${MA.toFixed(2)}`;
       els.labE.textContent = `${E.toFixed(1)} N`;
 
-      state.targetAngle = state.effortApplied ? -0.05 : restAngle;
+      els.badge.textContent = "FORCE MULTIPLIER";
+      els.badge.className = "status-badge status-force";
+      els.labPanelBorder.style.borderColor = "#10b981";
+      els.labHeader.style.color = "#10b981";
+      
+      state.targetAngle = state.effortApplied ? getClosedTiltAngle() : getRestTiltAngle();
       syncAnimateButton();
     }
 
@@ -422,7 +582,7 @@
         if(param === 'dL') state[param] = Math.round(state[param] * 10) / 10;
         else state[param] = Math.round(state[param]);
         
-        resetTilt(); 
+        resetTilt(); // Reset animation when manually stepping values
         updateMathUI();
     };
 
@@ -437,28 +597,20 @@
       return { x: clientX - rect.left, y: clientY - rect.top };
     }
 
-    function getNutCenter() {
-      // Calculate where the center of the nut visually is
-      const midAngle = state.tiltAngle / 2;
-      return {
-        x: hingeX + (state.dL * pxPerCm) * Math.cos(midAngle),
-        y: hingeY + (state.dL * pxPerCm) * Math.sin(midAngle)
-      };
-    }
-
     function handleDragStart(e) {
       if(e.target !== canvas) return;
       const pos = getPointerPos(e);
-      const hitBuffer = e.touches ? 50 : 30; 
+      const hitBuffer = e.touches ? 60 : 30; 
       
-      const nutCenter = getNutCenter();
-      
-      // Hit test for Nut
-      const dist = Math.hypot(pos.x - nutCenter.x, pos.y - nutCenter.y);
-      if (dist < 40 + hitBuffer) {
+      // Hit test for the Nut (Load position)
+      const nutX = beamStartX + state.dL * pxPerMeter;
+      const nutY_top = fulcrumY + state.dL * pxPerMeter * Math.sin(state.tiltAngle);
+      const nutY_center = fulcrumY - Math.abs(fulcrumY - nutY_top)/2;
+
+      if (Math.abs(pos.x - nutX) < 40 + hitBuffer && Math.abs(pos.y - nutY_center) < 40 + hitBuffer) {
           state.dragNode = 'nut';
           canvas.style.cursor = 'ew-resize';
-          resetTilt();
+          resetTilt(); // Stop animation instantly
           if(e.touches && e.cancelable) e.preventDefault();
       } 
     }
@@ -468,8 +620,10 @@
 
       if (state.dragNode === null) {
           if (!e.touches) {
-              const nutCenter = getNutCenter();
-              if (Math.hypot(pos.x - nutCenter.x, pos.y - nutCenter.y) < 40) {
+              const nutX = beamStartX + state.dL * pxPerMeter;
+              const nutY_top = fulcrumY + state.dL * pxPerMeter * Math.sin(state.tiltAngle);
+              const nutY_center = fulcrumY - Math.abs(fulcrumY - nutY_top)/2;
+              if (Math.abs(pos.x - nutX) < 40 && Math.abs(pos.y - nutY_center) < 40) {
                   canvas.style.cursor = 'grab';
               } else {
                   canvas.style.cursor = 'default';
@@ -481,8 +635,8 @@
       if (e.touches && e.cancelable) e.preventDefault(); 
       
       if (state.dragNode === 'nut') {
-          let newDL = (pos.x - hingeX) / pxPerCm;
-          state.dL = Math.max(2.0, Math.min(16.0, Math.round(newDL * 10) / 10));
+          let newDL = (pos.x - beamStartX) / pxPerMeter;
+          state.dL = Math.max(1.0, Math.min(9.5, Math.round(newDL * 10) / 10));
           updateMathUI(); 
       }
     }
@@ -508,9 +662,9 @@
       ctx.closePath();
     }
 
-    function drawBeamDimension(startX, endX, offsetY, label, color, isTop) {
+    function drawBeamDimension(startX, endX, offsetY, label, color) {
       const tickHalf = 7;
-      const labelGap = isTop ? -16 : 16;
+      const labelGap = offsetY < 0 ? -12 : 12;
 
       ctx.save();
       ctx.strokeStyle = color;
@@ -532,7 +686,7 @@
 
       ctx.font = "bold 14px Arial";
       ctx.textAlign = "center";
-      ctx.textBaseline = isTop ? "bottom" : "top";
+      ctx.textBaseline = offsetY < 0 ? "bottom" : "top";
       ctx.fillText(label, (startX + endX) / 2, offsetY + labelGap);
       ctx.restore();
     }
@@ -540,17 +694,18 @@
     function drawMechanicalAdvantageHud(ma) {
       if (!state.effortApplied) return;
 
-      const beamWidth = state.dE * pxPerCm;
+      const beamWidth = state.beamTotalL * pxPerMeter;
       const hudWidth = Math.min(420, Math.max(280, beamWidth * 0.52));
       const hudHeight = 96;
-      const hudX = hingeX + (beamWidth / 2) - (hudWidth / 2);
+      const hudX = beamStartX + (beamWidth / 2) - (hudWidth / 2);
       const hudY = maHudTop;
+      const borderColor = "#10b981";
 
       ctx.save();
       drawRoundedRectPath(hudX, hudY, hudWidth, hudHeight, 18);
       ctx.fillStyle = "rgba(15, 23, 42, 0.9)";
       ctx.fill();
-      ctx.strokeStyle = "#10b981"; // Force Multiplier Green
+      ctx.strokeStyle = borderColor;
       ctx.lineWidth = 2;
       ctx.stroke();
 
@@ -564,18 +719,18 @@
       const tagGap = 14;
       const tagHeight = 32;
       ctx.font = "bold 16px Arial";
-      const tagText = "Force Multiplier";
+      const tagText = "FORCE MULTIPLIER";
       const tagWidth = ctx.measureText(tagText).width + (tagPaddingX * 2);
       const tagX = Math.min(hudX + hudWidth + tagGap, w - tagWidth - scenePadding);
       const tagY = hudY + 10;
 
       drawRoundedRectPath(tagX, tagY, tagWidth, tagHeight, 13);
-      ctx.fillStyle = `#10b98122`;
+      ctx.fillStyle = `${borderColor}22`;
       ctx.fill();
-      ctx.strokeStyle = "#10b981";
+      ctx.strokeStyle = borderColor;
       ctx.lineWidth = 1.5;
       ctx.stroke();
-      ctx.fillStyle = "#10b981";
+      ctx.fillStyle = borderColor;
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
       ctx.fillText(tagText, tagX + (tagWidth / 2), tagY + (tagHeight / 2) + 0.5);
@@ -605,154 +760,130 @@
       }
 
       // Spring physics for smooth tilting
-      state.tiltAngle += (state.targetAngle - state.tiltAngle) * 0.15;
+      state.tiltAngle += (state.targetAngle - state.tiltAngle) * 0.1;
 
       ctx.clearRect(0, 0, w, h);
 
-      // --- 1. Background ---
+      // --- 1. Background & Ground ---
       ctx.fillStyle = "#1e293b"; 
-      ctx.fillRect(0, h - groundBandHeight, w, groundBandHeight);
+      ctx.fillRect(0, groundY, w, h - groundY);
       ctx.strokeStyle = "#475569"; ctx.lineWidth = 4;
-      ctx.beginPath(); ctx.moveTo(0, h - groundBandHeight); ctx.lineTo(w, h - groundBandHeight); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(0, groundY); ctx.lineTo(w, groundY); ctx.stroke();
 
-      const ma = state.dE / state.dL;
+      const fulcrumX = beamStartX;
+      let dE = state.beamTotalL;
+      const ma = dE / state.dL;
 
       // --- 2. Draw On-Canvas MA HUD ---
       drawMechanicalAdvantageHud(ma);
 
-      ctx.save();
-      ctx.translate(hingeX, hingeY);
-      
-      const armLengthPx = state.dE * pxPerCm;
+      // --- 3. Draw Bottom Handle (Static) ---
+      ctx.fillStyle = "#334155";
+      ctx.fillRect(beamStartX, fulcrumY, dE * pxPerMeter, beamThick);
+      ctx.strokeStyle = "#475569"; ctx.lineWidth = 2;
+      ctx.strokeRect(beamStartX, fulcrumY, dE * pxPerMeter, beamThick);
 
-      // --- 3. Draw Bottom Arm (Fixed) ---
-      ctx.lineCap = "round";
-      ctx.strokeStyle = "#475569";
-      ctx.lineWidth = beamThick;
+      // Dimensions (Below Bottom Handle)
+      const dimY1 = fulcrumY + beamThick + 25; 
+      const dimY2 = fulcrumY + beamThick + 55;
+      drawBeamDimension(beamStartX, beamStartX + state.dL * pxPerMeter, dimY1, `Load Arm = ${state.dL.toFixed(1)} m`, "#facc15");
+      drawBeamDimension(beamStartX, beamStartX + dE * pxPerMeter, dimY2, `Effort Arm = ${dE.toFixed(1)} m`, "#38bdf8");
+
+      // --- 4. Draw Nut (Load) ---
+      let nutX = beamStartX + state.dL * pxPerMeter;
+      let nutY_bottom = fulcrumY;
+      let nutY_top = fulcrumY + state.dL * pxPerMeter * Math.sin(state.tiltAngle);
+      let nutH = Math.abs(nutY_bottom - nutY_top);
+      
+      ctx.fillStyle = state.dragNode === 'nut' ? "#a78bfa" : "#8b5cf6"; 
       ctx.beginPath();
-      ctx.moveTo(0, 0);
-      ctx.lineTo(armLengthPx, 0);
-      ctx.stroke();
-
-      // Lower grip
-      ctx.strokeStyle = "#1e293b";
-      ctx.lineWidth = beamThick + 4;
-      ctx.beginPath();
-      ctx.moveTo(armLengthPx * 0.75, 0);
-      ctx.lineTo(armLengthPx, 0);
-      ctx.stroke();
-
-      // --- 4. Draw The Nut (Load) ---
-      const nutX = state.dL * pxPerCm;
-      // Nut rests between the arms. The gap height at dL depends on angle.
-      const gapHeight = Math.abs(nutX * Math.sin(state.tiltAngle));
-      // Base size scales visually slightly with Load force
-      const nutBaseRadius = 16 + (state.L / 1000) * 12;
-      
-      // Calculate squash effect as gap closes
-      const currentRadiusY = Math.min(nutBaseRadius, gapHeight / 2 + 2);
-      const currentRadiusX = nutBaseRadius + (nutBaseRadius - currentRadiusY)*0.4; // Squish outwards slightly
-      
-      const midAngle = state.tiltAngle / 2;
-      const nutCenterX = nutX * Math.cos(midAngle);
-      const nutCenterY = nutX * Math.sin(midAngle);
-
-      ctx.save();
-      ctx.translate(nutCenterX, nutCenterY);
-      ctx.rotate(midAngle);
-      
-      // Nut shadow/glow if dragging
-      if (state.dragNode === 'nut') {
-        ctx.shadowColor = "#facc15";
-        ctx.shadowBlur = 15;
-      }
-      
-      // Draw walnut/nut shape
-      ctx.fillStyle = "#d97706";
-      ctx.beginPath();
-      ctx.ellipse(0, 0, currentRadiusX, currentRadiusY, 0, 0, Math.PI * 2);
+      ctx.ellipse(nutX, nutY_bottom - nutH/2, Math.max(20, 45 - nutH*0.2), nutH/2, 0, 0, Math.PI*2);
       ctx.fill();
-      ctx.strokeStyle = "#78350f"; ctx.lineWidth = 2;
-      ctx.stroke();
+      ctx.strokeStyle = "#4c1d95"; ctx.lineWidth = 3; ctx.stroke();
       
-      // Cracks if effort is applied and angle is very small
-      if (state.tiltAngle > -0.08) {
-        ctx.beginPath();
-        ctx.moveTo(-currentRadiusX/2, -currentRadiusY/2);
-        ctx.lineTo(0, 0);
-        ctx.lineTo(currentRadiusX/3, -currentRadiusY/3);
-        ctx.strokeStyle = "#451a03"; ctx.lineWidth = 2;
-        ctx.stroke();
-      }
-      ctx.restore();
+      ctx.fillStyle = "white"; ctx.textAlign="center"; ctx.textBaseline="middle"; ctx.font = "bold 13px Arial";
+      ctx.fillText("NUT", nutX, nutY_bottom - nutH/2);
 
-      // --- 5. Draw Top Arm (Lever) ---
+      // =========================================================
+      // ENTER LOCAL ROTATED COORDINATE SYSTEM (Top Handle)
+      // =========================================================
       ctx.save();
+      ctx.translate(fulcrumX, fulcrumY);
       ctx.rotate(state.tiltAngle);
       
-      ctx.strokeStyle = "#334155";
-      ctx.lineWidth = beamThick;
-      ctx.beginPath();
-      ctx.moveTo(0, 0);
-      ctx.lineTo(armLengthPx, 0);
-      ctx.stroke();
+      ctx.fillStyle = "#475569";
+      ctx.fillRect(0, -beamThick, dE * pxPerMeter, beamThick);
+      ctx.strokeStyle = "#94a3b8"; ctx.lineWidth = 2;
+      ctx.strokeRect(0, -beamThick, dE * pxPerMeter, beamThick);
 
-      // Upper grip
-      ctx.strokeStyle = "#0f172a";
-      ctx.lineWidth = beamThick + 4;
-      ctx.beginPath();
-      ctx.moveTo(armLengthPx * 0.75, 0);
-      ctx.lineTo(armLengthPx, 0);
-      ctx.stroke();
+      // Ticks on top handle
+      ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 2;
+      for(let i = 0; i <= state.beamTotalL; i++) {
+          let lx = i * pxPerMeter;
+          ctx.beginPath(); ctx.moveTo(lx, -beamThick); ctx.lineTo(lx, 0); ctx.stroke();
+      }
 
-      // --- 6. Draw Forces on the Top Arm (Local space) ---
-      
-      // Load Force (Nut pushing UP against the top arm)
-      // Because we are in local rotated space, UP is -Y.
-      drawArrow(ctx, nutX, 60, nutX, beamThick/2 + 5, "#ef4444", 3);
-      
-      ctx.save();
-      ctx.translate(nutX, 75);
-      ctx.rotate(-state.tiltAngle); // counter-rotate text
-      ctx.fillStyle = "#fecaca"; ctx.textAlign="center"; ctx.textBaseline="bottom"; ctx.font = "bold 13px Arial";
-      ctx.fillText("Load Resistance", 0, -18);
-      ctx.fillStyle = "white"; ctx.textBaseline="middle"; ctx.font = "bold 16px Arial";
-      ctx.fillText(`${Math.round(state.L)}N`, 0, 0);
-      ctx.restore();
-
-      // Effort Force (Hand squeezing DOWN on the top arm)
-      // Down in local space is +Y. We draw the arrow from top down.
+      // --- 5. Draw Effort Arrow (Pushing down) ---
       let E_val = state.L / ma;
-      drawArrow(ctx, armLengthPx - 15, -70, armLengthPx - 15, -beamThick/2 - 5, "#38bdf8", 4);
-
+      drawArrow(ctx, dE * pxPerMeter, -beamThick - 60, dE * pxPerMeter, -beamThick, "#38bdf8", 4);
+      
       ctx.save();
-      ctx.translate(armLengthPx - 15, -85);
-      ctx.rotate(-state.tiltAngle);
-      ctx.fillStyle = "#bae6fd"; ctx.textAlign="center"; ctx.textBaseline="bottom"; ctx.font = "bold 13px Arial";
-      ctx.fillText("Effort Applied", 0, -18);
-      ctx.fillStyle = "#38bdf8"; ctx.textBaseline="middle"; ctx.font = "bold 16px Arial";
-      ctx.fillText(`E = ${E_val.toFixed(1)}N`, 0, 0);
+      ctx.translate(dE * pxPerMeter, -beamThick - 75);
+      ctx.rotate(-state.tiltAngle); // counter-rotate for text
+      ctx.fillStyle = "#38bdf8"; ctx.textBaseline="middle"; ctx.textAlign="center"; ctx.font = "bold 16px Arial";
+      ctx.fillText(`Effort = ${E_val.toFixed(1)}N`, 0, 0);
       ctx.restore();
 
-      ctx.restore(); // Restore from top arm rotation
+      // --- 6. Draw Load Resistance Arrow (Nut pushing up) ---
+      drawArrow(ctx, state.dL * pxPerMeter, 0, state.dL * pxPerMeter, -50, "#ef4444", 3);
+      
+      ctx.save();
+      ctx.translate(state.dL * pxPerMeter, -65);
+      ctx.rotate(-state.tiltAngle); // counter-rotate
+      ctx.fillStyle = "#ef4444"; ctx.textBaseline="middle"; ctx.textAlign="center"; ctx.font = "bold 16px Arial";
+      ctx.fillText(`Load = ${Math.round(state.L)}N`, 0, 0);
+      ctx.restore();
 
-      // --- 7. Draw Fulcrum (Hinge Joint) ---
-      ctx.fillStyle = "#cbd5e1";
-      ctx.beginPath();
-      ctx.arc(0, 0, 14, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.strokeStyle = "#64748b"; ctx.lineWidth = 3;
-      ctx.stroke();
-      ctx.fillStyle = "#0f172a";
-      ctx.beginPath(); ctx.arc(0, 0, 4, 0, Math.PI * 2); ctx.fill();
+      ctx.restore();
+      // =========================================================
+      // EXIT ROTATED COORDINATE SYSTEM
+      // =========================================================
 
-      // --- 8. Dimension Brackets ---
-      // Effort arm spans the full length
-      drawBeamDimension(0, armLengthPx, 50, `Effort Arm = ${state.dE.toFixed(1)} cm`, "#38bdf8", false);
-      // Load arm spans to the nut
-      drawBeamDimension(0, nutX, 85, `Load Arm = ${state.dL.toFixed(1)} cm`, "#facc15", false);
+      // --- Hinge Pivot Point ---
+      ctx.beginPath(); ctx.arc(beamStartX, fulcrumY, 14, 0, Math.PI*2); ctx.fillStyle="#94a3b8"; ctx.fill();
+      ctx.strokeStyle = "#475569"; ctx.lineWidth = 2; ctx.stroke();
+      ctx.beginPath(); ctx.arc(beamStartX, fulcrumY, 5, 0, Math.PI*2); ctx.fillStyle="#0f172a"; ctx.fill();
 
-      ctx.restore(); // Restore from global translation
+      // 7. Draw Displacement Traces (From resting tilt to the current pose)
+      const restAngle = getRestTiltAngle();
+      if (Math.abs(state.tiltAngle - restAngle) > 0.01) {
+          ctx.strokeStyle = "rgba(255, 255, 255, 0.4)";
+          ctx.lineWidth = 2;
+          ctx.setLineDash([5, 5]);
+
+          // Load Displacement (Nut Squash)
+          let loadRestY = fulcrumY + (state.dL * pxPerMeter * Math.sin(restAngle));
+          let loadCurrentY = fulcrumY + (state.dL * pxPerMeter * Math.sin(state.tiltAngle));
+          let sL_px = Math.abs(loadCurrentY - loadRestY);
+          let sL_m = sL_px / pxPerMeter;
+          
+          ctx.beginPath(); ctx.moveTo(nutX, loadRestY); ctx.lineTo(nutX, loadCurrentY); ctx.stroke();
+          ctx.fillStyle = "#ef4444"; ctx.textAlign="left"; ctx.textBaseline="middle";
+          ctx.fillText(` sL = ${sL_m.toFixed(2)}m`, nutX + 25, (loadRestY + loadCurrentY)/2);
+
+          // Effort Displacement
+          let effortRestY = fulcrumY + (dE * pxPerMeter * Math.sin(restAngle));
+          let effortCurrentY = fulcrumY + (dE * pxPerMeter * Math.sin(state.tiltAngle));
+          let sE_px = Math.abs(effortCurrentY - effortRestY);
+          let sE_m = sE_px / pxPerMeter;
+          let effX = beamStartX + dE * pxPerMeter;
+          
+          ctx.beginPath(); ctx.moveTo(effX, effortRestY); ctx.lineTo(effX, effortCurrentY); ctx.stroke();
+          ctx.fillStyle = "#38bdf8"; ctx.textAlign="right"; ctx.textBaseline="middle";
+          ctx.fillText(`sE = ${sE_m.toFixed(2)}m `, effX - 10, (effortRestY + effortCurrentY)/2);
+          
+          ctx.setLineDash([]);
+      }
 
       requestAnimationFrame(animateLoop);
     }
@@ -764,7 +895,7 @@
       ctx.beginPath(); ctx.moveTo(fromX, fromY); ctx.lineTo(toX, toY);
       ctx.strokeStyle = color; ctx.lineWidth = width; ctx.stroke();
       
-      if (Math.hypot(toX-fromX, toY-fromY) > headlen) {
+      if (Math.sqrt(Math.pow(toX-fromX,2) + Math.pow(toY-fromY,2)) > headlen) {
           ctx.setLineDash([]); 
           ctx.beginPath(); ctx.moveTo(toX, toY);
           ctx.lineTo(toX - headlen * Math.cos(angle - Math.PI / 6), toY - headlen * Math.sin(angle - Math.PI / 6));
