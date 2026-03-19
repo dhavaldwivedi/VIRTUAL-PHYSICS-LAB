@@ -243,17 +243,9 @@
     .drag-hint span { color: #fbbf24; }
 
     @media (max-width: 1024px) {
-      .toggle-btn {
-        top: 16px;
-        right: 10px;
-      }
-
       .controls-panel {
-        top: 16px;
-        right: 10px;
-        left: 10px;
-        width: auto;
-        max-height: calc(100vh - 32px);
+        width: calc(100vw - 40px);
+        max-height: calc(100vh - 20px);
       }
 
       .drag-hint {
@@ -274,7 +266,7 @@
 
     @media (max-height: 700px) {
       .controls-panel {
-        max-height: calc(100vh - 32px);
+        max-height: calc(100vh - 20px);
       }
     }
   </style>
@@ -428,7 +420,7 @@
     const ctx = canvas.getContext('2d');
 
     function updateSceneGeometry() {
-      const rightSpace = w > 1024 ? 400 : 0;
+      const rightSpace = w > 720 ? 400 : 0;
       cx = (w - rightSpace) / 2;
       groundY = h - 100;
     }
