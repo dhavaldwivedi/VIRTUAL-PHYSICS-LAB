@@ -242,9 +242,18 @@
     }
     .drag-hint span { color: #fbbf24; }
 
-    @media (max-width: 720px) {
+    @media (max-width: 1024px) {
+      .toggle-btn {
+        top: 16px;
+        right: 10px;
+      }
+
       .controls-panel {
-        width: calc(100vw - 40px);
+        top: 16px;
+        right: 10px;
+        left: 10px;
+        width: auto;
+        max-height: calc(100vh - 32px);
       }
 
       .drag-hint {
@@ -265,7 +274,7 @@
 
     @media (max-height: 700px) {
       .controls-panel {
-        max-height: min(260px, calc(100vh - 40px));
+        max-height: calc(100vh - 32px);
       }
     }
   </style>
@@ -273,7 +282,7 @@
 <body>
 
   <canvas id="simCanvas"></canvas>
-  <div class="drag-hint">👆 Drag the <span>effort rope</span> up or use the slider.</div>
+  
   
   <button id="btnAnimate" class="action-btn top-left-btn">▶ Pull Rope</button>
 
@@ -419,7 +428,7 @@
     const ctx = canvas.getContext('2d');
 
     function updateSceneGeometry() {
-      const rightSpace = w > 720 ? 400 : 0;
+      const rightSpace = w > 1024 ? 400 : 0;
       cx = (w - rightSpace) / 2;
       groundY = h - 100;
     }
