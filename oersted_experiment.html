@@ -1,0 +1,649 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Oersted's Experiment</title>
+  <style>
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: #0f172a;
+      color: #e2e8f0;
+      overflow: hidden; 
+    }
+
+    canvas {
+      display: block;
+      width: 100vw;
+      height: 100vh;
+      position: absolute;
+      top: 0;
+      left: 0;
+      z-index: 1;
+      touch-action: none; 
+    }
+
+    .toggle-btn {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      background: rgba(15, 23, 42, 0.85);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      color: white;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      padding: 10px 16px;
+      border-radius: 8px;
+      font-size: 1rem;
+      font-weight: bold;
+      cursor: pointer;
+      z-index: 5;
+      transition: background 0.2s;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    }
+    .toggle-btn:hover { background: rgba(255, 255, 255, 0.2); }
+
+    .controls-panel {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      width: 380px;
+      max-height: calc(100vh - 40px);
+      overflow-y: auto;
+      z-index: 10;
+      background: rgba(15, 23, 42, 0.85);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      border-radius: 16px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      padding: 20px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.4);
+      transition: transform 0.3s ease, opacity 0.3s ease;
+    }
+
+    .controls-panel.hidden {
+      transform: translateX(120%);
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .close-btn {
+      position: absolute;
+      top: 15px;
+      right: 15px;
+      background: none;
+      border: none;
+      color: #94a3b8;
+      font-size: 1.2rem;
+      cursor: pointer;
+      padding: 0;
+      line-height: 1;
+    }
+    .close-btn:hover { color: white; }
+
+    .controls-panel::-webkit-scrollbar { width: 6px; }
+    .controls-panel::-webkit-scrollbar-thumb { background: #475569; border-radius: 3px; }
+
+    .title {
+      margin: 0 0 15px;
+      font-size: 1.2rem;
+      font-weight: 700;
+      color: #f8fafc;
+      text-align: center;
+      border-bottom: 1px solid #334155;
+      padding-bottom: 10px;
+    }
+
+    .action-btn {
+      width: 100%; padding: 12px; border-radius: 8px; font-weight: bold;
+      font-size: 1.05rem; cursor: pointer; border: none; transition: 0.2s;
+      background: #475569; color: white; margin-bottom: 10px;
+    }
+    .action-btn:hover { filter: brightness(1.1); }
+    .action-btn:active { transform: scale(0.98); }
+    .active-switch { background: #10b981; box-shadow: 0 4px 10px rgba(16, 185, 129, 0.4); }
+    .active-reverse { background: #f97316; box-shadow: 0 4px 10px rgba(249, 115, 22, 0.4); }
+    .active-layer { background: #3b82f6; box-shadow: 0 4px 10px rgba(59, 130, 246, 0.4); }
+
+    .control-section {
+      background: rgba(0,0,0,0.2);
+      border-radius: 10px;
+      border: 1px solid #334155;
+      padding: 15px;
+      margin-bottom: 15px;
+    }
+
+    .control-group { margin-bottom: 15px; }
+    .control-group:last-child { margin-bottom: 0; }
+
+    .control-group label {
+      display: flex; justify-content: space-between; align-items: center;
+      font-size: 0.85rem; font-weight: 600; color: #cbd5e1; margin-bottom: 6px;
+    }
+
+    .val-container { display: flex; align-items: center; gap: 6px; }
+
+    button.step-btn {
+      flex: none; width: 24px; height: 24px; padding: 0;
+      border-radius: 6px; background: rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.2); color: white;
+      font-size: 1rem; cursor: pointer;
+    }
+    button.step-btn:hover { background: rgba(255, 255, 255, 0.25); }
+
+    .val-text {
+      min-width: 55px; text-align: right;
+      font-family: 'Courier New', Courier, monospace; font-weight: bold;
+    }
+
+    input[type="range"] { width: 100%; min-height: 24px; cursor: pointer; }
+
+    .lab-panel {
+      background: rgba(0,0,0,0.5); border: 1px solid #475569;
+      border-radius: 12px; padding: 15px; margin-bottom: 0;
+      transition: border-color 0.3s;
+    }
+    .lab-header {
+      font-size: 1.05rem; color: #94a3b8; font-weight: bold;
+      text-transform: uppercase; margin-bottom: 12px; text-align: center;
+      border-bottom: 1px solid #334155; padding-bottom: 8px;
+    }
+
+    .calc-block {
+      background: #020617; border: 1px solid #475569; border-radius: 6px;
+      padding: 10px; margin-bottom: 10px; font-family: "Courier New", Courier, monospace;
+      text-align: center; font-size: 0.95rem; color: #e2e8f0;
+    }
+    .calc-title { color: #94a3b8; font-size: 0.8rem; margin-bottom: 5px; font-family: sans-serif; text-transform: uppercase;}
+    .highlight-val { color: #fbbf24; font-weight: bold; font-size: 1.1rem;}
+
+    .status-badge {
+      display: block; text-align: center; font-weight: bold; font-size: 0.9rem;
+      padding: 10px; border-radius: 6px; margin-top: 10px; letter-spacing: 0.5px;
+    }
+    .status-off { background: #475569; color: #cbd5e1; }
+    .status-snow { background: #10b981; color: white; box-shadow: 0 0 10px rgba(16,185,129,0.4); }
+    .status-reverse { background: #f97316; color: white; box-shadow: 0 0 10px rgba(249,115,22,0.4); }
+  </style>
+</head>
+<body>
+
+  <canvas id="simCanvas"></canvas>
+
+  <button id="toggleBtn" class="toggle-btn">⚙️ Settings & Lab</button>
+
+  <div id="controlsPanel" class="controls-panel">
+    <button id="closeBtn" class="close-btn">✖</button>
+    <div class="title">Oersted's Experiment</div>
+
+    <button id="btnKey" class="action-btn">⚪ Key (Switch): OPEN</button>
+    <button id="btnPolarity" class="action-btn">Conventional Current: South &rarr; North</button>
+    <button id="btnCurrentType" class="action-btn">Flow: Electron (-)</button>
+    <button id="btnLayer" class="action-btn active-layer">Compass Position: ABOVE WIRE</button>
+
+    <div class="control-section" style="border-left: 4px solid #facc15;">
+      <div class="control-group" style="margin-bottom: 0;">
+        <label>
+          <span style="color: #facc15;">Rheostat (Current I)</span>
+          <div class="val-container">
+            <button class="step-btn" onclick="stepState('I', -5)">-</button>
+            <span id="valI" class="val-text" style="color: white;">50 A</span>
+            <button class="step-btn" onclick="stepState('I', 5)">+</button>
+          </div>
+        </label>
+        <input type="range" id="slI" min="0" max="100" step="1" value="50">
+      </div>
+    </div>
+
+
+  </div>
+
+  <script>
+    // --- STATE ---
+    const state = {
+      keyClosed: false,
+      polarity: 1, // 1 for N->S, -1 for S->N
+      isAbove: true,
+      I: 50,       // Current Magnitude
+      BEarth: 50,  // Earth's Field magnitude
+      currentType: 'electron', // 'electron' or 'conventional'
+      
+      // Animation State
+      needleAngle: 0,
+      targetAngle: 0,
+      particles: [],
+      initialized: false
+    };
+
+    let w, h, cx, cy;
+    const compassRadius = 60;
+
+    // --- DOM ELEMENTS ---
+    const els = {
+      slI: document.getElementById('slI'), valI: document.getElementById('valI'),
+      btnKey: document.getElementById('btnKey'),
+      btnPolarity: document.getElementById('btnPolarity'),
+      btnCurrentType: document.getElementById('btnCurrentType'),
+      btnLayer: document.getElementById('btnLayer'),
+
+      
+      toggleBtn: document.getElementById('toggleBtn'), controlsPanel: document.getElementById('controlsPanel'), closeBtn: document.getElementById('closeBtn')
+    };
+
+    const canvas = document.getElementById('simCanvas');
+    const ctx = canvas.getContext('2d');
+
+    function initArrows() {
+        state.particles = [];
+        const numArrows = 20;
+        for(let i = 0; i < numArrows; i++) {
+            state.particles.push({
+                progress: i / numArrows,
+            });
+        }
+    }
+
+    function resizeCanvas() {
+      const dpr = window.devicePixelRatio || 1;
+      w = window.innerWidth;
+      h = window.innerHeight;
+      
+      canvas.width = w * dpr;
+      canvas.height = h * dpr;
+      ctx.setTransform(1, 0, 0, 1, 0, 0); 
+      ctx.scale(dpr, dpr);
+      
+      // Place the vertical wire on the left side of the screen
+      cx = Math.max(150, w * 0.4);
+      cy = h / 2;
+      
+      if (!state.initialized && w > 0) {
+          initArrows();
+          state.initialized = true;
+      }
+      
+      updatePhysics(); 
+    }
+    window.addEventListener('resize', resizeCanvas);
+    
+    // --- UI LOGIC ---
+    els.toggleBtn.addEventListener('click', () => { els.controlsPanel.classList.remove('hidden'); });
+    els.closeBtn.addEventListener('click', () => { els.controlsPanel.classList.add('hidden'); });
+
+    canvas.addEventListener('click', (e) => {
+        const rect = canvas.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+
+        // Check for switch tap
+        const topY = 100;
+        const circuitWidth = 250;
+        if (!cx) return; // cx might not be ready on first load
+        const leftX = cx - circuitWidth;
+        const switchX = leftX + circuitWidth/2;
+        
+        const switchLeft = switchX - 30;
+        const switchRight = switchX + 30;
+        const switchTop = topY - 30;
+        const switchBottom = topY + 20;
+
+        if (x >= switchLeft && x <= switchRight && y >= switchTop && y <= switchBottom) {
+            els.btnKey.click();
+        }
+    });
+
+    els.btnKey.addEventListener('click', () => {
+        state.keyClosed = !state.keyClosed;
+        els.btnKey.textContent = state.keyClosed ? "🟢 Key (Switch): CLOSED" : "⚪ Key (Switch): OPEN";
+        els.btnKey.className = state.keyClosed ? "action-btn active-switch" : "action-btn";
+        updatePhysics();
+    });
+
+    els.btnPolarity.addEventListener('click', () => {
+        state.polarity *= -1;
+        els.btnPolarity.textContent = state.polarity === 1 ? "Conventional Current: North → South" : "Conventional Current: South → North";
+        els.btnPolarity.className = state.polarity === -1 ? "action-btn active-reverse" : "action-btn";
+        updatePhysics();
+    });
+
+    els.btnCurrentType.addEventListener('click', () => {
+        state.currentType = state.currentType === 'electron' ? 'conventional' : 'electron';
+        els.btnCurrentType.textContent = state.currentType === 'electron' ? 'Flow: Electron (-)' : 'Flow: Conventional (+)';
+        els.btnCurrentType.classList.toggle('active-reverse', state.currentType === 'conventional');
+    });
+
+    els.btnLayer.addEventListener('click', () => {
+        state.isAbove = !state.isAbove;
+        els.btnLayer.textContent = state.isAbove ? "Compass Position: ABOVE WIRE" : "Compass Position: BELOW WIRE";
+        els.btnLayer.className = state.isAbove ? "action-btn active-layer" : "action-btn";
+        updatePhysics();
+    });
+
+    function updatePhysics() {
+      state.I = Math.max(0, Math.min(100, state.I));
+      els.slI.value = state.I; 
+      els.valI.textContent = `${Math.round(state.I)} A`;
+
+      // 1. Magnetic Field Math (B_Wire)
+      // Scaled purely for visual demonstration: 100A = 80uT
+      let B_wire_mag = state.keyClosed ? (0.8 * state.I) : 0;
+      
+      // Determine B_wire X direction (Right Hand Rule)
+      // Current N->S (Down, Polarity=1), Above Wire -> points East (+X)
+      // Current N->S (Down, Polarity=1), Below Wire -> points West (-X)
+      let B_x = 0;
+      if (state.keyClosed && state.I > 0) {
+          if (state.polarity === 1) {
+              B_x = state.isAbove ? B_wire_mag : -B_wire_mag;
+          } else { // South to North
+              B_x = state.isAbove ? -B_wire_mag : B_wire_mag;
+          }
+      }
+
+      // 2. Deflection Angle (Theta)
+      // Canvas -Y is North. 
+      // Math.atan2(y, x) where East is +X and North is -Y.
+      // Target needle angle should point to (B_x, -B_earth).
+      state.targetAngle = Math.atan2(-state.BEarth, B_x);
+      
+    }
+
+    window.stepState = function(param, amount) {
+        state[param] += amount;
+        updatePhysics();
+    };
+    els.slI.addEventListener('input', (e) => { state.I = parseFloat(e.target.value); updatePhysics(); });
+
+    // --- DRAWING LOGIC ---
+    function drawCircuit() {
+        const topY = 100;
+        const bottomY = h - 100;
+        const circuitWidth = 250;
+        const leftX = cx - circuitWidth;
+        
+        ctx.strokeStyle = "#64748b"; 
+        ctx.lineWidth = 4;
+        
+        // Top Wire
+        ctx.beginPath(); ctx.moveTo(cx, topY); ctx.lineTo(leftX, topY); ctx.stroke();
+        // Bottom Wire
+        ctx.beginPath(); ctx.moveTo(cx, bottomY); ctx.lineTo(leftX, bottomY); ctx.stroke();
+        // Left Wire
+        ctx.beginPath(); ctx.moveTo(leftX, topY); ctx.lineTo(leftX, bottomY); ctx.stroke();
+
+        // 1. Draw Battery (Left side)
+        const batY = cy;
+        ctx.fillStyle = "#0f172a";
+        ctx.fillRect(leftX - 20, batY - 30, 40, 60); // Clear background
+        
+        ctx.strokeStyle = "white"; ctx.lineWidth = 3;
+        // Long line (Positive)
+        ctx.beginPath(); ctx.moveTo(leftX - 15, batY - (state.polarity===1 ? 10 : -10)); ctx.lineTo(leftX + 15, batY - (state.polarity===1 ? 10 : -10)); ctx.stroke();
+        // Short line (Negative)
+        ctx.lineWidth = 6;
+        ctx.beginPath(); ctx.moveTo(leftX - 8, batY + (state.polarity===1 ? 10 : -10)); ctx.lineTo(leftX + 8, batY + (state.polarity===1 ? 10 : -10)); ctx.stroke();
+        
+        ctx.fillStyle = "white"; ctx.font = "14px Arial";
+        ctx.fillText(state.polarity===1 ? "+" : "-", leftX + 25, batY - 10);
+        ctx.fillText(state.polarity===1 ? "-" : "+", leftX + 25, batY + 10);
+
+        // 2. Draw Key/Switch (Top side)
+        const switchX = leftX + circuitWidth/2;
+        ctx.fillStyle = "#0f172a";
+        ctx.fillRect(switchX - 30, topY - 20, 60, 40);
+        
+        ctx.fillStyle = "white";
+        ctx.beginPath(); ctx.arc(switchX - 20, topY, 4, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.arc(switchX + 20, topY, 4, 0, Math.PI*2); ctx.fill();
+        
+        ctx.strokeStyle = "white"; ctx.lineWidth = 3;
+        ctx.beginPath(); ctx.moveTo(switchX - 20, topY);
+        // If open, angle the switch up
+        ctx.lineTo(switchX + 20, state.keyClosed ? topY : topY - 20); 
+        ctx.stroke();
+        
+        ctx.fillStyle = "#94a3b8"; ctx.textAlign="center"; ctx.fillText("Key", switchX, topY - 30);
+
+        // 3. Draw Rheostat (Bottom side)
+        const rheoX = leftX + circuitWidth/2;
+        ctx.fillStyle = "#0f172a";
+        ctx.fillRect(rheoX - 40, bottomY - 20, 80, 40);
+        
+        ctx.strokeStyle = "white"; ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(rheoX - 30, bottomY);
+        for(let i=0; i<6; i++) {
+            ctx.lineTo(rheoX - 25 + i*10, bottomY - 10);
+            ctx.lineTo(rheoX - 20 + i*10, bottomY + 10);
+        }
+        ctx.lineTo(rheoX + 30, bottomY);
+        ctx.stroke();
+        
+        // Draw wiper based on current (lower current = more resistance = wiper further right)
+        let wiperPos = rheoX - 30 + ((100 - state.I) / 100) * 60;
+        ctx.beginPath(); ctx.moveTo(wiperPos, bottomY - 25); ctx.lineTo(wiperPos, bottomY - 12);
+        ctx.lineTo(wiperPos - 5, bottomY - 18); ctx.lineTo(wiperPos + 5, bottomY - 18); ctx.stroke(); // arrow head
+        
+        ctx.fillStyle = "#94a3b8"; ctx.fillText("Rheostat", rheoX, bottomY + 25);
+    }
+
+    function drawCompass(opacity) {
+        ctx.save();
+        ctx.globalAlpha = opacity;
+        
+        // Compass Base
+        ctx.beginPath();
+        ctx.arc(cx, cy, compassRadius, 0, Math.PI*2);
+        ctx.fillStyle = "#1e293b";
+        ctx.fill();
+        
+        if (opacity === 1) { // Add drop shadow if it's on top
+            ctx.shadowColor = 'rgba(0,0,0,0.8)';
+            ctx.shadowBlur = 15;
+        }
+        ctx.strokeStyle = "#cbd5e1"; ctx.lineWidth = 2; ctx.stroke();
+        ctx.shadowBlur = 0; // reset shadow
+
+        // Tick Marks
+        ctx.strokeStyle = "#475569"; ctx.lineWidth = 1;
+        for(let i=0; i<12; i++) {
+            let angle = i * (Math.PI / 6);
+            let innerR = i % 3 === 0 ? compassRadius - 8 : compassRadius - 4;
+            ctx.beginPath();
+            ctx.moveTo(cx + innerR * Math.cos(angle), cy + innerR * Math.sin(angle));
+            ctx.lineTo(cx + compassRadius * Math.cos(angle), cy + compassRadius * Math.sin(angle));
+            ctx.stroke();
+        }
+
+        // Needle
+        ctx.save();
+        ctx.translate(cx, cy);
+        ctx.rotate(state.needleAngle);
+
+        // North Needle (Red)
+        ctx.fillStyle = "#ef4444";
+        ctx.beginPath(); ctx.moveTo(0, -4); ctx.lineTo(compassRadius - 5, 0); ctx.lineTo(0, 4); ctx.fill();
+
+        // South Needle (White)
+        ctx.fillStyle = "#ffffff";
+        ctx.beginPath(); ctx.moveTo(0, -4); ctx.lineTo(-(compassRadius - 5), 0); ctx.lineTo(0, 4); ctx.fill();
+
+        // Center Pin
+        ctx.beginPath(); ctx.arc(0, 0, 4, 0, Math.PI*2); ctx.fillStyle = "#cbd5e1"; ctx.fill();
+        ctx.restore();
+        
+        // Cardinal Directions
+        const labelRadius = 14;
+        const labelOffset = compassRadius + 22;
+
+        const directions = [
+            { label: 'N', x: cx, y: cy - labelOffset },
+            { label: 'S', x: cx, y: cy + labelOffset },
+            { label: 'E', x: cx + labelOffset, y: cy },
+            { label: 'W', x: cx - labelOffset, y: cy }
+        ];
+
+        ctx.font = "bold 16px 'Segoe UI', sans-serif";
+        ctx.textAlign="center";
+        ctx.textBaseline="middle";
+
+        directions.forEach(dir => {
+            // Draw dark circle background (respects compass opacity)
+            ctx.beginPath();
+            ctx.arc(dir.x, dir.y, labelRadius, 0, Math.PI * 2);
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+            ctx.fill();
+
+            // Save current alpha, draw text with full alpha, then restore
+            const compassAlpha = ctx.globalAlpha;
+            ctx.globalAlpha = 1.0;
+
+            ctx.fillStyle = "#fde047"; // Bright Yellow
+            ctx.fillText(dir.label, dir.x, dir.y);
+            
+            ctx.globalAlpha = compassAlpha;
+        });
+
+        ctx.restore();
+    }
+
+    function animateLoop() {
+      if (!w) { requestAnimationFrame(animateLoop); return; }
+
+      // Smooth Needle Animation
+      let diff = state.targetAngle - state.needleAngle;
+      // Handle wrap-around for shortest rotation path
+      while (diff < -Math.PI) diff += Math.PI * 2;
+      while (diff > Math.PI) diff -= Math.PI * 2;
+      state.needleAngle += diff * 0.1;
+
+      ctx.clearRect(0, 0, w, h);
+
+      // --- 1. Background Grid ---
+      ctx.fillStyle = "#0f172a"; 
+      ctx.fillRect(0, 0, w, h);
+      ctx.strokeStyle = "rgba(255, 255, 255, 0.03)"; ctx.lineWidth = 1;
+      for(let x=0; x<w; x+=50) { ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,h); ctx.stroke(); }
+      for(let y=0; y<h; y+=50) { ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(w,y); ctx.stroke(); }
+
+      // --- 2. Circuit Schematic ---
+      drawCircuit();
+
+      const wireThickness = 16;
+
+      // --- 3. Render Layers based on Above/Below ---
+      if (state.isAbove) {
+          // Wire First, then Compass
+          drawWire();
+          drawCurrentFlow();
+          drawCompass(1.0); // Full opacity on top
+      } else {
+          // Compass First, then Wire
+          drawCompass(0.4); // Dimmed to look like it's underneath
+          drawWire();
+          drawCurrentFlow();
+      }
+
+      function drawWire() {
+          const topY = 100;
+          const bottomY = h - 100;
+          const isTransparent = !state.isAbove;
+
+          ctx.fillStyle = isTransparent ? "rgba(180, 83, 9, 0.6)" : "#b45309"; // Copper
+          ctx.fillRect(cx - wireThickness/2, topY, wireThickness, bottomY - topY);
+          
+          // Highlight
+          ctx.fillStyle = isTransparent ? "rgba(245, 158, 11, 0.6)" : "#f59e0b";
+          ctx.fillRect(cx - wireThickness/2 + 2, topY, wireThickness/3, bottomY - topY);
+      }
+
+      function drawCurrentFlow() {
+          function drawArrow(x, y, angle, size, color) {
+              ctx.save();
+              ctx.translate(x, y);
+              ctx.rotate(angle);
+              ctx.fillStyle = color;
+              ctx.beginPath();
+              ctx.moveTo(size / 2, 0); // Tip
+              ctx.lineTo(-size / 2, -size / 2);
+              ctx.lineTo(-size / 2, size / 2);
+              ctx.closePath();
+              ctx.fill();
+              ctx.restore();
+          }
+
+          if (!state.keyClosed || state.I === 0) return;
+
+          const topY = 100;
+          const bottomY = h - 100;
+          const circuitWidth = 250;
+          const leftX = cx - circuitWidth;
+          const wireLength = bottomY - topY;
+          const totalPathLength = (wireLength + circuitWidth) * 2;
+          const arrowSize = 10;
+
+          const conventionalDirection = -state.polarity; // Inverted to match battery polarity drawing
+          const flowSign = state.currentType === 'electron' ? -1 : 1;
+          const finalDirection = conventionalDirection * flowSign;
+          let vel = (state.I / 100) * 0.005 * finalDirection;
+
+          const arrowColor = state.currentType === 'electron' ? "#60a5fa" : "#f87171";
+
+          state.particles.forEach(p => {
+              p.progress += vel;
+              if (p.progress > 1) p.progress -= 1;
+              if (p.progress < 0) p.progress += 1;
+
+              const pDist = p.progress * totalPathLength;
+              let x, y, angle;
+              
+              const p1 = wireLength;
+              const p2 = wireLength + circuitWidth;
+              const p3 = p2 + wireLength;
+
+              if (pDist < p1) { // Path is CLOCKWISE, starting UP the right wire
+                  x = cx;
+                  y = bottomY - pDist;
+                  angle = -Math.PI / 2; // Up
+              } else if (pDist < p2) { // Path is LEFT on top
+                  x = cx - (pDist - p1);
+                  y = topY;
+                  angle = Math.PI; // Left
+              } else if (pDist < p3) { // Path is DOWN on left
+                  x = leftX;
+                  y = topY + (pDist - p2);
+                  angle = Math.PI / 2; // Down
+              } else { // Path is RIGHT on bottom
+                  x = leftX + (pDist - p3);
+                  y = bottomY;
+                  angle = 0; // Right
+              }
+              
+              // If flow direction is counter-clockwise, reverse the arrow
+              if (finalDirection === -1) {
+                  angle += Math.PI;
+              }
+
+              drawArrow(x, y, angle, arrowSize, arrowColor);
+          });
+      }
+
+      requestAnimationFrame(animateLoop);
+    }
+
+    // Boot sequence
+    window.addEventListener("load", () => {
+      // Force initial math calculation to orient needle correctly before first frame
+      state.targetAngle = Math.atan2(-state.BEarth, 0); 
+      state.needleAngle = state.targetAngle;
+      
+      resizeCanvas();
+      requestAnimationFrame(animateLoop);
+    });
+
+  </script>
+</body>
+</html>
