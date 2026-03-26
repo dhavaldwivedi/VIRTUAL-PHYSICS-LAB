@@ -1,0 +1,696 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Right-Hand Thumb Rule Simulation</title>
+  <style>
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: #0f172a; /* Deep Slate Void */
+      color: #e2e8f0;
+      overflow: hidden;
+      overscroll-behavior: none;
+    }
+
+    canvas {
+      display: block;
+      width: 100vw;
+      height: 100vh;
+      position: absolute;
+      top: 0;
+      left: 0;
+      z-index: 1;
+      /* Crucial for iPad: stops the browser from hijacking touch gestures */
+      touch-action: none; 
+    }
+
+    .toggle-btn {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      background: rgba(15, 23, 42, 0.85);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      color: white;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      padding: 10px 16px;
+      border-radius: 8px;
+      font-size: 1rem;
+      font-weight: bold;
+      cursor: pointer;
+      z-index: 5;
+      transition: background 0.2s;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+    }
+    .toggle-btn:hover { background: rgba(255, 255, 255, 0.2); }
+
+    .controls-panel {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      width: 400px;
+      max-height: calc(100vh - 40px);
+      overflow-y: auto;
+      z-index: 10;
+      background: rgba(15, 23, 42, 0.85);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border-radius: 16px;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      padding: 20px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+      transition: transform 0.3s ease, opacity 0.3s ease;
+      -webkit-overflow-scrolling: touch;
+      overscroll-behavior: contain;
+    }
+
+    .controls-panel.hidden {
+      transform: translateX(120%);
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .close-btn {
+      position: absolute;
+      top: 15px;
+      right: 15px;
+      background: none;
+      border: none;
+      color: #94a3b8;
+      font-size: 1.2rem;
+      cursor: pointer;
+      padding: 0;
+      width: 36px;
+      height: 36px;
+      line-height: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .close-btn:hover { color: white; }
+
+    .controls-panel::-webkit-scrollbar { width: 6px; }
+    .controls-panel::-webkit-scrollbar-thumb { background: #475569; border-radius: 3px; }
+
+    .title {
+      margin: 0 0 15px;
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: #f8fafc;
+      text-align: center;
+      border-bottom: 1px solid #334155;
+      padding-bottom: 10px;
+    }
+
+    .action-btn {
+      width: 100%; padding: 12px; border-radius: 8px; font-weight: bold;
+      font-size: 1.05rem; cursor: pointer; border: none; transition: 0.2s;
+      margin-bottom: 15px;
+    }
+    .action-btn:hover { filter: brightness(1.1); }
+    .action-btn:active { transform: scale(0.98); }
+    .active-up { background: #0284c7; color: white; box-shadow: 0 4px 15px rgba(2, 132, 199, 0.4); }
+    .active-down { background: #ea580c; color: white; box-shadow: 0 4px 15px rgba(234, 88, 12, 0.4); }
+    .toggle-off { background: #334155; color: #e2e8f0; box-shadow: 0 4px 15px rgba(51, 65, 85, 0.35); }
+    .toggle-on { background: #0891b2; color: white; box-shadow: 0 4px 15px rgba(8, 145, 178, 0.35); }
+
+    .control-section {
+      background: rgba(0,0,0,0.3);
+      border-radius: 10px;
+      border: 1px solid #334155;
+      padding: 15px;
+      margin-bottom: 15px;
+    }
+
+    .control-group { margin-bottom: 15px; }
+    .control-group:last-child { margin-bottom: 0; }
+
+    .control-group label {
+      display: flex; justify-content: space-between; align-items: center;
+      font-size: 0.85rem; font-weight: 600; color: #cbd5e1; margin-bottom: 6px;
+    }
+
+    .val-container { display: flex; align-items: center; gap: 6px; }
+
+    button.step-btn {
+      flex: none; width: 34px; height: 34px; padding: 0;
+      border-radius: 6px; background: rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.2); color: white;
+      font-size: 1rem; cursor: pointer; display: flex; align-items: center; justify-content: center; line-height: 1;
+    }
+    button.step-btn:hover { background: rgba(255, 255, 255, 0.25); }
+
+    .toggle-btn,
+    .close-btn,
+    .action-btn,
+    button.step-btn,
+    input[type="range"] {
+      touch-action: manipulation;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .val-text {
+      min-width: 55px; text-align: right;
+      font-family: 'Courier New', Courier, monospace; font-weight: bold;
+    }
+
+    input[type="range"] { width: 100%; min-height: 24px; cursor: pointer; }
+
+    .lab-panel {
+      background: rgba(0,0,0,0.6); border: 1px solid #475569;
+      border-radius: 12px; padding: 15px; margin-bottom: 0;
+      transition: border-color 0.3s;
+    }
+    .lab-header {
+      font-size: 1.05rem; color: #94a3b8; font-weight: bold;
+      text-transform: uppercase; margin-bottom: 12px; text-align: center;
+      border-bottom: 1px solid #334155; padding-bottom: 8px;
+      letter-spacing: 1px;
+    }
+
+    .rule-text {
+      font-size: 0.9rem;
+      line-height: 1.4;
+      color: #e2e8f0;
+      font-style: italic;
+      text-align: center;
+      background: rgba(255,255,255,0.05);
+      padding: 10px;
+      border-radius: 6px;
+      margin-bottom: 15px;
+      border-left: 3px solid #38bdf8;
+    }
+
+    .calc-block {
+      background: #020617; border: 1px solid #475569; border-radius: 6px;
+      padding: 10px; margin-bottom: 10px; font-family: "Courier New", Courier, monospace;
+      text-align: center; font-size: 0.95rem; color: #e2e8f0;
+    }
+    .calc-title { color: #94a3b8; font-size: 0.8rem; margin-bottom: 5px; font-family: sans-serif; text-transform: uppercase; letter-spacing: 0.5px;}
+    .highlight-val { color: #fbbf24; font-weight: bold; font-size: 1.1rem;}
+
+    .status-badge {
+      display: block; text-align: center; font-weight: bold; font-size: 0.9rem;
+      padding: 12px 10px; border-radius: 6px; margin-top: 15px; letter-spacing: 0.5px;
+      transition: all 0.3s;
+    }
+    .status-off { background: #334155; color: #94a3b8; }
+    .status-up { background: #0284c7; color: white; box-shadow: 0 0 15px rgba(2,132,199,0.5); }
+    .status-down { background: #ea580c; color: white; box-shadow: 0 0 15px rgba(234,88,12,0.5); }
+  </style>
+</head>
+<body>
+
+  <canvas id="simCanvas"></canvas>
+
+  <button id="toggleBtn" class="toggle-btn">⚙️ Settings & Lab</button>
+
+  <div id="controlsPanel" class="controls-panel">
+    <button id="closeBtn" class="close-btn">✖</button>
+    <div class="title">Right-Hand Thumb Rule</div>
+
+    <button id="btnDirection" class="action-btn active-up">🔁 Current: Flowing UP</button>
+    <button id="btnThumb" class="action-btn toggle-off">Thumb Guide: OFF</button>
+
+    <div class="control-section" style="border-left: 4px solid #facc15;">
+      <div class="control-group" style="margin-bottom: 0;">
+        <label>
+          <span style="color: #facc15;">Current Magnitude (I)</span>
+          <div class="val-container">
+            <button id="decIBtn" class="step-btn">-</button>
+            <span id="valI" class="val-text" style="color: white;">50 A</span>
+            <button id="incIBtn" class="step-btn">+</button>
+          </div>
+        </label>
+        <input type="range" id="slI" min="0" max="100" step="1" value="50">
+      </div>
+    </div>
+
+    <div class="lab-panel" id="labPanelBorder">
+      <div class="lab-header">Lab Workspace</div>
+
+      <div class="rule-text">
+        "If you point your right thumb in the direction of the current, your fingers curl in the direction of the magnetic field."
+      </div>
+
+      <div class="calc-block" id="blockDir">
+        <div class="calc-title" style="color: #cbd5e1;">Current Vector (I)</div>
+        <span id="labDir" class="highlight-val" style="color: #38bdf8;">UP (+y axis)</span>
+      </div>
+
+      <div class="calc-block" style="border-color: #38bdf8;" id="blockCurl">
+        <div class="calc-title" style="color: #38bdf8;" id="titleCurl">Field Curl Direction (B)</div>
+        <span id="labCurl" class="highlight-val" style="color: #38bdf8;">Counter-Clockwise</span>
+      </div>
+
+      <div id="badge" class="status-badge status-up">
+        THUMB UP = CCW FIELD
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // --- STATE ---
+    const state = {
+      I: 50,       
+      dir: 1, // 1 for UP (+y), -1 for DOWN (-y)
+      showThumb: false,
+      currentMarkers: [],
+      initialized: false
+    };
+
+    let w, h, cx, cy;
+    
+    // Animation angle tracking
+    let globalTheta = 0;
+
+    // --- DOM ELEMENTS ---
+    const els = {
+      slI: document.getElementById('slI'), valI: document.getElementById('valI'),
+      btnDirection: document.getElementById('btnDirection'),
+      btnThumb: document.getElementById('btnThumb'),
+      decIBtn: document.getElementById('decIBtn'),
+      incIBtn: document.getElementById('incIBtn'),
+
+      labDir: document.getElementById('labDir'),
+      labCurl: document.getElementById('labCurl'), 
+      badge: document.getElementById('badge'),
+      labPanelBorder: document.getElementById('labPanelBorder'),
+      blockDir: document.getElementById('blockDir'),
+      blockCurl: document.getElementById('blockCurl'),
+      titleCurl: document.getElementById('titleCurl'),
+      
+      toggleBtn: document.getElementById('toggleBtn'), controlsPanel: document.getElementById('controlsPanel'), closeBtn: document.getElementById('closeBtn')
+    };
+
+    const canvas = document.getElementById('simCanvas');
+    const ctx = canvas.getContext('2d');
+
+    function initCurrentMarkers() {
+        state.currentMarkers = [];
+        const markerCount = 7;
+        const spacing = window.innerHeight / markerCount;
+        for(let i = 0; i < markerCount; i++) {
+            state.currentMarkers.push({
+                y: i * spacing,
+                xOffset: 0
+            });
+        }
+    }
+
+    function resizeCanvas() {
+      const dpr = window.devicePixelRatio || 1;
+      w = window.innerWidth;
+      h = window.innerHeight;
+      
+      canvas.width = w * dpr;
+      canvas.height = h * dpr;
+      ctx.setTransform(1, 0, 0, 1, 0, 0); 
+      ctx.scale(dpr, dpr);
+      
+      // Center of the canvas
+      cx = w / 2;
+      cy = h / 2;
+      
+      if (w > 0) {
+          initCurrentMarkers();
+          if (!state.initialized) state.initialized = true;
+      }
+      
+      updateMathUI(); 
+    }
+    window.addEventListener('resize', resizeCanvas);
+    
+    // --- UI LOGIC ---
+    function setControlsPanelOpen(isOpen) {
+      els.controlsPanel.classList.toggle('hidden', !isOpen);
+    }
+
+    function bindTap(button, handler) {
+      let touchTriggered = false;
+
+      button.addEventListener('click', (e) => {
+        if (touchTriggered) {
+          touchTriggered = false;
+          return;
+        }
+        handler(e);
+      });
+
+      button.addEventListener('touchend', (e) => {
+        touchTriggered = true;
+        if (e.cancelable) e.preventDefault();
+        handler(e);
+        window.setTimeout(() => { touchTriggered = false; }, 400);
+      }, { passive: false });
+    }
+
+    bindTap(els.toggleBtn, () => { setControlsPanelOpen(true); });
+    bindTap(els.closeBtn, () => { setControlsPanelOpen(false); });
+    bindTap(els.btnDirection, () => {
+        state.dir *= -1;
+        if (state.dir === 1) {
+            els.btnDirection.innerHTML = "🔁 Current: Flowing UP";
+            els.btnDirection.className = "action-btn active-up";
+        } else {
+            els.btnDirection.innerHTML = "🔁 Current: Flowing DOWN";
+            els.btnDirection.className = "action-btn active-down";
+        }
+        updateMathUI();
+    });
+    bindTap(els.btnThumb, () => {
+        state.showThumb = !state.showThumb;
+        updateMathUI();
+    });
+    bindTap(els.decIBtn, () => { window.stepState('I', -5); });
+    bindTap(els.incIBtn, () => { window.stepState('I', 5); });
+
+    function updateMathUI() {
+      state.I = Math.max(0, Math.min(100, state.I));
+      els.slI.value = state.I; 
+      els.valI.textContent = `${Math.round(state.I)} A`;
+      els.btnThumb.textContent = state.showThumb ? "Thumb Guide: ON" : "Thumb Guide: OFF";
+      els.btnThumb.className = `action-btn ${state.showThumb ? 'toggle-on' : 'toggle-off'}`;
+
+      // Dynamic UI Colors based on State
+      const colorUp = "#38bdf8"; // Neon Blue
+      const colorDown = "#f97316";  // Neon Orange
+
+      if (state.I === 0) {
+          els.badge.textContent = "NO CURRENT / NO FIELD";
+          els.badge.className = "status-badge status-off";
+          els.labPanelBorder.style.borderColor = "#475569";
+          els.blockCurl.style.borderColor = "#475569";
+          els.titleCurl.style.color = "#94a3b8";
+          els.labCurl.style.color = "#cbd5e1";
+          els.labDir.style.color = "#cbd5e1";
+          els.labDir.textContent = "--";
+          els.labCurl.textContent = "--";
+      } else if (state.dir === 1) {
+          els.labDir.textContent = "UP (+y axis)";
+          els.labCurl.textContent = "Counter-Clockwise (CCW)";
+          els.badge.textContent = "THUMB UP = CCW FIELD";
+          els.badge.className = "status-badge status-up";
+          
+          els.labPanelBorder.style.borderColor = colorUp;
+          els.blockCurl.style.borderColor = colorUp;
+          els.titleCurl.style.color = colorUp;
+          els.labCurl.style.color = colorUp;
+          els.labDir.style.color = colorUp;
+      } else {
+          els.labDir.textContent = "DOWN (-y axis)";
+          els.labCurl.textContent = "Clockwise (CW)";
+          els.badge.textContent = "THUMB DOWN = CW FIELD";
+          els.badge.className = "status-badge status-down";
+          
+          els.labPanelBorder.style.borderColor = colorDown;
+          els.blockCurl.style.borderColor = colorDown;
+          els.titleCurl.style.color = colorDown;
+          els.labCurl.style.color = colorDown;
+          els.labDir.style.color = colorDown;
+      }
+    }
+
+    window.stepState = function(param, amount) {
+        state[param] += amount;
+        updateMathUI();
+    };
+    els.slI.addEventListener('input', (e) => { state.I = parseFloat(e.target.value); updateMathUI(); });
+
+    // Touch safety
+    canvas.addEventListener('touchstart', (e) => { if(e.cancelable) e.preventDefault(); }, { passive: false });
+    canvas.addEventListener('touchmove', (e) => { if(e.cancelable) e.preventDefault(); }, { passive: false });
+
+    // --- DRAWING HELPERS ---
+    // Helper to draw a rounded rectangle
+    CanvasRenderingContext2D.prototype.roundRect = function (x, y, w, h, r) {
+      if (w < 2 * r) r = w / 2;
+      if (h < 2 * r) r = h / 2;
+      this.beginPath();
+      this.moveTo(x+r, y);
+      this.arcTo(x+w, y,   x+w, y+h, r);
+      this.arcTo(x+w, y+h, x,   y+h, r);
+      this.arcTo(x,   y+h, x,   y,   r);
+      this.arcTo(x,   y,   x+w, y,   r);
+      this.closePath();
+      return this;
+    }
+
+    function drawArrowHead(x, y, angle, opacity, colorRGB) {
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.rotate(angle);
+        
+        ctx.fillStyle = `rgba(${colorRGB}, ${opacity + 0.3})`; 
+        ctx.shadowColor = `rgba(${colorRGB}, 1)`;
+        ctx.shadowBlur = 10;
+        
+        ctx.beginPath();
+        ctx.moveTo(10, 0);
+        ctx.lineTo(-8, -7);
+        ctx.lineTo(-3, 0);
+        ctx.lineTo(-8, 7);
+        ctx.closePath();
+        ctx.fill();
+        
+        ctx.restore();
+    }
+
+    function drawCurrentMarker(x, y, dir, opacity, colorRGB) {
+        const angle = dir === 1 ? -Math.PI / 2 : Math.PI / 2;
+
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.rotate(angle);
+
+        ctx.strokeStyle = `rgba(${colorRGB}, ${opacity})`;
+        ctx.fillStyle = `rgba(${colorRGB}, ${Math.min(1, opacity + 0.2)})`;
+        ctx.lineWidth = 2.4;
+        ctx.lineCap = "round";
+        ctx.shadowColor = `rgba(${colorRGB}, 1)`;
+        ctx.shadowBlur = 10;
+
+        ctx.beginPath();
+        ctx.moveTo(-7, 0);
+        ctx.lineTo(6, 0);
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.moveTo(10, 0);
+        ctx.lineTo(2, -5);
+        ctx.lineTo(2, 5);
+        ctx.closePath();
+        ctx.fill();
+
+        ctx.restore();
+        ctx.shadowBlur = 0;
+    }
+
+    function drawHolographicHand(flip) {
+        ctx.save();
+        ctx.translate(cx, cy);
+        
+        // Flip the hand vertically if current flows down
+        if (flip === -1) {
+            ctx.scale(1, -1);
+        }
+
+        const handBaseColor = "rgba(14, 165, 233, 0.2)"; // Transparent Cyan
+        const handBorderColor = "rgba(56, 189, 248, 0.8)"; // Solid Cyan
+        
+        ctx.shadowColor = 'rgba(56, 189, 248, 0.6)';
+        ctx.shadowBlur = 15;
+
+        // 1. Draw Palm / Base of hand (behind wire visually)
+        ctx.fillStyle = handBaseColor;
+        ctx.strokeStyle = handBorderColor;
+        ctx.lineWidth = 2;
+        
+        ctx.beginPath();
+        ctx.arc(35, 10, 35, -Math.PI/2, Math.PI*1.2);
+        ctx.fill();
+        ctx.stroke();
+
+        // 2. Draw Thumb (Pointing UP relative to hand orientation)
+        ctx.beginPath();
+        ctx.roundRect(25, -90, 24, 60, 12);
+        ctx.fill();
+        ctx.stroke();
+        
+        // Thumb nail / joint detailing
+        ctx.beginPath();
+        ctx.arc(37, -75, 6, 0, Math.PI);
+        ctx.stroke();
+
+        // 3. Draw Fingers curling OVER the front of the wire
+        // They wrap from right (x:20) to left (x:-25)
+        for (let i = 0; i < 4; i++) {
+            ctx.beginPath();
+            let fWidth = 65 - (i * 5); // Fingers get slightly shorter
+            let fHeight = 16;
+            ctx.roundRect(-30, -15 + (i * 22), fWidth, fHeight, 8);
+            ctx.fill();
+            ctx.stroke();
+            
+            // Knuckle detailing
+            ctx.beginPath();
+            ctx.moveTo(0, -15 + (i * 22));
+            ctx.lineTo(0, -15 + (i * 22) + fHeight);
+            ctx.stroke();
+        }
+
+        ctx.restore();
+    }
+
+    // --- RENDER LOOP ---
+    function animateLoop() {
+      if (!w) { requestAnimationFrame(animateLoop); return; }
+
+      ctx.clearRect(0, 0, w, h);
+
+      // Deep Dark Void
+      ctx.fillStyle = "#0f172a"; 
+      ctx.fillRect(0, 0, w, h);
+
+      const colorUp = "56, 189, 248"; // #38bdf8 (Blue)
+      const colorDown = "234, 88, 12"; // #ea580c (Orange)
+      const baseColor = state.dir === 1 ? colorUp : colorDown;
+
+      // On canvas, increasing theta appears clockwise because +y points downward.
+      // Negating the speed keeps the visible field direction aligned with the right-hand rule:
+      // current UP -> CCW on screen, current DOWN -> CW on screen.
+      let angularSpeed = -(state.I / 100) * 0.04 * state.dir;
+      globalTheta += angularSpeed;
+
+      const wireRadius = 18;
+      const ellipses = [
+          { rx: 90, ry: 35 },
+          { rx: 170, ry: 65 },
+          { rx: 270, ry: 100 }
+      ];
+
+      // --- LAYER 1: BACK HALF OF ELLIPSES (Behind Wire/Hand) ---
+      if (state.I > 0) {
+          ellipses.forEach(el => {
+              let opacity = Math.min(0.8, (state.I / 100)) * 0.25; // Dimmer in back
+              ctx.beginPath();
+              // Math.PI to 2*Math.PI represents the "top" half of the 2D canvas ellipse, 
+              // which visually corresponds to the "back" in isometric view.
+              ctx.ellipse(cx, cy, el.rx, el.ry, 0, Math.PI, 2 * Math.PI);
+              ctx.strokeStyle = `rgba(${baseColor}, ${opacity})`;
+              ctx.lineWidth = 2;
+              ctx.stroke();
+          });
+      }
+
+      // --- LAYER 2: THE WIRE ---
+      // Draw shadow/glow behind wire
+      ctx.shadowColor = `rgba(${baseColor}, 0.5)`;
+      ctx.shadowBlur = state.I > 0 ? 20 : 0;
+      
+      // Wire base
+      ctx.fillStyle = "#1e293b"; 
+      ctx.fillRect(cx - wireRadius - 2, 0, (wireRadius+2)*2, h);
+      
+      // Copper core
+      let copperGrad = ctx.createLinearGradient(cx - wireRadius, 0, cx + wireRadius, 0);
+      copperGrad.addColorStop(0, "#78350f"); // Dark copper edge
+      copperGrad.addColorStop(0.5, "#d97706"); // Bright copper center
+      copperGrad.addColorStop(1, "#92400e");
+      
+      ctx.shadowBlur = 0; // reset shadow for sharp draw
+      ctx.fillStyle = copperGrad;
+      ctx.fillRect(cx - wireRadius, 0, wireRadius * 2, h);
+      
+      // --- LAYER 3: CONVENTIONAL CURRENT MARKERS ---
+      if (state.I > 0) {
+          // Canvas y increases downward, so conventional current UP moves markers upward.
+          const markerSpeed = -(state.I / 100) * 8 * state.dir;
+          const markerOpacity = 0.85;
+
+          state.currentMarkers.forEach(marker => {
+              marker.y += markerSpeed;
+              // Screen wrapping
+              if (marker.y > h + 12) marker.y -= (h + 24);
+              if (marker.y < -12) marker.y += (h + 24);
+
+              drawCurrentMarker(cx + marker.xOffset, marker.y, state.dir, markerOpacity, baseColor);
+          });
+      }
+
+      // --- LAYER 4: RIGHT HAND VISUAL ---
+      if (state.showThumb) {
+          drawHolographicHand(state.dir);
+      }
+
+      // --- LAYER 5: FRONT HALF OF ELLIPSES (In front of Wire/Hand) ---
+      if (state.I > 0) {
+          ellipses.forEach((el, index) => {
+              let opacity = Math.min(0.9, (state.I / 100)) * 0.8; // Brighter in front
+              ctx.beginPath();
+              // 0 to Math.PI represents the "bottom" half of the 2D canvas ellipse, 
+              // which visually corresponds to the "front" in isometric view.
+              ctx.ellipse(cx, cy, el.rx, el.ry, 0, 0, Math.PI);
+              ctx.strokeStyle = `rgba(${baseColor}, ${opacity})`;
+              ctx.lineWidth = 3;
+              
+              ctx.shadowColor = `rgba(${baseColor}, 1)`;
+              ctx.shadowBlur = 10;
+              ctx.stroke();
+              ctx.shadowBlur = 0; // reset
+
+              // --- DRAW ARROWHEADS ON ELLIPSE ---
+              // Determine number of arrows based on ring size
+              let numArrows = 2 + index * 2; 
+              
+              for(let i=0; i<numArrows; i++) {
+                  let localTheta = globalTheta + (i * 2 * Math.PI / numArrows);
+                  
+                  // Wrap theta to [0, 2PI)
+                  let normTheta = localTheta % (2 * Math.PI);
+                  if (normTheta < 0) normTheta += 2 * Math.PI;
+
+                  // Calculate position on ellipse
+                  let ax = cx + el.rx * Math.cos(normTheta);
+                  let ay = cy + el.ry * Math.sin(normTheta);
+                  
+                  // Calculate tangent angle for the arrowhead
+                  // Derivative of parametric ellipse: dx = -rx*sin(t), dy = ry*cos(t)
+                  let tangentX = -el.rx * Math.sin(normTheta);
+                  let tangentY = el.ry * Math.cos(normTheta);
+                  
+                  // The derivative gives the direction for increasing theta.
+                  // If angularSpeed is negative, the visible motion is the opposite way,
+                  // so flip the tangent to keep arrowheads aligned with the animation.
+                  if (angularSpeed < 0) {
+                      tangentX *= -1;
+                      tangentY *= -1;
+                  }
+                  
+                  let arrowAngle = Math.atan2(tangentY, tangentX);
+                  
+                  // Draw arrow. Make it dimmer if it's on the "back" half of the ellipse (PI to 2PI)
+                  let isFront = normTheta > 0 && normTheta < Math.PI;
+                  let arrowOpacity = isFront ? opacity : opacity * 0.3;
+                  
+                  drawArrowHead(ax, ay, arrowAngle, arrowOpacity, baseColor);
+              }
+          });
+      }
+
+      requestAnimationFrame(animateLoop);
+    }
+
+    // Boot sequence
+    window.addEventListener("load", () => {
+      resizeCanvas();
+      requestAnimationFrame(animateLoop);
+    });
+
+  </script>
+</body>
+</html>
