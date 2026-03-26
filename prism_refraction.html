@@ -369,15 +369,27 @@
     }
 
     function bindTap(button, handler) {
-      button.addEventListener('click', handler);
+      let touchTriggered = false;
+
+      button.addEventListener('click', (e) => {
+        if (touchTriggered) {
+          touchTriggered = false;
+          return;
+        }
+        handler(e);
+      });
+
       button.addEventListener('touchend', (e) => {
+        touchTriggered = true;
         if (e.cancelable) e.preventDefault();
         handler(e);
+        window.setTimeout(() => { touchTriggered = false; }, 400);
       }, { passive: false });
     }
 
     bindTap(els.toggleBtn, () => { setControlsPanelOpen(true); });
     bindTap(els.closeBtn, () => { setControlsPanelOpen(false); });
+    bindTap(els.minDevBtn, () => { window.setMinimumDeviation(); });
 
     function rad(deg) { return deg * Math.PI / 180; }
     function deg(rad) { return rad * 180 / Math.PI; }
