@@ -1,0 +1,656 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Current Loop Polarity</title>
+  <style>
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: #0f172a; /* Deep Slate Void */
+      color: #e2e8f0;
+      overflow: hidden; 
+    }
+
+    canvas {
+      display: block;
+      width: 100vw;
+      height: 100vh;
+      position: absolute;
+      top: 0;
+      left: 0;
+      z-index: 1;
+      touch-action: none; 
+    }
+
+    .toggle-btn {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      background: rgba(15, 23, 42, 0.85);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      color: white;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      padding: 10px 16px;
+      border-radius: 8px;
+      font-size: 1rem;
+      font-weight: bold;
+      cursor: pointer;
+      z-index: 5;
+      transition: background 0.2s;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+    }
+    .toggle-btn:hover { background: rgba(255, 255, 255, 0.2); }
+
+    .controls-panel {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      width: 380px;
+      max-height: calc(100vh - 40px);
+      overflow-y: auto;
+      z-index: 10;
+      background: rgba(15, 23, 42, 0.85);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border-radius: 16px;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      padding: 20px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+      transition: transform 0.3s ease, opacity 0.3s ease;
+    }
+
+    .controls-panel.hidden {
+      transform: translateX(120%);
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .close-btn {
+      position: absolute;
+      top: 15px;
+      right: 15px;
+      background: none;
+      border: none;
+      color: #94a3b8;
+      font-size: 1.2rem;
+      cursor: pointer;
+      padding: 0;
+      line-height: 1;
+    }
+    .close-btn:hover { color: white; }
+
+    .controls-panel::-webkit-scrollbar { width: 6px; }
+    .controls-panel::-webkit-scrollbar-thumb { background: #475569; border-radius: 3px; }
+
+    .title {
+      margin: 0 0 15px;
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: #f8fafc;
+      text-align: center;
+      border-bottom: 1px solid #334155;
+      padding-bottom: 10px;
+    }
+
+    .action-btn {
+      width: 100%; padding: 12px; border-radius: 8px; font-weight: bold;
+      font-size: 1.05rem; cursor: pointer; border: none; transition: 0.2s;
+      margin-bottom: 15px; color: white;
+    }
+    .action-btn:hover { filter: brightness(1.1); }
+    .action-btn:active { transform: scale(0.98); }
+    
+    .btn-key { background: #475569; }
+    .btn-key.active { background: #10b981; box-shadow: 0 4px 15px rgba(16, 185, 129, 0.4); }
+    
+    .btn-pol { background: #0284c7; box-shadow: 0 4px 15px rgba(2, 132, 199, 0.4); }
+
+    .lab-panel {
+      background: rgba(0,0,0,0.6); border: 1px solid #475569;
+      border-radius: 12px; padding: 15px; margin-bottom: 0;
+      transition: border-color 0.3s;
+    }
+    .lab-header {
+      font-size: 1.05rem; color: #94a3b8; font-weight: bold;
+      text-transform: uppercase; margin-bottom: 12px; text-align: center;
+      border-bottom: 1px solid #334155; padding-bottom: 8px;
+      letter-spacing: 1px;
+    }
+
+    .rule-text {
+      font-size: 0.9rem;
+      line-height: 1.4;
+      color: #e2e8f0;
+      font-style: italic;
+      text-align: center;
+      background: rgba(255,255,255,0.05);
+      padding: 10px;
+      border-radius: 6px;
+      margin-bottom: 15px;
+      border-left: 3px solid #facc15;
+    }
+
+    .calc-block {
+      background: #020617; border: 1px solid #475569; border-radius: 6px;
+      padding: 10px; margin-bottom: 10px; font-family: "Courier New", Courier, monospace;
+      text-align: center; font-size: 0.95rem; color: #e2e8f0;
+      transition: border-color 0.3s;
+    }
+    .calc-title { font-size: 0.8rem; margin-bottom: 5px; font-family: sans-serif; text-transform: uppercase; letter-spacing: 0.5px;}
+    .highlight-val { font-weight: bold; font-size: 1.1rem;}
+
+    .status-badge {
+      display: block; text-align: center; font-weight: bold; font-size: 0.9rem;
+      padding: 12px 10px; border-radius: 6px; margin-top: 15px; letter-spacing: 0.5px;
+      transition: all 0.3s;
+    }
+    .status-off { background: #334155; color: #94a3b8; }
+    .status-north { background: #ef4444; color: white; box-shadow: 0 0 15px rgba(239, 68, 68, 0.5); }
+    .status-south { background: #38bdf8; color: #0f172a; box-shadow: 0 0 15px rgba(56, 189, 248, 0.5); }
+  </style>
+</head>
+<body>
+
+  <canvas id="simCanvas"></canvas>
+
+  <button id="toggleBtn" class="toggle-btn">⚙️ Settings & Lab</button>
+
+  <div id="controlsPanel" class="controls-panel">
+    <button id="closeBtn" class="close-btn">✖</button>
+    <div class="title">Current Loop Polarity</div>
+
+    <button id="btnKey" class="action-btn btn-key active">🟢 Key (Switch): CLOSED</button>
+    <button id="btnPolarity" class="action-btn btn-pol">🔁 Reverse Battery Polarity</button>
+
+    <div class="lab-panel" id="labPanelBorder">
+      <div class="lab-header">Lab Workspace</div>
+
+      <div class="rule-text">
+        "Viewed from the front face of the loop: anti-clockwise conventional current gives a North pole, while clockwise conventional current gives a South pole."
+      </div>
+
+      <div class="calc-block" id="blockField">
+        <div class="calc-title" style="color: #cbd5e1;">Center Magnetic Field (B)</div>
+        <span id="labField" class="highlight-val" style="color: #cbd5e1;">--</span>
+      </div>
+
+      <div class="calc-block" id="blockCurrent">
+        <div class="calc-title" style="color: #fbbf24;">Conventional Current</div>
+        <span id="labCurrent" class="highlight-val" style="color: #fbbf24;">--</span>
+      </div>
+
+      <div id="badge" class="status-badge status-off">
+        NO CURRENT / NEUTRAL
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // --- STATE ---
+    const state = {
+      isOn: true,       
+      isClockwise: false, // false = CCW (North), true = CW (South)
+      time: 0,
+      initialized: false
+    };
+
+    let w, h, cx, cy;
+    let pathLength = 0;
+    
+    // Geometry Constants
+    let R = 190; // Radius of loop
+    const alpha = 0.42; // Angle gap at bottom (radians)
+    let wireYDist = 210; // Distance from center to bottom circuit wire
+
+    // --- DOM ELEMENTS ---
+    const els = {
+      btnKey: document.getElementById('btnKey'),
+      btnPolarity: document.getElementById('btnPolarity'),
+
+      labField: document.getElementById('labField'),
+      labCurrent: document.getElementById('labCurrent'),
+      badge: document.getElementById('badge'),
+      labPanelBorder: document.getElementById('labPanelBorder'),
+      blockField: document.getElementById('blockField'),
+      blockCurrent: document.getElementById('blockCurrent'),
+      
+      toggleBtn: document.getElementById('toggleBtn'), 
+      controlsPanel: document.getElementById('controlsPanel'), 
+      closeBtn: document.getElementById('closeBtn')
+    };
+
+    const canvas = document.getElementById('simCanvas');
+    const ctx = canvas.getContext('2d');
+
+    function resizeCanvas() {
+      const dpr = window.devicePixelRatio || 1;
+      w = window.innerWidth;
+      h = window.innerHeight;
+      
+      canvas.width = w * dpr;
+      canvas.height = h * dpr;
+      ctx.setTransform(1, 0, 0, 1, 0, 0); 
+      ctx.scale(dpr, dpr);
+      
+      R = Math.max(170, Math.min(235, Math.min(h * 0.25, w * (w > 900 ? 0.19 : 0.3))));
+      wireYDist = R + 34;
+
+      // Center of the canvas (shifted left on large screens to make room for controls)
+      cx = w > 900 ? w * 0.38 : w / 2;
+      cy = h * 0.4;
+      
+      if (!state.initialized) {
+          state.initialized = true;
+      }
+      
+      updateMathUI(); 
+    }
+    window.addEventListener('resize', resizeCanvas);
+    
+    // --- UI LOGIC ---
+    els.toggleBtn.addEventListener('click', () => { els.controlsPanel.classList.remove('hidden'); });
+    els.closeBtn.addEventListener('click', () => { els.controlsPanel.classList.add('hidden'); });
+
+    els.btnKey.addEventListener('click', () => {
+        state.isOn = !state.isOn;
+        if (state.isOn) {
+            els.btnKey.textContent = "🟢 Key (Switch): CLOSED";
+            els.btnKey.className = "action-btn btn-key active";
+        } else {
+            els.btnKey.textContent = "⚪ Key (Switch): OPEN";
+            els.btnKey.className = "action-btn btn-key";
+        }
+        updateMathUI();
+    });
+
+    els.btnPolarity.addEventListener('click', () => {
+        state.isClockwise = !state.isClockwise;
+        updateMathUI();
+    });
+
+    function updateMathUI() {
+      const colorNorth = "#ef4444"; // Red
+      const colorSouth = "#38bdf8"; // Blue
+
+      if (!state.isOn) {
+          els.badge.textContent = "NO CURRENT / NEUTRAL";
+          els.badge.className = "status-badge status-off";
+          els.labPanelBorder.style.borderColor = "#475569";
+          els.blockField.style.borderColor = "#475569";
+          els.blockCurrent.style.borderColor = "#475569";
+          els.labField.style.color = "#cbd5e1";
+          els.labCurrent.style.color = "#fbbf24";
+          els.labField.textContent = "--";
+          els.labCurrent.textContent = "--";
+      } else if (!state.isClockwise) {
+          // Anti-Clockwise = North
+          els.labField.textContent = "Out of the screen (\u2299)";
+          els.labCurrent.textContent = "Anti-clockwise";
+          els.badge.textContent = "NORTH POLE (Anti-clockwise)";
+          els.badge.className = "status-badge status-north";
+          
+          els.labPanelBorder.style.borderColor = colorNorth;
+          els.blockField.style.borderColor = colorNorth;
+          els.blockCurrent.style.borderColor = "#fbbf24";
+          els.labField.style.color = colorNorth;
+      } else {
+          // Clockwise = South
+          els.labField.textContent = "Into the screen (\u2297)";
+          els.labCurrent.textContent = "Clockwise";
+          els.badge.textContent = "SOUTH POLE (Clockwise)";
+          els.badge.className = "status-badge status-south";
+          
+          els.labPanelBorder.style.borderColor = colorSouth;
+          els.blockField.style.borderColor = colorSouth;
+          els.blockCurrent.style.borderColor = "#fbbf24";
+          els.labField.style.color = colorSouth;
+      }
+    }
+
+    // Touch safety
+    canvas.addEventListener('touchstart', (e) => { if(e.cancelable) e.preventDefault(); }, { passive: false });
+    canvas.addEventListener('touchmove', (e) => { if(e.cancelable) e.preventDefault(); }, { passive: false });
+
+    // --- MATH & GEOMETRY FOR CURRENT PATH ---
+    function getPathData() {
+        const gapX = R * Math.sin(alpha);
+        const loopDY = R * Math.cos(alpha);
+        const bottomY = cy + wireYDist;
+        
+        // Arc starts at bottom left (PI/2 + alpha), goes over top to bottom right (PI/2 - alpha) -> using CCW drawing
+        const arcLen = R * (2 * Math.PI - 2 * alpha);
+        
+        const nodes = {
+            battery: {x: cx, y: bottomY},
+            BL: {x: cx - gapX, y: bottomY},         // Bottom Left
+            LL: {x: cx - gapX, y: cy + loopDY},     // Loop Left (entrance)
+            LR: {x: cx + gapX, y: cy + loopDY},     // Loop Right (exit)
+            BR: {x: cx + gapX, y: bottomY}          // Bottom Right
+        };
+        
+        const segs = [
+            { type: 'line', len: gapX, start: nodes.battery, end: nodes.BL },
+            { type: 'line', len: bottomY - (cy + loopDY), start: nodes.BL, end: nodes.LL },
+            { type: 'arc',  len: arcLen, startAngle: Math.PI/2 + alpha, endAngle: Math.PI/2 - alpha },
+            { type: 'line', len: bottomY - (cy + loopDY), start: nodes.LR, end: nodes.BR },
+            { type: 'line', len: gapX, start: nodes.BR, end: nodes.battery }
+        ];
+        
+        let total = 0;
+        segs.forEach(s => { total += s.len; });
+        return { segs, total, nodes };
+    }
+
+    // Get strictly Anti-Clockwise tracking point
+    function getCCWPointAt(dist, pathData) {
+        let d = dist % pathData.total;
+        if (d < 0) d += pathData.total;
+        
+        let current = 0;
+        // CCW flow: Battery -> BR -> LR -> Arc -> LL -> BL -> Battery
+        // Segment 5 (reversed), Segment 4 (reversed), Segment 3 (reversed arc), Segment 2 (reversed), Segment 1 (reversed)
+        
+        // 1. Battery to BR
+        let sLen = pathData.segs[4].len;
+        if (d <= current + sLen) {
+            let p = (d - current) / sLen;
+            return { x: cx + p * pathData.segs[4].len, y: pathData.nodes.battery.y, angle: 0 }; // moving right
+        }
+        current += sLen;
+
+        // 2. BR to LR
+        sLen = pathData.segs[3].len;
+        if (d <= current + sLen) {
+            let p = (d - current) / sLen;
+            return { x: pathData.nodes.BR.x, y: pathData.nodes.BR.y - p * sLen, angle: -Math.PI/2 }; // moving up
+        }
+        current += sLen;
+
+        // 3. Arc (from LR over top to LL) -> angles from PI/2 - alpha going CCW to PI/2 + alpha
+        sLen = pathData.segs[2].len;
+        if (d <= current + sLen) {
+            let p = (d - current) / sLen;
+            // Angle mapping: start at PI/2 - alpha. Go backwards over 0 to -PI to PI/2 + alpha.
+            let a = (Math.PI/2 - alpha) - p * (2 * Math.PI - 2 * alpha);
+            return {
+                x: cx + R * Math.cos(a),
+                y: cy + R * Math.sin(a),
+                angle: a - Math.PI/2 // Tangent
+            };
+        }
+        current += sLen;
+
+        // 4. LL to BL
+        sLen = pathData.segs[1].len;
+        if (d <= current + sLen) {
+            let p = (d - current) / sLen;
+            return { x: pathData.nodes.LL.x, y: pathData.nodes.LL.y + p * sLen, angle: Math.PI/2 }; // moving down
+        }
+        current += sLen;
+
+        // 5. BL to Battery
+        sLen = pathData.segs[0].len;
+        let p = (d - current) / sLen;
+        return { x: pathData.nodes.BL.x + p * sLen, y: pathData.nodes.battery.y, angle: 0 }; // moving right
+    }
+
+    // Get strictly Clockwise tracking point
+    function getCWPointAt(dist, pathData) {
+        let d = dist % pathData.total;
+        if (d < 0) d += pathData.total;
+        
+        let current = 0;
+        // CW flow: Battery -> BL -> LL -> Arc -> LR -> BR -> Battery
+        
+        // 1. Battery to BL
+        let sLen = pathData.segs[0].len;
+        if (d <= current + sLen) {
+            let p = (d - current) / sLen;
+            return { x: cx - p * sLen, y: pathData.nodes.battery.y, angle: Math.PI }; // moving left
+        }
+        current += sLen;
+
+        // 2. BL to LL
+        sLen = pathData.segs[1].len;
+        if (d <= current + sLen) {
+            let p = (d - current) / sLen;
+            return { x: pathData.nodes.BL.x, y: pathData.nodes.BL.y - p * sLen, angle: -Math.PI/2 }; // moving up
+        }
+        current += sLen;
+
+        // 3. Arc (from LL over top to LR)
+        sLen = pathData.segs[2].len;
+        if (d <= current + sLen) {
+            let p = (d - current) / sLen;
+            let a = (Math.PI/2 + alpha) + p * (2 * Math.PI - 2 * alpha);
+            return {
+                x: cx + R * Math.cos(a),
+                y: cy + R * Math.sin(a),
+                angle: a + Math.PI/2 // Tangent
+            };
+        }
+        current += sLen;
+
+        // 4. LR to BR
+        sLen = pathData.segs[3].len;
+        if (d <= current + sLen) {
+            let p = (d - current) / sLen;
+            return { x: pathData.nodes.LR.x, y: pathData.nodes.LR.y + p * sLen, angle: Math.PI/2 }; // moving down
+        }
+        current += sLen;
+
+        // 5. BR to Battery
+        sLen = pathData.segs[4].len;
+        let p = (d - current) / sLen;
+        return { x: pathData.nodes.BR.x - p * sLen, y: pathData.nodes.battery.y, angle: Math.PI }; // moving left
+    }
+
+    // --- DRAWING HELPERS ---
+    function drawArrowHead(x, y, angle, color) {
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.rotate(angle);
+        
+        ctx.fillStyle = color; 
+        ctx.shadowColor = color;
+        ctx.shadowBlur = 10;
+        
+        ctx.beginPath();
+        ctx.moveTo(10, 0);
+        ctx.lineTo(-8, -8);
+        ctx.lineTo(-2, 0);
+        ctx.lineTo(-8, 8);
+        ctx.closePath();
+        ctx.fill();
+        
+        ctx.restore();
+    }
+
+    function drawPoleIndicator() {
+        if (!state.isOn) return;
+
+        const isNorth = !state.isClockwise;
+        const label = isNorth ? "N" : "S";
+        const fill = isNorth ? "#ef4444" : "#38bdf8";
+        const textColor = isNorth ? "#ffffff" : "#0f172a";
+        const boxY = cy - R - 74;
+
+        ctx.save();
+        ctx.fillStyle = "rgba(15, 23, 42, 0.88)";
+        ctx.strokeStyle = "rgba(255, 255, 255, 0.14)";
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.roundRect(cx - 38, boxY - 20, 76, 52, 18);
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.fillStyle = fill;
+        ctx.beginPath();
+        ctx.roundRect(cx - 22, boxY - 7, 44, 28, 12);
+        ctx.fill();
+
+        ctx.fillStyle = textColor;
+        ctx.font = "bold 22px Arial";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText(label, cx, boxY + 7);
+        ctx.restore();
+    }
+
+    function drawCircuit() {
+        const pathData = getPathData();
+        const n = pathData.nodes;
+        const bottomY = n.battery.y;
+        const batteryW = 90;
+        const batteryH = 48;
+        const batteryX = cx - batteryW / 2;
+        const batteryY = bottomY - batteryH / 2;
+        const pSign = state.isClockwise ? -1 : 1;
+        
+        ctx.strokeStyle = "#5b3415"; // dark copper shadow
+        ctx.lineWidth = 18;
+        ctx.lineJoin = 'round';
+        ctx.lineCap = 'round';
+        
+        ctx.beginPath();
+        // Left side up
+        ctx.moveTo(batteryX, bottomY); 
+        ctx.lineTo(n.BL.x, n.BL.y);
+        ctx.lineTo(n.LL.x, n.LL.y);
+        // Loop arc
+        ctx.arc(cx, cy, R, Math.PI/2 + alpha, Math.PI/2 - alpha, false);
+        // Right side down
+        ctx.lineTo(n.BR.x, n.BR.y);
+        ctx.lineTo(batteryX + batteryW, bottomY);
+        ctx.stroke();
+
+        // Copper highlight
+        ctx.strokeStyle = "#d97706";
+        ctx.lineWidth = 10;
+        ctx.stroke();
+
+        // Battery housing
+        ctx.save();
+        ctx.shadowColor = "rgba(0,0,0,0.35)";
+        ctx.shadowBlur = 14;
+        ctx.fillStyle = "#e2e8f0";
+        ctx.beginPath();
+        ctx.roundRect(batteryX, batteryY, batteryW, batteryH, 16);
+        ctx.fill();
+        ctx.restore();
+
+        ctx.strokeStyle = "#94a3b8";
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.roundRect(batteryX, batteryY, batteryW, batteryH, 16);
+        ctx.stroke();
+        
+        ctx.strokeStyle = "white"; 
+        ctx.lineWidth = 3;
+        
+        // Positive terminal (Long)
+        ctx.beginPath(); 
+        ctx.moveTo(cx + 16 * pSign, bottomY - 16); 
+        ctx.lineTo(cx + 16 * pSign, bottomY + 16); 
+        ctx.stroke();
+        
+        // Negative terminal (Short thick)
+        ctx.lineWidth = 5;
+        ctx.beginPath(); 
+        ctx.moveTo(cx - 16 * pSign, bottomY - 9); 
+        ctx.lineTo(cx - 16 * pSign, bottomY + 9); 
+        ctx.stroke();
+
+        ctx.fillStyle = "#0f172a";
+        ctx.font = "bold 16px Arial";
+        ctx.textAlign = "center";
+        ctx.fillText("+", cx + 31 * pSign, bottomY);
+        ctx.fillText("-", cx - 31 * pSign, bottomY);
+
+        // Switch on the left vertical branch
+        let keyY = n.BL.y - 50;
+        ctx.fillStyle = "rgba(2, 6, 23, 0.92)";
+        if (state.isOn) {
+            ctx.strokeStyle = "#10b981";
+        } else {
+            ctx.strokeStyle = "#e2e8f0";
+        }
+        ctx.beginPath();
+        ctx.roundRect(n.BL.x - 26, keyY - 26, 52, 52, 16);
+        ctx.fill();
+        ctx.strokeStyle = "rgba(255,255,255,0.16)";
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+
+        ctx.fillStyle = "#e2e8f0";
+        ctx.beginPath(); ctx.arc(n.BL.x, keyY - 15, 5, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.arc(n.BL.x, keyY + 15, 5, 0, Math.PI*2); ctx.fill();
+
+        ctx.strokeStyle = state.isOn ? "#10b981" : "#e2e8f0";
+        ctx.lineWidth = 4.5;
+        ctx.beginPath();
+        ctx.moveTo(n.BL.x, keyY + 15);
+        if (state.isOn) {
+            ctx.lineTo(n.BL.x, keyY - 15);
+        } else {
+            ctx.lineTo(n.BL.x + 22, keyY - 4);
+        }
+        ctx.stroke();
+    }
+
+    // --- RENDER LOOP ---
+    let lastTime = 0;
+    function animateLoop(timestamp) {
+      if (!w) { requestAnimationFrame(animateLoop); return; }
+      
+      let dt = timestamp - lastTime;
+      lastTime = timestamp;
+      if (state.isOn) state.time += dt * 0.2; // speed
+
+      ctx.clearRect(0, 0, w, h);
+
+      // Deep Dark Void
+      ctx.fillStyle = "#0f172a"; 
+      ctx.fillRect(0, 0, w, h);
+
+      // Faint background rings
+      ctx.strokeStyle = "rgba(255, 255, 255, 0.03)";
+      ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.arc(cx, cy, R - 34, 0, Math.PI*2); ctx.stroke();
+      ctx.beginPath(); ctx.arc(cx, cy, R + 34, 0, Math.PI*2); ctx.stroke();
+
+      drawCircuit();
+      drawPoleIndicator();
+
+      // Draw animated conventional current arrows
+      if (state.isOn) {
+          const pathData = getPathData();
+          const numArrows = 10;
+          const spacing = pathData.total / numArrows;
+          
+          for(let i=0; i<numArrows; i++) {
+              let dist = state.time + (i * spacing);
+              let pt = state.isClockwise ? getCWPointAt(dist, pathData) : getCCWPointAt(dist, pathData);
+              
+              let color = state.isClockwise ? "#1e3a8a" : "#991b1b";
+              drawArrowHead(pt.x, pt.y, pt.angle, color);
+          }
+      }
+
+      requestAnimationFrame(animateLoop);
+    }
+
+    // Boot sequence
+    window.addEventListener("load", () => {
+      resizeCanvas();
+      requestAnimationFrame(animateLoop);
+    });
+
+  </script>
+</body>
+</html>
