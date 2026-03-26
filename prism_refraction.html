@@ -364,8 +364,20 @@
     window.addEventListener('resize', resizeCanvas);
     
     // --- UI LOGIC ---
-    els.toggleBtn.addEventListener('click', () => { els.controlsPanel.classList.remove('hidden'); });
-    els.closeBtn.addEventListener('click', () => { els.controlsPanel.classList.add('hidden'); });
+    function setControlsPanelOpen(isOpen) {
+      els.controlsPanel.classList.toggle('hidden', !isOpen);
+    }
+
+    function bindTap(button, handler) {
+      button.addEventListener('click', handler);
+      button.addEventListener('touchend', (e) => {
+        if (e.cancelable) e.preventDefault();
+        handler(e);
+      }, { passive: false });
+    }
+
+    bindTap(els.toggleBtn, () => { setControlsPanelOpen(true); });
+    bindTap(els.closeBtn, () => { setControlsPanelOpen(false); });
 
     function rad(deg) { return deg * Math.PI / 180; }
     function deg(rad) { return rad * 180 / Math.PI; }
