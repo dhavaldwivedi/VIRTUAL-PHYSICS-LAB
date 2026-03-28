@@ -933,11 +933,36 @@
         return;
       }
 
-      const yMaxData = Math.max(...state.observations.map((entry) => entry.delta), 10);
-      const yMax = Math.ceil((yMaxData + 5) / 5) * 5;
-      const xMin = 0;
-      const xMax = 90;
-      const yMin = 0;
+      const xValues = state.observations.map((entry) => entry.i);
+      const yValues = state.observations.map((entry) => entry.delta);
+      const xDataMin = Math.min(...xValues);
+      const xDataMax = Math.max(...xValues);
+      const yDataMin = Math.min(...yValues);
+      const yDataMax = Math.max(...yValues);
+      const xSpan = Math.max(xDataMax - xDataMin, 4);
+      const ySpan = Math.max(yDataMax - yDataMin, 6);
+      const xPadding = Math.max(1, xSpan * 0.08);
+      const yPadding = Math.max(3, ySpan * 0.35);
+
+      let xMin = Math.max(0, Math.floor((xDataMin - xPadding) / 2) * 2);
+      let xMax = Math.min(90, Math.ceil((xDataMax + xPadding) / 2) * 2);
+      let yMin = Math.max(0, Math.floor((yDataMin - yPadding) / 5) * 5);
+      let yMax = Math.ceil((yDataMax + yPadding) / 5) * 5;
+
+      if (xMax - xMin < 6) {
+        const xMid = (xDataMin + xDataMax) / 2;
+        xMin = Math.max(0, Math.floor((xMid - 3) / 2) * 2);
+        xMax = Math.min(90, Math.ceil((xMid + 3) / 2) * 2);
+      }
+
+      if (yMax - yMin < 10) {
+        const yMid = (yDataMin + yDataMax) / 2;
+        yMin = Math.max(0, Math.floor((yMid - 5) / 5) * 5);
+        yMax = Math.ceil((yMid + 5) / 5) * 5;
+      }
+
+      const xTickStep = xMax - xMin <= 12 ? 2 : (xMax - xMin <= 24 ? 4 : 5);
+      const yTickStep = yMax - yMin <= 20 ? 2 : (yMax - yMin <= 40 ? 5 : 10);
 
       const xToPx = (value) => margin.left + ((value - xMin) / (xMax - xMin)) * plotWidth;
       const yToPx = (value) => margin.top + plotHeight - ((value - yMin) / (yMax - yMin)) * plotHeight;
@@ -949,7 +974,7 @@
       obsCtx.textAlign = "right";
       obsCtx.textBaseline = "middle";
 
-      for (let tick = 0; tick <= yMax; tick += 10) {
+      for (let tick = yMin; tick <= yMax; tick += yTickStep) {
         const y = yToPx(tick);
         obsCtx.beginPath();
         obsCtx.moveTo(margin.left, y);
@@ -960,7 +985,7 @@
 
       obsCtx.textAlign = "center";
       obsCtx.textBaseline = "top";
-      for (let tick = 0; tick <= 90; tick += 15) {
+      for (let tick = xMin; tick <= xMax; tick += xTickStep) {
         const x = xToPx(tick);
         obsCtx.beginPath();
         obsCtx.moveTo(x, margin.top);
