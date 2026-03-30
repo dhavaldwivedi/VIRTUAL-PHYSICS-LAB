@@ -44,6 +44,8 @@
       z-index: 5;
       transition: background 0.2s;
       box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+      touch-action: manipulation;
+      -webkit-tap-highlight-color: transparent;
     }
     .toggle-btn:hover { background: rgba(255, 255, 255, 0.2); }
 
@@ -75,13 +77,21 @@
       position: absolute;
       top: 15px;
       right: 15px;
-      background: none;
-      border: none;
+      width: 44px;
+      height: 44px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 999px;
       color: #94a3b8;
-      font-size: 1.2rem;
+      font-size: 1.35rem;
       cursor: pointer;
       padding: 0;
       line-height: 1;
+      touch-action: manipulation;
+      -webkit-tap-highlight-color: transparent;
     }
     .close-btn:hover { color: white; }
 
@@ -210,7 +220,7 @@
 <body>
 
   <canvas id="simCanvas"></canvas>
-  
+  <div class="drag-hint">👆 <span>Drag the Gold Coin or Observer</span> to change the setup.</div>
 
   <button id="toggleBtn" class="toggle-btn">⚙️ Settings & Lab</button>
 
@@ -478,7 +488,7 @@
     }
 
     function handleDragEnd(e) { 
-      if (e && e.touches && e.cancelable) e.preventDefault(); 
+      if (state.dragNode !== null && e && e.touches && e.cancelable) e.preventDefault(); 
       state.dragNode = null; 
       canvas.style.cursor = 'default';
     }
