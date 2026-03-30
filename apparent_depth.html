@@ -1,0 +1,727 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Apparent vs Real Depth Simulation</title>
+  <style>
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: #0f172a; /* Deep Slate Void */
+      color: #e2e8f0;
+      overflow: hidden; 
+      touch-action: none;
+    }
+
+    canvas {
+      display: block;
+      width: 100vw;
+      height: 100vh;
+      position: absolute;
+      top: 0;
+      left: 0;
+      z-index: 1;
+    }
+
+    /* Floating Control Panel */
+    .toggle-btn {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      background: rgba(15, 23, 42, 0.85);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      color: white;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      padding: 10px 16px;
+      border-radius: 8px;
+      font-size: 1rem;
+      font-weight: bold;
+      cursor: pointer;
+      z-index: 5;
+      transition: background 0.2s;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+    }
+    .toggle-btn:hover { background: rgba(255, 255, 255, 0.2); }
+
+    .controls-panel {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      width: 380px;
+      max-height: calc(100vh - 40px);
+      overflow-y: auto;
+      z-index: 10;
+      background: rgba(15, 23, 42, 0.85);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border-radius: 16px;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      padding: 20px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+      transition: transform 0.3s ease, opacity 0.3s ease;
+    }
+
+    .controls-panel.hidden {
+      transform: translateX(120%);
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .close-btn {
+      position: absolute;
+      top: 15px;
+      right: 15px;
+      background: none;
+      border: none;
+      color: #94a3b8;
+      font-size: 1.2rem;
+      cursor: pointer;
+      padding: 0;
+      line-height: 1;
+    }
+    .close-btn:hover { color: white; }
+
+    .controls-panel::-webkit-scrollbar { width: 6px; }
+    .controls-panel::-webkit-scrollbar-thumb { background: #475569; border-radius: 3px; }
+
+    .title {
+      margin: 0 0 15px;
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: #f8fafc;
+      text-align: center;
+      border-bottom: 1px solid #334155;
+      padding-bottom: 10px;
+    }
+
+    .quick-btn-row {
+      display: flex; gap: 10px; margin-bottom: 15px;
+    }
+    .quick-btn {
+      flex: 1; padding: 10px; border-radius: 8px; font-weight: bold;
+      font-size: 0.9rem; cursor: pointer; border: none; transition: 0.2s;
+      color: white; background: #3b82f6; box-shadow: 0 4px 10px rgba(59, 130, 246, 0.3);
+    }
+    .quick-btn.glass { background: #8b5cf6; box-shadow: 0 4px 10px rgba(139, 92, 246, 0.3); }
+    .quick-btn:hover { filter: brightness(1.1); transform: translateY(-1px); }
+    .quick-btn:active { transform: scale(0.98); }
+
+    .control-section {
+      background: rgba(0,0,0,0.3);
+      border-radius: 10px;
+      border: 1px solid #334155;
+      padding: 15px;
+      margin-bottom: 15px;
+    }
+
+    .control-group { margin-bottom: 15px; }
+    .control-group:last-child { margin-bottom: 0; }
+
+    .control-group label {
+      display: flex; justify-content: space-between; align-items: center;
+      font-size: 0.85rem; font-weight: 600; color: #cbd5e1; margin-bottom: 6px;
+    }
+
+    .val-container { display: flex; align-items: center; gap: 6px; }
+
+    button.step-btn {
+      flex: none; width: 26px; height: 26px; padding: 0;
+      border-radius: 6px; background: rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.2); color: white;
+      font-size: 1rem; cursor: pointer; display: flex; align-items: center; justify-content: center; line-height: 1;
+    }
+    button.step-btn:hover { background: rgba(255, 255, 255, 0.25); }
+
+    .val-text {
+      min-width: 55px; text-align: right;
+      font-family: 'Courier New', Courier, monospace; font-weight: bold;
+    }
+
+    input[type="range"] { width: 100%; min-height: 24px; cursor: pointer; accent-color: #06b6d4; }
+    #slMu { accent-color: #38bdf8; }
+    #slEye { accent-color: #a855f7; }
+
+    /* Lab Workspace */
+    .lab-panel {
+      background: rgba(0,0,0,0.6); border: 1px solid #475569;
+      border-radius: 12px; padding: 15px; margin-bottom: 0;
+      transition: border-color 0.3s;
+    }
+    .lab-header {
+      font-size: 1.05rem; color: #94a3b8; font-weight: bold;
+      text-transform: uppercase; margin-bottom: 12px; text-align: center;
+      border-bottom: 1px solid #334155; padding-bottom: 8px;
+      letter-spacing: 1px;
+    }
+
+    .rule-text {
+      font-size: 0.95rem;
+      line-height: 1.4;
+      color: #e2e8f0;
+      text-align: center;
+      background: rgba(255,255,255,0.05);
+      padding: 10px;
+      border-radius: 6px;
+      margin-bottom: 15px;
+      border-left: 3px solid #38bdf8;
+      font-family: 'Courier New', Courier, monospace;
+      font-weight: bold;
+    }
+
+    .readings-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+
+    .calc-block {
+      background: #020617; border: 1px solid #475569; border-radius: 6px;
+      padding: 10px; font-family: "Courier New", Courier, monospace;
+      text-align: center; font-size: 0.95rem; color: #e2e8f0;
+    }
+    .calc-block.full { grid-column: span 2; }
+    
+    .calc-title { font-size: 0.75rem; margin-bottom: 5px; font-family: sans-serif; text-transform: uppercase; letter-spacing: 0.5px; color: #94a3b8;}
+    .highlight-val { font-weight: bold; font-size: 1.1rem; color: #facc15; }
+
+    .status-badge {
+      display: block; text-align: center; font-weight: bold; font-size: 0.85rem;
+      padding: 12px 10px; border-radius: 6px; margin-top: 15px; letter-spacing: 0.5px;
+      transition: all 0.3s;
+    }
+    .status-off { background: #334155; color: #94a3b8; }
+    .status-active { background: #0284c7; color: white; box-shadow: 0 0 15px rgba(2, 132, 199, 0.5); }
+
+    .drag-hint {
+      position: absolute; bottom: 20px; left: 20px;
+      background: rgba(15, 23, 42, 0.8); padding: 10px 15px; border-radius: 8px;
+      border: 1px solid #334155; color: #ffffff; font-size: 0.95rem; font-weight: bold;
+      pointer-events: none; z-index: 10; line-height: 1.4;
+      backdrop-filter: blur(4px);
+    }
+    .drag-hint span { color: #facc15; }
+  </style>
+</head>
+<body>
+
+  <canvas id="simCanvas"></canvas>
+  <div class="drag-hint">👆 <span>Drag the Gold Coin or Observer</span> to change the setup.</div>
+
+  <button id="toggleBtn" class="toggle-btn">⚙️ Settings & Lab</button>
+
+  <div id="controlsPanel" class="controls-panel">
+    <button id="closeBtn" class="close-btn">✖</button>
+    <div class="title">Apparent vs. Real Depth</div>
+
+    <div class="quick-btn-row">
+      <button class="quick-btn" onclick="setPreset(1.33)">Water (&mu;=1.33)</button>
+      <button class="quick-btn glass" onclick="setPreset(1.50)">Glass (&mu;=1.50)</button>
+    </div>
+
+    <div class="control-section" style="border-left: 4px solid #38bdf8;">
+      <div class="control-group">
+        <label>
+          <span style="color: #38bdf8;">Refractive Index (&mu;)</span>
+          <div class="val-container">
+            <button class="step-btn" onclick="stepState('mu', -0.01)">-</button>
+            <span id="valMu" class="val-text" style="color: white;">1.33</span>
+            <button class="step-btn" onclick="stepState('mu', 0.01)">+</button>
+          </div>
+        </label>
+        <input type="range" id="slMu" min="1.0" max="2.5" step="0.01" value="1.33">
+      </div>
+      
+      <div class="control-group">
+        <label>
+          <span style="color: #06b6d4;">Real Depth (h)</span>
+          <div class="val-container">
+            <button class="step-btn" onclick="stepState('h', -1)">-</button>
+            <span id="valH" class="val-text" style="color: white;">30 cm</span>
+            <button class="step-btn" onclick="stepState('h', 1)">+</button>
+          </div>
+        </label>
+        <input type="range" id="slH" min="10" max="60" step="0.1" value="30">
+      </div>
+
+      <div class="control-group" style="margin-bottom: 0;">
+        <label>
+          <span style="color: #a855f7;">Observer Position</span>
+          <span style="font-size: 0.75rem; color: #64748b;">Near &rarr; Far</span>
+        </label>
+        <input type="range" id="slEye" min="0" max="60" step="1" value="20">
+      </div>
+    </div>
+
+    <div class="lab-panel" id="labPanelBorder">
+      <div class="lab-header">Lab Workspace</div>
+
+      <div class="rule-text">
+        Apparent Depth (h') = h / &mu;
+      </div>
+
+      <div class="readings-grid">
+        <div class="calc-block" style="border-color: #06b6d4;">
+          <div class="calc-title" style="color:#06b6d4;">Real Depth (h)</div>
+          <span id="labReal" class="highlight-val" style="color:#06b6d4;">30.0 cm</span>
+        </div>
+        <div class="calc-block" style="border-color: #facc15;">
+          <div class="calc-title" style="color:#facc15;">Apparent Depth <span style="text-transform:none;">(h')</span></div>
+          <span id="labApp" class="highlight-val" style="color:#facc15;">22.6 cm</span>
+        </div>
+        <div class="calc-block full" style="border-color: #a855f7;">
+          <div class="calc-title" style="color:#a855f7;">Normal Shift (Lift)</div>
+          d = h - h' = <span id="labShift" class="highlight-val" style="color:#a855f7;">7.4 cm</span>
+        </div>
+      </div>
+
+      <div id="badge" class="status-badge status-active">
+        OBJECT APPEARS SHALLOWER
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // --- STATE MANAGEMENT ---
+    const state = {
+      mu: 1.33,
+      h: 30, // cm
+      eyeOffset: 20, // cm distance along the surface
+      objectX: null,
+      eyeDistance: 180,
+      
+      // Derived physics
+      get h_app() { return this.h / this.mu; },
+      get shift() { return this.h - this.h_app; },
+      
+      pxPerCm: 8, // Mapping cm to pixels
+      
+      dragNode: null,
+      initialized: false
+    };
+
+    let w, winH, cx, cy; // cy is the surface boundary y-coordinate
+
+    // --- DOM ELEMENTS ---
+    const els = {
+      slMu: document.getElementById('slMu'), valMu: document.getElementById('valMu'),
+      slH: document.getElementById('slH'), valH: document.getElementById('valH'),
+      slEye: document.getElementById('slEye'),
+      
+      labReal: document.getElementById('labReal'),
+      labApp: document.getElementById('labApp'),
+      labShift: document.getElementById('labShift'),
+      badge: document.getElementById('badge'),
+      labPanelBorder: document.getElementById('labPanelBorder'),
+      
+      toggleBtn: document.getElementById('toggleBtn'), 
+      controlsPanel: document.getElementById('controlsPanel'), 
+      closeBtn: document.getElementById('closeBtn')
+    };
+
+    const canvas = document.getElementById('simCanvas');
+    const ctx = canvas.getContext('2d');
+
+    // --- SETUP & RESIZE ---
+    function resizeCanvas() {
+      const dpr = window.devicePixelRatio || 1;
+      w = window.innerWidth;
+      winH = window.innerHeight;
+      canvas.width = w * dpr;
+      canvas.height = winH * dpr;
+      ctx.setTransform(1, 0, 0, 1, 0, 0); 
+      ctx.scale(dpr, dpr);
+      
+      // Boundary line is placed at 1/3 down the screen to leave room for the eye in the air
+      cy = winH * 0.35;
+      cx = w > 800 ? w * 0.35 : w / 2; // Default object anchor
+      if (state.objectX === null) state.objectX = cx;
+      state.objectX = Math.max(70, Math.min(w - 70, state.objectX));
+      
+      // Scale px per cm so 60cm fits nicely
+      state.pxPerCm = (winH - cy - 50) / 60;
+
+      if (!state.initialized) state.initialized = true;
+      updateMathUI(); 
+    }
+    window.addEventListener('resize', resizeCanvas);
+
+    // --- UI EVENT LISTENERS ---
+    els.toggleBtn.addEventListener('click', () => els.controlsPanel.classList.remove('hidden'));
+    els.closeBtn.addEventListener('click', () => els.controlsPanel.classList.add('hidden'));
+
+    window.setPreset = function(val) {
+        state.mu = val;
+        updateMathUI();
+    };
+
+    window.stepState = function(param, amount) {
+        state[param] += amount;
+        if (param === 'mu') state[param] = Math.round(state[param]*100)/100;
+        updateMathUI();
+    };
+
+    els.slMu.addEventListener('input', (e) => { state.mu = parseFloat(e.target.value); updateMathUI(); });
+    els.slH.addEventListener('input', (e) => { state.h = parseFloat(e.target.value); updateMathUI(); });
+    els.slEye.addEventListener('input', (e) => { state.eyeOffset = parseFloat(e.target.value); updateMathUI(); });
+
+    function updateMathUI() {
+      // Clamping
+      state.mu = Math.max(1.0, Math.min(2.5, state.mu));
+      state.h = Math.max(10, Math.min(60, state.h));
+      state.eyeOffset = Math.max(0, Math.min(60, state.eyeOffset));
+      state.eyeDistance = Math.max(110, Math.min(320, state.eyeDistance));
+
+      els.slMu.value = state.mu; els.valMu.textContent = state.mu.toFixed(2);
+      els.slH.value = state.h; els.valH.textContent = `${state.h.toFixed(1)} cm`;
+      els.slEye.value = state.eyeOffset;
+
+      // Update Lab HUD
+      els.labReal.textContent = `${state.h.toFixed(1)} cm`;
+      els.labApp.textContent = `${state.h_app.toFixed(1)} cm`;
+      els.labShift.textContent = `${state.shift.toFixed(1)} cm`;
+
+      if (state.mu === 1.0) {
+          els.badge.textContent = "NO REFRACTION (SAME MEDIUM)";
+          els.badge.className = "status-badge status-off";
+          els.labPanelBorder.style.borderColor = "#475569";
+      } else {
+          els.badge.textContent = "OBJECT APPEARS SHALLOWER";
+          els.badge.className = "status-badge status-active";
+          els.labPanelBorder.style.borderColor = "#0284c7";
+      }
+    }
+
+    function getSceneGeometry() {
+      const objectX = state.objectX ?? cx;
+      const o_y = cy + state.h * state.pxPerCm;
+      const i_y = cy + state.h_app * state.pxPerCm;
+      const s_x = objectX + state.eyeOffset * state.pxPerCm;
+      const refractedAngle = Math.atan2(s_x - objectX, i_y - cy);
+      const eyeX = s_x + state.eyeDistance * Math.sin(refractedAngle);
+      const eyeY = cy - state.eyeDistance * Math.cos(refractedAngle);
+      return { objectX, o_y, i_y, s_x, refractedAngle, eyeX, eyeY };
+    }
+
+    // --- DRAGGING LOGIC ---
+    function getPointerPos(e) {
+      const rect = canvas.getBoundingClientRect();
+      const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+      const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+      return { x: clientX - rect.left, y: clientY - rect.top };
+    }
+
+    function handleDragStart(e) {
+      if(e.target !== canvas) return;
+      const pos = getPointerPos(e);
+      const hitBuffer = e.touches ? 40 : 20; 
+      
+      const { objectX, o_y, eyeX, eyeY } = getSceneGeometry();
+      
+      let dx = pos.x - objectX;
+      let dy = pos.y - o_y;
+      if (Math.sqrt(dx*dx + dy*dy) < 30 + hitBuffer) {
+          state.dragNode = 'object';
+          canvas.style.cursor = 'grabbing';
+          if(e.touches && e.cancelable) e.preventDefault();
+          return;
+      }
+
+      dx = pos.x - eyeX;
+      dy = pos.y - eyeY;
+      if (Math.sqrt(dx*dx + dy*dy) < 34 + hitBuffer) {
+          state.dragNode = 'observer';
+          canvas.style.cursor = 'grabbing';
+          if(e.touches && e.cancelable) e.preventDefault();
+      }
+    }
+
+    function handleDragMove(e) {
+      const pos = getPointerPos(e);
+
+      if (state.dragNode === null) {
+          if (!e.touches) {
+              const { objectX, o_y, eyeX, eyeY } = getSceneGeometry();
+              let dx = pos.x - objectX;
+              let dy = pos.y - o_y;
+              const nearObject = Math.sqrt(dx*dx + dy*dy) < 30;
+              dx = pos.x - eyeX;
+              dy = pos.y - eyeY;
+              const nearObserver = Math.sqrt(dx*dx + dy*dy) < 34;
+              canvas.style.cursor = (nearObject || nearObserver) ? 'grab' : 'default';
+          }
+          return; 
+      }
+      
+      if (e.touches && e.cancelable) e.preventDefault(); 
+      
+      if (state.dragNode === 'object') {
+          state.objectX = Math.max(70, Math.min(w - 70, pos.x));
+          let newH = (pos.y - cy) / state.pxPerCm;
+          state.h = Math.max(10, Math.min(60, newH));
+          updateMathUI(); 
+      } else if (state.dragNode === 'observer') {
+          const { objectX, i_y } = getSceneGeometry();
+          const dragX = Math.max(objectX + 20, Math.min(w - 40, pos.x));
+          const dragY = Math.max(40, Math.min(cy - 35, pos.y));
+          const surfaceFactor = (cy - i_y) / (dragY - i_y);
+          const surfaceX = objectX + (dragX - objectX) * surfaceFactor;
+
+          state.eyeOffset = (surfaceX - objectX) / state.pxPerCm;
+          state.eyeDistance = Math.hypot(dragX - surfaceX, dragY - cy);
+          updateMathUI();
+      }
+    }
+
+    function handleDragEnd(e) { 
+      if (e && e.touches && e.cancelable) e.preventDefault(); 
+      state.dragNode = null; 
+      canvas.style.cursor = 'default';
+    }
+
+    canvas.addEventListener('mousedown', handleDragStart);
+    window.addEventListener('mousemove', handleDragMove);
+    window.addEventListener('mouseup', handleDragEnd);
+    canvas.addEventListener('touchstart', handleDragStart, { passive: false });
+    window.addEventListener('touchmove', handleDragMove, { passive: false });
+    window.addEventListener('touchend', handleDragEnd, { passive: false });
+
+    // --- DRAWING HELPERS ---
+    function drawRay(x1, y1, x2, y2, color, dashed = false) {
+        ctx.beginPath();
+        ctx.moveTo(x1, y1);
+        ctx.lineTo(x2, y2);
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 3;
+        if(dashed) ctx.setLineDash([8, 8]);
+        else ctx.setLineDash([]);
+        
+        ctx.shadowColor = color;
+        ctx.shadowBlur = 10;
+        ctx.stroke();
+        ctx.shadowBlur = 0; // reset
+        ctx.setLineDash([]);
+        
+        // Directional arrow midway for solid rays
+        if(!dashed) {
+            let mx = (x1 + x2)/2;
+            let my = (y1 + y2)/2;
+            let angle = Math.atan2(y2 - y1, x2 - x1);
+            ctx.save();
+            ctx.translate(mx, my);
+            ctx.rotate(angle);
+            ctx.beginPath(); ctx.moveTo(6, 0); ctx.lineTo(-6, -5); ctx.lineTo(-6, 5);
+            ctx.fillStyle = color; ctx.fill();
+            ctx.restore();
+        }
+    }
+
+    function drawEye(x, y, angle) {
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.rotate(angle);
+        
+        // Stylized vector eye
+        ctx.strokeStyle = "#cbd5e1";
+        ctx.lineWidth = 3;
+        ctx.fillStyle = "#0f172a";
+        
+        ctx.beginPath();
+        ctx.moveTo(25, 0);
+        ctx.quadraticCurveTo(0, -25, -25, 0);
+        ctx.quadraticCurveTo(0, 25, 25, 0);
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.arc(0, 0, 10, 0, Math.PI*2);
+        ctx.fillStyle = "#38bdf8"; // Iris
+        ctx.fill();
+        ctx.stroke();
+        
+        ctx.beginPath();
+        ctx.arc(0, 0, 4, 0, Math.PI*2);
+        ctx.fillStyle = "#0f172a"; // Pupil
+        ctx.fill();
+
+        ctx.restore();
+    }
+
+    function drawDepthMeasurement(x, yTop, yBottom, label, color, textXOffset = 0) {
+        if (Math.abs(yBottom - yTop) < 8) return;
+
+        ctx.save();
+        ctx.strokeStyle = color;
+        ctx.fillStyle = color;
+        ctx.lineWidth = 2.5;
+        ctx.setLineDash([6, 5]);
+
+        ctx.beginPath();
+        ctx.moveTo(x, yTop);
+        ctx.lineTo(x, yBottom);
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        const cap = 10;
+        ctx.beginPath();
+        ctx.moveTo(x - cap, yTop);
+        ctx.lineTo(x + cap, yTop);
+        ctx.moveTo(x - cap, yBottom);
+        ctx.lineTo(x + cap, yBottom);
+        ctx.stroke();
+
+        const drawArrowHead = (tipX, tipY, direction) => {
+            ctx.beginPath();
+            ctx.moveTo(tipX, tipY);
+            ctx.lineTo(tipX - 5, tipY + 8 * direction);
+            ctx.lineTo(tipX + 5, tipY + 8 * direction);
+            ctx.closePath();
+            ctx.fill();
+        };
+
+        drawArrowHead(x, yTop + 2, 1);
+        drawArrowHead(x, yBottom - 2, -1);
+
+        const midY = (yTop + yBottom) / 2;
+        ctx.font = "bold 15px Arial";
+        ctx.textAlign = textXOffset >= 0 ? "left" : "right";
+        ctx.textBaseline = "middle";
+
+        const labelX = x + textXOffset;
+        const lines = label.split("\n");
+        lines.forEach((line, index) => {
+            const offset = (index - (lines.length - 1) / 2) * 18;
+            ctx.fillText(line, labelX, midY + offset);
+        });
+        ctx.restore();
+    }
+
+    // --- RENDER LOOP ---
+    function animateLoop() {
+      if (!w) { requestAnimationFrame(animateLoop); return; }
+
+      ctx.clearRect(0, 0, w, winH);
+
+      // --- 1. Backgrounds ---
+      // Air (top)
+      ctx.fillStyle = "#0f172a"; 
+      ctx.fillRect(0, 0, w, cy);
+
+      // Denser Medium (bottom) with gradient
+      let waterGrad = ctx.createLinearGradient(0, cy, 0, winH);
+      waterGrad.addColorStop(0, "rgba(6, 182, 212, 0.2)"); // Cyan near surface
+      waterGrad.addColorStop(1, "rgba(8, 145, 178, 0.6)"); // Darker teal deep down
+      ctx.fillStyle = waterGrad;
+      ctx.fillRect(0, cy, w, winH - cy);
+
+      // Boundary line
+      ctx.beginPath(); ctx.moveTo(0, cy); ctx.lineTo(w, cy);
+      ctx.strokeStyle = "#22d3ee"; ctx.lineWidth = 3; 
+      ctx.shadowColor = "#22d3ee"; ctx.shadowBlur = 15;
+      ctx.stroke(); ctx.shadowBlur = 0;
+      
+      ctx.fillStyle = "#94a3b8"; ctx.font = "bold 18px Arial";
+      ctx.fillText(`Air (n = 1.00)`, 20, cy - 20);
+      ctx.fillStyle = "#22d3ee";
+      ctx.fillText(`Medium (\u03BC = ${state.mu.toFixed(2)})`, 20, cy + 30);
+
+      // --- 2. Geometric Nodes ---
+      const { objectX, o_y, i_y, s_x, refractedAngle, eyeX, eyeY } = getSceneGeometry();
+
+      // --- 3. Light Rays ---
+      
+      // Normal Incidence Ray (Straight up)
+      drawRay(objectX, o_y, objectX, cy, "#facc15"); // Object to surface
+      drawRay(objectX, cy, objectX, 0, "#facc15"); // Surface to air
+
+      // Oblique Incident Ray
+      drawRay(objectX, o_y, s_x, cy, "#ef4444");
+
+      // Refracted Ray (Continues from virtual image line to observer)
+      drawRay(s_x, cy, eyeX, eyeY, "#ef4444");
+
+      // The Optical Illusion: Dashed ray from surface back to Apparent Image
+      // This is the key pedagogical feature!
+      drawRay(s_x, cy, objectX, i_y, "rgba(239, 68, 68, 0.7)", true); 
+
+      // --- 4. Visual Aids ---
+      // Surface Normal at Oblique intersection
+      ctx.beginPath(); ctx.moveTo(s_x, cy - 80); ctx.lineTo(s_x, cy + 80);
+      ctx.strokeStyle = "rgba(255,255,255,0.4)"; ctx.lineWidth = 2; ctx.setLineDash([5,5]); ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.fillStyle = "rgba(255,255,255,0.7)"; ctx.font = "14px Arial"; ctx.fillText("Normal", s_x - 55, cy - 60);
+
+      const measureBaseX = Math.max(55, Math.min(w - 130, objectX - 80));
+      drawDepthMeasurement(
+          measureBaseX,
+          cy,
+          o_y,
+          `Real Depth\nh = ${state.h.toFixed(1)} cm`,
+          "#06b6d4",
+          -16
+      );
+      drawDepthMeasurement(
+          measureBaseX + 34,
+          cy,
+          i_y,
+          `Apparent Depth\nh' = ${state.h_app.toFixed(1)} cm`,
+          "#facc15",
+          16
+      );
+
+      // --- 5. Observer ---
+      drawEye(eyeX, eyeY, refractedAngle - Math.PI/2);
+
+      // --- 6. Objects (Draw last to appear on top of rays) ---
+
+      // Apparent Image (Ghostly Coin)
+      ctx.beginPath();
+      ctx.ellipse(objectX, i_y, 24, 12, 0, 0, Math.PI*2);
+      ctx.fillStyle = "rgba(250, 204, 21, 0.4)"; // Ghostly gold
+      ctx.fill();
+      ctx.strokeStyle = "rgba(250, 204, 21, 0.8)";
+      ctx.lineWidth = 2; ctx.setLineDash([4,4]); ctx.stroke(); ctx.setLineDash([]);
+      ctx.fillStyle = "white"; ctx.font = "bold 16px Arial"; ctx.fillText("I", objectX + 35, i_y + 5);
+
+      // Real Object (Solid Gold Coin)
+      ctx.beginPath();
+      ctx.ellipse(objectX, o_y, 24, 12, 0, 0, Math.PI*2);
+      ctx.fillStyle = "#facc15"; // Solid Gold
+      ctx.shadowColor = "#facc15"; ctx.shadowBlur = 20;
+      ctx.fill();
+      ctx.strokeStyle = "#ca8a04"; ctx.lineWidth = 3; ctx.stroke(); ctx.shadowBlur = 0;
+      ctx.fillStyle = "white"; ctx.font = "bold 16px Arial"; ctx.fillText("O", objectX + 35, o_y + 5);
+
+      // Shift distance indicator
+      if (state.mu > 1.0) {
+          let bracketX = objectX - 50;
+          ctx.beginPath();
+          ctx.moveTo(bracketX, i_y); ctx.lineTo(bracketX - 10, i_y);
+          ctx.moveTo(bracketX - 5, i_y); ctx.lineTo(bracketX - 5, o_y);
+          ctx.moveTo(bracketX, o_y); ctx.lineTo(bracketX - 10, o_y);
+          ctx.strokeStyle = "#a855f7"; ctx.lineWidth = 2; ctx.stroke();
+          
+          ctx.save();
+          ctx.translate(bracketX - 15, (i_y + o_y)/2);
+          ctx.rotate(-Math.PI/2);
+          ctx.fillStyle = "#a855f7"; ctx.font = "bold 14px Arial"; ctx.textAlign="center";
+          ctx.fillText(`Shift = ${state.shift.toFixed(1)} cm`, 0, 0);
+          ctx.restore();
+      }
+
+      requestAnimationFrame(animateLoop);
+    }
+
+    // Boot sequence
+    window.addEventListener("load", () => {
+      resizeCanvas();
+      requestAnimationFrame(animateLoop);
+    });
+
+  </script>
+</body>
+</html>
