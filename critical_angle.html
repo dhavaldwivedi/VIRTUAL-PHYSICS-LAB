@@ -1,802 +1,1189 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Total Internal Reflection & Critical Angle</title>
-  <style>
-    * { box-sizing: border-box; }
-
-    body {
-      margin: 0;
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      background: #0f172a; /* Deep Slate Void */
-      color: #e2e8f0;
-      overflow: hidden; 
-      touch-action: manipulation;
-    }
-
-    canvas {
-      display: block;
-      width: 100vw;
-      height: 100vh;
-      position: absolute;
-      top: 0;
-      left: 0;
-      z-index: 1;
-    }
-
-    /* Floating Control Panel */
-    .toggle-btn {
-      position: absolute;
-      top: 20px;
-      right: 20px;
-      background: rgba(15, 23, 42, 0.85);
-      backdrop-filter: blur(12px);
-      -webkit-backdrop-filter: blur(12px);
-      color: white;
-      border: 1px solid rgba(255, 255, 255, 0.2);
-      padding: 10px 16px;
-      border-radius: 8px;
-      font-size: 1rem;
-      font-weight: bold;
-      cursor: pointer;
-      z-index: 5;
-      transition: background 0.2s;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.4);
-    }
-    .toggle-btn:hover { background: rgba(255, 255, 255, 0.2); }
-
-    .controls-panel {
-      position: absolute;
-      top: 20px;
-      right: 20px;
-      width: 380px;
-      max-height: calc(100vh - 40px);
-      overflow-y: auto;
-      z-index: 10;
-      background: rgba(15, 23, 42, 0.85);
-      backdrop-filter: blur(12px);
-      -webkit-backdrop-filter: blur(12px);
-      border-radius: 16px;
-      border: 1px solid rgba(255, 255, 255, 0.15);
-      padding: 20px;
-      box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-      transition: transform 0.3s ease, opacity 0.3s ease;
-    }
-
-    .controls-panel.hidden {
-      transform: translateX(120%);
-      opacity: 0;
-      pointer-events: none;
-    }
-
-    .close-btn {
-      position: absolute;
-      top: 15px;
-      right: 15px;
-      background: none;
-      border: none;
-      color: #94a3b8;
-      font-size: 1.2rem;
-      cursor: pointer;
-      padding: 6px;
-      min-width: 44px;
-      min-height: 44px;
-      line-height: 1;
-      touch-action: manipulation;
-    }
-    .close-btn:hover { color: white; }
-
-    .controls-panel::-webkit-scrollbar { width: 6px; }
-    .controls-panel::-webkit-scrollbar-thumb { background: #475569; border-radius: 3px; }
-
-    .title {
-      margin: 0 0 15px;
-      font-size: 1.2rem;
-      font-weight: 700;
-      color: #f8fafc;
-      text-align: center;
-      border-bottom: 1px solid #334155;
-      padding-bottom: 10px;
-    }
-
-    .control-section {
-      background: rgba(0,0,0,0.3);
-      border-radius: 10px;
-      border: 1px solid #334155;
-      padding: 15px;
-      margin-bottom: 15px;
-    }
-
-    .control-group { margin-bottom: 15px; }
-    .control-group:last-child { margin-bottom: 0; }
-
-    .control-group label {
-      display: flex; justify-content: space-between; align-items: center;
-      font-size: 0.85rem; font-weight: 600; color: #cbd5e1; margin-bottom: 6px;
-    }
-
-    .control-group select {
-      width: 100%;
-      min-height: 40px;
-      padding: 8px 10px;
-      border-radius: 8px;
-      border: 1px solid #475569;
-      background: rgba(15, 23, 42, 0.9);
-      color: #e2e8f0;
-      font-size: 0.95rem;
-      outline: none;
-    }
-
-    .control-group select:focus {
-      border-color: #38bdf8;
-      box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.2);
-    }
-
-    .val-container { display: flex; align-items: center; gap: 6px; }
-
-    button.step-btn {
-      flex: none; width: 26px; height: 26px; padding: 0;
-      border-radius: 6px; background: rgba(255, 255, 255, 0.1);
-      border: 1px solid rgba(255, 255, 255, 0.2); color: white;
-      font-size: 1rem; cursor: pointer; display: flex; align-items: center; justify-content: center; line-height: 1;
-    }
-    button.step-btn:hover { background: rgba(255, 255, 255, 0.25); }
-
-    .action-btn {
-      width: 100%;
-      margin-top: 10px;
-      padding: 10px 12px;
-      min-height: 44px;
-      border-radius: 8px;
-      border: 1px solid rgba(250, 204, 21, 0.35);
-      background: rgba(250, 204, 21, 0.12);
-      color: #fde68a;
-      font-size: 0.9rem;
-      font-weight: 700;
-      cursor: pointer;
-      transition: background 0.2s, border-color 0.2s;
-      touch-action: manipulation;
-    }
-
-    .action-btn:hover {
-      background: rgba(250, 204, 21, 0.2);
-      border-color: rgba(250, 204, 21, 0.6);
-    }
-
-    .val-text {
-      min-width: 55px; text-align: right;
-      font-family: 'Courier New', Courier, monospace; font-weight: bold;
-    }
-
-    input[type="range"] { width: 100%; min-height: 24px; cursor: pointer; }
-    
-    #slLambda {
-      background: linear-gradient(to right, #7e22ce, #3b82f6, #10b981, #eab308, #ef4444);
-      -webkit-appearance: none; border-radius: 12px; height: 8px; outline: none;
-    }
-    #slLambda::-webkit-slider-thumb {
-      -webkit-appearance: none; appearance: none; width: 20px; height: 20px;
-      border-radius: 50%; background: white; cursor: pointer; border: 2px solid #0f172a;
-    }
-
-    /* Lab Workspace */
-    .lab-panel {
-      background: rgba(0,0,0,0.6); border: 1px solid #475569;
-      border-radius: 12px; padding: 15px; margin-bottom: 0;
-      transition: border-color 0.3s;
-    }
-    .lab-header {
-      font-size: 1.05rem; color: #94a3b8; font-weight: bold;
-      text-transform: uppercase; margin-bottom: 12px; text-align: center;
-      border-bottom: 1px solid #334155; padding-bottom: 8px;
-      letter-spacing: 1px;
-    }
-
-    .calc-block {
-      background: #020617; border: 1px solid #475569; border-radius: 6px;
-      padding: 10px; margin-bottom: 10px; font-family: "Courier New", Courier, monospace;
-      text-align: center; font-size: 0.95rem; color: #e2e8f0;
-    }
-    
-    .calc-title { font-size: 0.75rem; margin-bottom: 5px; font-family: sans-serif; text-transform: uppercase; letter-spacing: 0.5px; color: #94a3b8;}
-    .highlight-val { font-weight: bold; font-size: 1.1rem; color: #facc15; }
-
-    .status-badge {
-      display: block; text-align: center; font-weight: bold; font-size: 0.85rem;
-      padding: 12px 10px; border-radius: 6px; margin-top: 15px; letter-spacing: 0.5px;
-      transition: all 0.3s;
-    }
-    .status-normal { background: #334155; color: #cbd5e1; }
-    .status-grazing { background: #facc15; color: #0f172a; box-shadow: 0 0 15px rgba(250, 204, 21, 0.5); }
-    .status-tir { background: #ef4444; color: white; box-shadow: 0 0 15px rgba(239, 68, 68, 0.5); }
-
-    .drag-hint {
-      position: absolute; bottom: 20px; left: 20px;
-      background: rgba(15, 23, 42, 0.8); padding: 10px 15px; border-radius: 8px;
-      border: 1px solid #334155; color: #ffffff; font-size: 0.95rem; font-weight: bold;
-      pointer-events: none; z-index: 10; line-height: 1.4;
-      backdrop-filter: blur(4px);
-    }
-    .drag-hint span { color: #facc15; }
-  </style>
-</head>
-<body>
-
-  <canvas id="simCanvas"></canvas>
-  
-  <button id="toggleBtn" class="toggle-btn" type="button">⚙️ Settings & Lab</button>
-
-  <div id="controlsPanel" class="controls-panel">
-    <button id="closeBtn" class="close-btn" type="button">✖</button>
-    <div class="title">TIR & Critical Angle</div>
-
-    <div class="control-section" style="border-left: 4px solid #facc15;">
-      <div class="control-group">
-        <label>
-          <span style="color: #facc15;">Angle of Incidence (i)</span>
-          <div class="val-container">
-            <button class="step-btn" onclick="stepState('i', -0.01)">-</button>
-            <span id="valI" class="val-text" style="color: white;">35.00&deg;</span>
-            <button class="step-btn" onclick="stepState('i', 0.01)">+</button>
-          </div>
-        </label>
-        <input type="range" id="slI" min="0" max="89.99" step="0.01" value="35">
-        <button id="setCriticalBtn" class="action-btn" type="button" onclick="setIncidentToCritical()">Set i = Critical Angle</button>
-      </div>
-    </div>
-
-    <div class="control-section" style="border-left: 4px solid #38bdf8;">
-      <div class="control-group">
-        <label>
-          <span style="color: #38bdf8;">Base Refractive Index (&mu;)</span>
-          <div class="val-container">
-            <button class="step-btn" onclick="stepState('muBase', -0.01)">-</button>
-            <span id="valMu" class="val-text" style="color: white;">1.33</span>
-            <button class="step-btn" onclick="stepState('muBase', 0.01)">+</button>
-          </div>
-        </label>
-        <input type="range" id="slMu" min="1.30" max="2.50" step="0.01" value="1.33">
-      </div>
-
-      <div class="control-group">
-        <label for="selMedium">
-          <span style="color: #7dd3fc;">Common Medium</span>
-        </label>
-        <select id="selMedium">
-          <option value="1.31">Ice</option>
-          <option value="1.33" selected>Water</option>
-          <option value="1.36">Ethanol</option>
-          <option value="1.47">Glycerin</option>
-          <option value="1.46">Quartz</option>
-          <option value="1.52">Crown Glass</option>
-          <option value="1.62">Flint Glass</option>
-          <option value="2.42">Diamond</option>
-          <option value="custom">Custom</option>
-        </select>
-      </div>
-
-      <div class="control-group" style="margin-bottom: 0;">
-        <label>
-          <span style="color: white;">Light Wavelength (&lambda;)</span>
-          <div class="val-container">
-            <button class="step-btn" onclick="stepState('lambda', -5)">-</button>
-            <span id="valLambda" class="val-text" style="color: white;">530 nm</span>
-            <button class="step-btn" onclick="stepState('lambda', 5)">+</button>
-          </div>
-        </label>
-        <input type="range" id="slLambda" min="400" max="700" step="1" value="530">
-      </div>
-    </div>
-
-    <div class="lab-panel" id="labPanelBorder">
-      <div class="lab-header">Lab Workspace</div>
-
-      <div class="calc-block" style="border-color: #facc15;" id="blockC">
-        <div class="calc-title" style="color: #facc15;">Critical Angle (c)</div>
-        sin(c) = 1.0 / &mu; &rarr; c = <span id="labC" class="highlight-val" style="color: #facc15;">48.2&deg;</span>
-      </div>
-
-      <div class="calc-block" style="display: flex; justify-content: space-around;">
-        <div>
-          <div class="calc-title">Incident (i)</div>
-          <span id="labI" class="highlight-val" style="color: white;">35.00&deg;</span>
-        </div>
-        <div>
-          <div class="calc-title">Refracted (r)</div>
-          <span id="labR" class="highlight-val" style="color: #a855f7;">49.50&deg;</span>
-        </div>
-      </div>
-
-      <div id="badge" class="status-badge status-normal">
-        NORMAL REFRACTION & PARTIAL REFLECTION
-      </div>
-    </div>
-  </div>
-
-  <script>
-    const mediumPresets = [
-      { name: 'Ice', mu: 1.31 },
-      { name: 'Water', mu: 1.33 },
-      { name: 'Ethanol', mu: 1.36 },
-      { name: 'Quartz', mu: 1.46 },
-      { name: 'Glycerin', mu: 1.47 },
-      { name: 'Crown Glass', mu: 1.52 },
-      { name: 'Flint Glass', mu: 1.62 },
-      { name: 'Diamond', mu: 2.42 }
-    ];
-
-    // --- STATE MANAGEMENT ---
-    const state = {
-      i: 35, // degrees
-      muBase: 1.33,
-      lambda: 530, // nm
-      
-      // Math Getters
-      get muDyn() {
-          // Cauchy's Equation: mu = A + B / lambda^2
-          return this.muBase + (4000 / (this.lambda * this.lambda));
-      },
-      get criticalAngle() {
-          let sinC = 1.0 / this.muDyn;
-          return Math.asin(sinC) * 180 / Math.PI;
-      },
-      get refractedAngle() {
-          let sinR = this.muDyn * Math.sin(this.i * Math.PI / 180);
-          if (sinR > 1.0) {
-              if (sinR < 1.0 + 1e-6) return 90;
-              return NaN; // TIR
-          }
-          if (Math.abs(1.0 - sinR) < 1e-6) return 90;
-          return Math.asin(sinR) * 180 / Math.PI;
-      },
-      get laserRGB() {
-          return waveLengthToRGB(this.lambda);
-      },
-
-      dragNode: null,
-      initialized: false
-    };
-
-    let w, winH, cx, cy, laserRadius;
-
-    // --- DOM ELEMENTS ---
-    const els = {
-      slI: document.getElementById('slI'), valI: document.getElementById('valI'),
-      slMu: document.getElementById('slMu'), valMu: document.getElementById('valMu'),
-      selMedium: document.getElementById('selMedium'),
-      slLambda: document.getElementById('slLambda'), valLambda: document.getElementById('valLambda'),
-      
-      labC: document.getElementById('labC'),
-      labI: document.getElementById('labI'),
-      labR: document.getElementById('labR'),
-      
-      badge: document.getElementById('badge'),
-      labPanelBorder: document.getElementById('labPanelBorder'),
-      blockC: document.getElementById('blockC'),
-      
-      toggleBtn: document.getElementById('toggleBtn'), 
-      controlsPanel: document.getElementById('controlsPanel'), 
-      closeBtn: document.getElementById('closeBtn'),
-      setCriticalBtn: document.getElementById('setCriticalBtn')
-    };
-
-    const canvas = document.getElementById('simCanvas');
-    const ctx = canvas.getContext('2d');
-
-    // --- SETUP & RESIZE ---
-    function resizeCanvas() {
-      const dpr = window.devicePixelRatio || 1;
-      w = window.innerWidth;
-      winH = window.innerHeight;
-      canvas.width = w * dpr;
-      canvas.height = winH * dpr;
-      ctx.setTransform(1, 0, 0, 1, 0, 0); 
-      ctx.scale(dpr, dpr);
-      
-      cx = w > 800 ? w * 0.4 : w / 2;
-      cy = winH / 2;
-      laserRadius = Math.min(cx - 50, winH/2 - 50);
-      if (laserRadius > 350) laserRadius = 350;
-      if (laserRadius < 150) laserRadius = 150;
-
-      if (!state.initialized) state.initialized = true;
-      updateMathUI(); 
-    }
-    window.addEventListener('resize', resizeCanvas);
-
-    function bindTapAction(element, handler) {
-      let lastTouchTime = 0;
-
-      element.addEventListener('touchend', (event) => {
-        if (event.cancelable) event.preventDefault();
-        lastTouchTime = Date.now();
-        handler(event);
-      }, { passive: false });
-
-      element.addEventListener('click', (event) => {
-        if (Date.now() - lastTouchTime < 700) return;
-        handler(event);
-      });
-    }
-
-    // --- UI EVENT LISTENERS ---
-    bindTapAction(els.toggleBtn, () => els.controlsPanel.classList.remove('hidden'));
-    bindTapAction(els.closeBtn, () => els.controlsPanel.classList.add('hidden'));
-
-    window.stepState = function(param, amount) {
-        state[param] += amount;
-        if (param === 'i') state[param] = Math.round(state[param] * 100) / 100;
-        if (param === 'muBase') state[param] = Math.round(state[param]*100)/100;
-        if (param === 'lambda') state[param] = Math.round(state[param]);
-        updateMathUI();
-    };
-
-    window.setIncidentToCritical = function() {
-      state.i = state.criticalAngle;
-      updateMathUI();
-    };
-
-    bindTapAction(els.setCriticalBtn, () => {
-      window.setIncidentToCritical();
-    });
-
-    els.slI.addEventListener('input', (e) => { state.i = parseFloat(e.target.value); updateMathUI(); });
-    els.slMu.addEventListener('input', (e) => { state.muBase = parseFloat(e.target.value); updateMathUI(); });
-    els.slLambda.addEventListener('input', (e) => { state.lambda = parseFloat(e.target.value); updateMathUI(); });
-    els.selMedium.addEventListener('change', (e) => {
-      if (e.target.value === 'custom') return;
-      state.muBase = parseFloat(e.target.value);
-      updateMathUI();
-    });
-
-    function getSelectedMedium() {
-      return mediumPresets.find((preset) => Math.abs(preset.mu - state.muBase) < 0.005) || null;
-    }
-
-    function updateMathUI() {
-      // Clamping
-      state.i = Math.max(0, Math.min(89.99, state.i));
-      state.muBase = Math.max(1.30, Math.min(2.50, state.muBase));
-      state.lambda = Math.max(400, Math.min(700, state.lambda));
-
-      els.slI.value = state.i; els.valI.textContent = `${state.i.toFixed(2)}\xB0`;
-      els.slMu.value = state.muBase; els.valMu.textContent = state.muBase.toFixed(2);
-      els.slLambda.value = state.lambda; els.valLambda.textContent = `${Math.round(state.lambda)} nm`;
-      const selectedMedium = getSelectedMedium();
-      els.selMedium.value = selectedMedium ? selectedMedium.mu.toFixed(2) : 'custom';
-
-      // Physics Math
-      let c = state.criticalAngle;
-      let r = state.refractedAngle;
-
-      els.labC.textContent = `${c.toFixed(2)}\xB0`;
-      els.labI.textContent = `${state.i.toFixed(2)}\xB0`;
-      
-      if (isNaN(r)) {
-          els.labR.textContent = "NONE";
-          els.labR.style.color = "#94a3b8";
-      } else {
-          els.labR.textContent = `${r.toFixed(2)}\xB0`;
-          els.labR.style.color = "#a855f7";
-      }
-
-      // Dynamic Badges
-      let diff = state.i - c;
-
-      if (diff < -0.5) {
-          els.badge.textContent = "NORMAL REFRACTION & PARTIAL REFLECTION";
-          els.badge.className = "status-badge status-normal";
-          els.labPanelBorder.style.borderColor = "#475569";
-          els.blockC.style.borderColor = "#475569";
-      } else if (diff >= -0.5 && diff <= 0.5) {
-          els.badge.textContent = "CRITICAL ANGLE (GRAZING EMERGENCE)";
-          els.badge.className = "status-badge status-grazing";
-          els.labPanelBorder.style.borderColor = "#facc15";
-          els.blockC.style.borderColor = "#facc15";
-      } else {
-          els.badge.textContent = "TOTAL INTERNAL REFLECTION (TIR)";
-          els.badge.className = "status-badge status-tir";
-          els.labPanelBorder.style.borderColor = "#ef4444";
-          els.blockC.style.borderColor = "#ef4444";
-      }
-    }
-
-    // --- WAVELENGTH TO RGB ---
-    function waveLengthToRGB(Wavelength) {
-        let R, G, B;
-        if (Wavelength >= 380 && Wavelength < 440) { R = -(Wavelength - 440) / (440 - 380); G = 0.0; B = 1.0; }
-        else if (Wavelength >= 440 && Wavelength < 490) { R = 0.0; G = (Wavelength - 440) / (490 - 440); B = 1.0; }
-        else if (Wavelength >= 490 && Wavelength < 510) { R = 0.0; G = 1.0; B = -(Wavelength - 510) / (510 - 490); }
-        else if (Wavelength >= 510 && Wavelength < 580) { R = (Wavelength - 510) / (580 - 510); G = 1.0; B = 0.0; }
-        else if (Wavelength >= 580 && Wavelength < 645) { R = 1.0; G = -(Wavelength - 645) / (645 - 580); B = 0.0; }
-        else if (Wavelength >= 645 && Wavelength <= 780) { R = 1.0; G = 0.0; B = 0.0; }
-        else { R = 0.0; G = 0.0; B = 0.0; }
-
-        let factor;
-        if (Wavelength >= 380 && Wavelength < 420) { factor = 0.3 + 0.7*(Wavelength - 380) / (420 - 380); }
-        else if (Wavelength >= 420 && Wavelength < 701) { factor = 1.0; }
-        else if (Wavelength >= 701 && Wavelength <= 780) { factor = 0.3 + 0.7*(780 - Wavelength) / (780 - 700); }
-        else { factor = 0.0; }
-
-        let r = R == 0.0 ? 0 : Math.round(R * factor * 255);
-        let g = G == 0.0 ? 0 : Math.round(G * factor * 255);
-        let b = B == 0.0 ? 0 : Math.round(B * factor * 255);
-        return `${r}, ${g}, ${b}`;
-    }
-
-    // --- DRAGGING LOGIC ---
-    function getPointerPos(e) {
-      const rect = canvas.getBoundingClientRect();
-      const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-      const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-      return { x: clientX - rect.left, y: clientY - rect.top };
-    }
-
-    function getLaserPos() {
-        // Laser is in bottom-left. Normal is straight down (+Y).
-        // Angle i is from the +Y axis towards the -X axis.
-        let i_rad = state.i * Math.PI / 180;
-        return {
-            x: cx - laserRadius * Math.sin(i_rad),
-            y: cy + laserRadius * Math.cos(i_rad)
-        };
-    }
-
-    function handleDragStart(e) {
-      if(e.target !== canvas) return;
-      const pos = getPointerPos(e);
-      const hitBuffer = e.touches ? 40 : 25; 
-      let lPos = getLaserPos();
-      
-      if (Math.hypot(pos.x - lPos.x, pos.y - lPos.y) < 30 + hitBuffer) {
-          state.dragNode = 'laser';
-          canvas.style.cursor = 'grabbing';
-          if(e.touches && e.cancelable) e.preventDefault();
-      } 
-    }
-
-    function handleDragMove(e) {
-      const pos = getPointerPos(e);
-
-      if (state.dragNode === null) {
-          if (!e.touches) {
-              let lPos = getLaserPos();
-              if (Math.hypot(pos.x - lPos.x, pos.y - lPos.y) < 30) canvas.style.cursor = 'grab';
-              else canvas.style.cursor = 'default';
-          }
-          return; 
-      }
-      
-      if (e.touches && e.cancelable) e.preventDefault(); 
-      
-      if (state.dragNode === 'laser') {
-          // Calculate angle relative to downward normal (+Y axis)
-          let dx = cx - pos.x; // Positive if left of center
-          let dy = pos.y - cy; // Positive if below center
-          
-          if (dy > 0 && dx > 0) { // Keep in bottom-left quadrant
-              let newI = Math.atan2(dx, dy) * 180 / Math.PI;
-              state.i = Math.max(0, Math.min(89.99, newI));
-              updateMathUI(); 
-          }
-      }
-    }
-
-    function handleDragEnd(e) { 
-      if (state.dragNode !== null && e && e.touches && e.cancelable) e.preventDefault();
-      state.dragNode = null; 
-      canvas.style.cursor = 'default';
-    }
-
-    canvas.addEventListener('mousedown', handleDragStart);
-    window.addEventListener('mousemove', handleDragMove);
-    window.addEventListener('mouseup', handleDragEnd);
-    canvas.addEventListener('touchstart', handleDragStart, { passive: false });
-    window.addEventListener('touchmove', handleDragMove, { passive: false });
-    window.addEventListener('touchend', handleDragEnd, { passive: false });
-
-    // --- DRAWING HELPERS ---
-    function drawLaserDevice(x, y, angle) {
-        ctx.save();
-        ctx.translate(x, y);
-        ctx.rotate(angle);
-
-        // Body
-        ctx.fillStyle = "#334155";
-        ctx.fillRect(-35, -12, 35, 24);
-        
-        if (state.dragNode === 'laser') {
-            ctx.shadowColor = 'white'; ctx.shadowBlur = 10;
-            ctx.strokeStyle = 'white'; ctx.lineWidth = 2;
-            ctx.strokeRect(-35, -12, 35, 24); ctx.shadowBlur = 0;
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>Total Internal Reflection Simulation</title>
+    <style>
+        :root {
+            --bg-color: #07111f;
+            --panel-bg: rgba(10, 20, 36, 0.86);
+            --panel-border: rgba(148, 163, 184, 0.22);
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --accent-blue: #60a5fa;
+            --laser-90: #fb7185;
+            --laser-180: #34d399;
+            --prism-fill: rgba(148, 163, 184, 0.12);
+            --prism-edge: rgba(226, 232, 240, 0.72);
+            --safe-top: env(safe-area-inset-top, 0px);
+            --safe-right: env(safe-area-inset-right, 0px);
+            --safe-bottom: env(safe-area-inset-bottom, 0px);
+            --safe-left: env(safe-area-inset-left, 0px);
         }
 
-        // Tip
-        ctx.fillStyle = "#94a3b8";
-        ctx.beginPath(); ctx.moveTo(0, -12); ctx.lineTo(10, -5); ctx.lineTo(10, 5); ctx.lineTo(0, 12); ctx.fill();
+        html,
+        body {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+        }
 
-        // Emitting glow
-        ctx.fillStyle = `rgb(${state.laserRGB})`;
-        ctx.beginPath(); ctx.arc(10, 0, 4, 0, Math.PI*2); ctx.fill();
+        * {
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
 
-        ctx.restore();
-    }
+        body {
+            position: fixed;
+            inset: 0;
+            margin: 0;
+            background:
+                radial-gradient(circle at 18% 18%, rgba(59, 130, 246, 0.24), transparent 26%),
+                radial-gradient(circle at 78% 20%, rgba(52, 211, 153, 0.14), transparent 22%),
+                linear-gradient(180deg, #08101e 0%, #050b14 100%);
+            color: var(--text-main);
+            font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+            overflow: hidden;
+            overscroll-behavior: none;
+            -webkit-user-select: none;
+            user-select: none;
+        }
 
-    function drawRay(x1, y1, x2, y2, rgbStr, opacity, width=3) {
-        ctx.beginPath();
-        ctx.moveTo(x1, y1);
-        ctx.lineTo(x2, y2);
-        ctx.strokeStyle = `rgba(${rgbStr}, ${opacity})`;
-        ctx.lineWidth = width;
-        
-        ctx.shadowColor = `rgb(${rgbStr})`;
-        ctx.shadowBlur = opacity > 0.5 ? 15 : 0;
-        ctx.stroke();
-        ctx.shadowBlur = 0; // reset
-        
-        // Directional arrow midway
-        let mx = (x1 + x2)/2;
-        let my = (y1 + y2)/2;
-        let angle = Math.atan2(y2 - y1, x2 - x1);
-        ctx.save();
-        ctx.translate(mx, my);
-        ctx.rotate(angle);
-        ctx.beginPath(); ctx.moveTo(6, 0); ctx.lineTo(-6, -5); ctx.lineTo(-6, 5);
-        ctx.fillStyle = `rgba(${rgbStr}, ${opacity})`; ctx.fill();
-        ctx.restore();
-    }
+        #simCanvas {
+            position: absolute;
+            inset: 0;
+            display: block;
+            width: 100%;
+            height: 100%;
+            touch-action: none;
+        }
 
-    function drawAngleArc(x, y, r, startAngle, endAngle, label, rgbStr) {
-        // Ensure angles are ordered correctly for canvas arc
-        let s = startAngle, e = endAngle;
-        if(s > e) { let temp = s; s = e; e = temp; }
+        #ui-panel,
+        #panel-open {
+            position: absolute;
+            right: max(24px, calc(var(--safe-right) + 12px));
+            z-index: 10;
+        }
 
-        ctx.beginPath();
-        ctx.arc(x, y, r, s, e);
-        ctx.strokeStyle = `rgb(${rgbStr})`;
-        ctx.lineWidth = 2;
-        ctx.stroke();
+        #ui-panel {
+            top: max(24px, calc(var(--safe-top) + 12px));
+            width: min(360px, calc(100vw - max(32px, calc(var(--safe-left) + var(--safe-right) + 24px))));
+            max-height: calc(100vh - max(32px, calc(var(--safe-top) + var(--safe-bottom) + 24px)));
+            padding: 20px;
+            border-radius: 20px;
+            background: var(--panel-bg);
+            border: 1px solid var(--panel-border);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            box-shadow: 0 24px 60px rgba(0, 0, 0, 0.42);
+            transition: transform 0.28s ease, opacity 0.28s ease;
+            overflow-y: auto;
+            overscroll-behavior: contain;
+            -webkit-overflow-scrolling: touch;
+            touch-action: pan-y;
+        }
 
-        let midAngle = (s + e) / 2;
-        let lx = x + (r + 20) * Math.cos(midAngle);
-        let ly = y + (r + 20) * Math.sin(midAngle);
-        
-        ctx.fillStyle = `rgb(${rgbStr})`;
-        ctx.font = "bold 14px Arial";
-        ctx.textAlign = "center";
-        ctx.textBaseline = "middle";
-        ctx.fillText(label, lx, ly);
-    }
+        #ui-panel.is-hidden {
+            transform: translateX(calc(100% + max(32px, calc(var(--safe-right) + 12px))));
+            opacity: 0;
+            pointer-events: none;
+        }
 
-    function drawRayLabel(x1, y1, x2, y2, text, rgbStr, position = 0.65, yOffset = 0) {
-        const lx = x1 + (x2 - x1) * position;
-        const ly = y1 + (y2 - y1) * position + yOffset;
+        #panel-open {
+            top: max(24px, calc(var(--safe-top) + 12px));
+            display: none;
+            align-items: center;
+            gap: 10px;
+            padding: 12px 16px;
+            border: 1px solid rgba(96, 165, 250, 0.35);
+            border-radius: 999px;
+            background: rgba(8, 16, 30, 0.92);
+            color: var(--text-main);
+            font: inherit;
+            cursor: pointer;
+            box-shadow: 0 14px 32px rgba(0, 0, 0, 0.32);
+            min-height: 44px;
+        }
 
-        ctx.save();
-        ctx.font = "bold 13px Arial";
-        ctx.textAlign = "center";
-        ctx.textBaseline = "middle";
+        #panel-open.visible {
+            display: inline-flex;
+        }
 
-        const textWidth = ctx.measureText(text).width;
-        ctx.fillStyle = "rgba(2, 6, 23, 0.82)";
-        ctx.fillRect(lx - textWidth / 2 - 8, ly - 11, textWidth + 16, 22);
+        .panel-head {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 16px;
+            margin-bottom: 18px;
+        }
 
-        ctx.fillStyle = `rgb(${rgbStr})`;
-        ctx.fillText(text, lx, ly);
-        ctx.restore();
-    }
+        .panel-title h1 {
+            margin: 0;
+            font-size: 1.2rem;
+            letter-spacing: 0.02em;
+        }
 
-    // --- RENDER LOOP ---
-    function animateLoop() {
-      if (!w) { requestAnimationFrame(animateLoop); return; }
+        .panel-title p {
+            margin: 6px 0 0;
+            color: var(--text-muted);
+            font-size: 0.88rem;
+            line-height: 1.45;
+        }
 
-      ctx.clearRect(0, 0, w, winH);
+        .panel-btn {
+            width: 36px;
+            height: 36px;
+            border: 1px solid rgba(255, 255, 255, 0.14);
+            border-radius: 50%;
+            background: rgba(15, 23, 42, 0.92);
+            color: var(--text-main);
+            font: inherit;
+            font-size: 1.15rem;
+            cursor: pointer;
+            flex-shrink: 0;
+        }
 
-      // --- 1. Backgrounds ---
-      // Air (top)
-      ctx.fillStyle = "#0f172a"; 
-      ctx.fillRect(0, 0, w, cy);
+        .control-group {
+            margin-bottom: 18px;
+        }
 
-      // Denser Medium (bottom) with gradient
-      let waterGrad = ctx.createLinearGradient(0, cy, 0, winH);
-      waterGrad.addColorStop(0, "rgba(6, 182, 212, 0.2)"); // Cyan near surface
-      waterGrad.addColorStop(1, "rgba(8, 145, 178, 0.6)"); // Darker teal deep down
-      ctx.fillStyle = waterGrad;
-      ctx.fillRect(0, cy, w, winH - cy);
+        .section-label {
+            display: block;
+            margin-bottom: 12px;
+            color: var(--text-muted);
+            font-size: 0.82rem;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+        }
 
-      // Boundary line
-      ctx.beginPath(); ctx.moveTo(0, cy); ctx.lineTo(w, cy);
-      ctx.strokeStyle = "#22d3ee"; ctx.lineWidth = 3; 
-      ctx.shadowColor = "#22d3ee"; ctx.shadowBlur = 10;
-      ctx.stroke(); ctx.shadowBlur = 0;
-      
-      ctx.fillStyle = "#94a3b8"; ctx.font = "bold 18px Arial";
-      ctx.textAlign = "left";
-      ctx.textBaseline = "middle";
-      ctx.fillText(`Air (\u03BC = 1.00)`, 40, cy - 20);
-      ctx.fillStyle = "#22d3ee";
-      const mediumLabel = getSelectedMedium()?.name || "Custom Medium";
-      ctx.fillText(`${mediumLabel} (\u03BC = ${state.muDyn.toFixed(2)})`, 40, cy + 30);
+        .radio-group {
+            display: grid;
+            gap: 10px;
+        }
 
-      // Normal Line
-      ctx.beginPath(); ctx.moveTo(cx, 0); ctx.lineTo(cx, winH);
-      ctx.strokeStyle = "rgba(255, 255, 255, 0.4)"; ctx.lineWidth = 2;
-      ctx.setLineDash([8, 8]); ctx.stroke(); ctx.setLineDash([]);
-      ctx.fillStyle = "rgba(255, 255, 255, 0.6)"; ctx.font = "14px Arial";
-      ctx.textAlign = "left";
-      ctx.textBaseline = "alphabetic";
-      ctx.fillText("Normal", cx + 10, 30);
+        .radio-option {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 12px 14px;
+            border-radius: 14px;
+            background: rgba(15, 23, 42, 0.62);
+            border: 1px solid rgba(148, 163, 184, 0.14);
+            cursor: pointer;
+            min-height: 48px;
+            touch-action: manipulation;
+        }
 
-      // --- 2. Light Rays ---
-      let rgb = state.laserRGB;
-      let i_rad = state.i * Math.PI / 180;
-      let lPos = getLaserPos();
-      const rayExtent = laserRadius * 1.5;
+        .radio-option input {
+            margin: 0;
+            width: 20px;
+            height: 20px;
+            flex-shrink: 0;
+        }
 
-      // Incident Ray (from laser to origin)
-      drawRay(lPos.x, lPos.y, cx, cy, rgb, 1.0, 4);
-      
-      // Draw Incident Arc (measured from bottom normal)
-      // Bottom normal is Math.PI/2. Ray comes from angle (Math.PI/2 + i_rad).
-      drawAngleArc(cx, cy, 60, Math.PI/2, Math.PI/2 + i_rad, `i=${state.i.toFixed(2)}\xB0`, "255,255,255");
+        .radio-option span {
+            font-size: 0.94rem;
+            color: var(--text-main);
+        }
 
-      let r_deg = state.refractedAngle;
-      
-      if (!isNaN(r_deg)) {
-          // Normal Refraction & Partial Reflection
-          let r_rad = r_deg * Math.PI / 180;
-          const atCritical = r_deg >= 89.9;
-          
-          // Refracted Ray (Top-right quadrant)
-          // Top normal is -Math.PI/2. Bends away by r_rad.
-          let refX = cx + rayExtent * Math.sin(r_rad);
-          let refY = cy - rayExtent * Math.cos(r_rad);
-          
-          // Keep the grazing refracted ray prominent at the critical angle.
-          let refrOpacity = atCritical ? 1.0 : 0.95;
-          drawRay(cx, cy, refX, refY, rgb, refrOpacity, 4);
-          drawRayLabel(cx, cy, refX, refY, "Refracted Ray", "168, 85, 247", atCritical ? 0.78 : 0.62, atCritical ? -14 : -10);
+        .fixed-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 10px;
+        }
 
-          // Refracted Angle Arc
-          drawAngleArc(cx, cy, 60, -Math.PI/2, -Math.PI/2 + r_rad, `r=${r_deg.toFixed(2)}\xB0`, "168, 85, 247");
+        .toggle-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 12px 14px;
+            border-radius: 14px;
+            background: rgba(15, 23, 42, 0.62);
+            border: 1px solid rgba(148, 163, 184, 0.14);
+            color: var(--text-main);
+            font-size: 0.94rem;
+            min-height: 48px;
+            touch-action: manipulation;
+        }
 
-          // Partial Reflection Ray (Bottom-right quadrant)
-          let reflX = cx + rayExtent * Math.sin(i_rad);
-          let reflY = cy + rayExtent * Math.cos(i_rad);
-          
-          // Reflection should be especially faint right at the critical angle.
-          let reflOpacity = atCritical ? 0.08 : 0.15;
-          drawRay(cx, cy, reflX, reflY, rgb, reflOpacity, 3);
-          drawRayLabel(cx, cy, reflX, reflY, "Reflected Ray", "239, 68, 68", 0.56, 12);
-      } else {
-          // Total Internal Reflection
-          let reflX = cx + rayExtent * Math.sin(i_rad);
-          let reflY = cy + rayExtent * Math.cos(i_rad);
-          
-          // Full brightness reflection
-          drawRay(cx, cy, reflX, reflY, rgb, 1.0, 4);
-          drawRayLabel(cx, cy, reflX, reflY, "Reflected Ray", "239, 68, 68", 0.62, 12);
+        .toggle-row input {
+            margin: 0;
+            width: 20px;
+            height: 20px;
+            flex-shrink: 0;
+        }
 
-          // Reflected Angle Arc
-          drawAngleArc(cx, cy, 75, Math.PI/2, Math.PI/2 - i_rad, `r=${state.i.toFixed(2)}\xB0`, "239, 68, 68");
-      }
+        .metric-card {
+            padding: 12px 14px;
+            border-radius: 14px;
+            background: rgba(15, 23, 42, 0.62);
+            border: 1px solid rgba(148, 163, 184, 0.14);
+        }
 
-      // --- 3. Draw Laser Device ---
-      let laserAngle = Math.atan2(cy - lPos.y, cx - lPos.x);
-      drawLaserDevice(lPos.x, lPos.y, laserAngle);
+        .metric-card strong,
+        .metric-card span {
+            display: block;
+        }
 
-      requestAnimationFrame(animateLoop);
-    }
+        .metric-card strong {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            margin-bottom: 6px;
+            font-weight: 500;
+        }
 
-    // Boot sequence
-    window.addEventListener("load", () => {
-      resizeCanvas();
-      requestAnimationFrame(animateLoop);
-    });
+        .metric-card span {
+            font-size: 1.08rem;
+            font-weight: 700;
+            color: var(--text-main);
+        }
 
-  </script>
+        #status-badge {
+            display: block;
+            padding: 11px 14px;
+            border-radius: 12px;
+            font-size: 0.82rem;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            text-align: center;
+            text-transform: uppercase;
+            margin-top: 12px;
+        }
+
+        .tir-active {
+            background: rgba(16, 185, 129, 0.12);
+            color: #86efac;
+            border: 1px solid rgba(52, 211, 153, 0.28);
+        }
+
+        .stats {
+            margin-top: 16px;
+            padding: 14px;
+            border-radius: 14px;
+            background: rgba(2, 6, 23, 0.38);
+            border: 1px solid rgba(148, 163, 184, 0.12);
+            color: var(--text-muted);
+            font-size: 0.88rem;
+            line-height: 1.65;
+        }
+
+        .stats span {
+            color: var(--text-main);
+            font-weight: 600;
+        }
+
+        .hint {
+            margin-top: 14px;
+            color: var(--text-muted);
+            font-size: 0.84rem;
+            line-height: 1.5;
+        }
+
+        @media (max-width: 900px) {
+            #ui-panel {
+                width: min(320px, calc(100vw - 24px));
+                right: max(12px, calc(var(--safe-right) + 8px));
+                top: max(12px, calc(var(--safe-top) + 8px));
+                max-height: calc(100vh - max(24px, calc(var(--safe-top) + var(--safe-bottom) + 16px)));
+            }
+
+            #panel-open {
+                right: max(12px, calc(var(--safe-right) + 8px));
+                top: max(12px, calc(var(--safe-top) + 8px));
+            }
+        }
+    </style>
+</head>
+<body>
+    <button id="panel-open" type="button">Show Controls</button>
+
+    <div id="ui-panel">
+        <div class="panel-head">
+            <div class="panel-title">
+                <h1>Prism TIR Simulator</h1>
+                <p>Drag the glowing laser head on the canvas to move the beam through the prism.</p>
+            </div>
+            <button id="panel-close" class="panel-btn" type="button" aria-label="Close controls">&times;</button>
+        </div>
+
+        <div class="control-group">
+            <span class="section-label">Prism Mode</span>
+            <div class="radio-group">
+                <label class="radio-option">
+                    <input type="radio" name="mode" value="90" checked>
+                    <span>90° Deviation (45°-90°-45° Prism)</span>
+                </label>
+                <label class="radio-option">
+                    <input type="radio" name="mode" value="180">
+                    <span>180° Deviation (45°-90°-45° Prism)</span>
+                </label>
+                <label class="radio-option">
+                    <input type="radio" name="mode" value="60">
+                    <span>60° Deviation (Equilateral Prism)</span>
+                </label>
+                <label class="radio-option">
+                    <input type="radio" name="mode" value="30">
+                    <span>Less than 60° Deviation (30°-90°-60° Prism)</span>
+                </label>
+            </div>
+        </div>
+
+        <div class="control-group">
+            <span class="section-label">Fixed Optical Values</span>
+            <div class="fixed-grid">
+                <div class="metric-card">
+                    <strong>Refractive Index</strong>
+                    <span id="n-val">1.50</span>
+                </div>
+                <div class="metric-card">
+                    <strong>Critical Angle</strong>
+                    <span id="critical-val">41.8&deg;</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="control-group">
+            <span class="section-label">Tools</span>
+            <label class="toggle-row">
+                <input type="checkbox" id="protractor-toggle">
+                <span>Show Draggable Protractor</span>
+            </label>
+        </div>
+
+        <div id="status-badge" class="tir-active">TIR ACTIVE</div>
+
+        <div class="stats" id="stats-info"></div>
+
+        <div class="hint" id="mode-hint"></div>
+    </div>
+
+    <canvas id="simCanvas"></canvas>
+
+    <script>
+        const canvas = document.getElementById('simCanvas');
+        const ctx = canvas.getContext('2d');
+
+        const FIXED_N = 1.5;
+        const INCIDENCE_ANGLE_DEG = 45;
+        const CRITICAL_ANGLE_DEG = Math.asin(1 / FIXED_N) * 180 / Math.PI;
+        const modeRadios = document.getElementsByName('mode');
+        const panel = document.getElementById('ui-panel');
+        const panelClose = document.getElementById('panel-close');
+        const panelOpen = document.getElementById('panel-open');
+        const nVal = document.getElementById('n-val');
+        const criticalVal = document.getElementById('critical-val');
+        const protractorToggle = document.getElementById('protractor-toggle');
+        const badge = document.getElementById('status-badge');
+        const statsInfo = document.getElementById('stats-info');
+        const modeHint = document.getElementById('mode-hint');
+
+        let width = 0;
+        let height = 0;
+        let cx = 0;
+        let cy = 0;
+        let mode = '90';
+        let isDraggingLaser = false;
+        let isDraggingProtractor = false;
+        let isRotatingProtractor = false;
+        let laserHandle = { x: 0, y: 0, radius: 18 };
+        let showProtractor = false;
+        const protractor = {
+            x: 0,
+            y: 0,
+            radius: 120,
+            rotation: 0
+        };
+        const beamOffsets = {
+            '90': 0,
+            '180': -90,
+            '60': -36,
+            '30': 0
+        };
+
+        nVal.textContent = FIXED_N.toFixed(2);
+        criticalVal.innerHTML = `${CRITICAL_ANGLE_DEG.toFixed(1)}&deg;`;
+
+        window.addEventListener('resize', resize);
+        window.addEventListener('orientationchange', resize);
+        if (window.visualViewport) {
+            window.visualViewport.addEventListener('resize', resize);
+            window.visualViewport.addEventListener('scroll', resize);
+        }
+
+        modeRadios.forEach((radio) => {
+            radio.addEventListener('change', (event) => {
+                mode = event.target.value;
+                draw();
+            });
+        });
+
+        protractorToggle.addEventListener('change', (event) => {
+            showProtractor = event.target.checked;
+            draw();
+        });
+
+        panelClose.addEventListener('click', () => {
+            panel.classList.add('is-hidden');
+            panelOpen.classList.add('visible');
+        });
+
+        panelOpen.addEventListener('click', () => {
+            panel.classList.remove('is-hidden');
+            panelOpen.classList.remove('visible');
+        });
+
+        canvas.addEventListener('pointerdown', (event) => {
+            const point = getCanvasPoint(event);
+            if (!isNearLaser(point.x, point.y)) {
+                if (showProtractor && isNearProtractorHandle(point.x, point.y)) {
+                    isRotatingProtractor = true;
+                    canvas.setPointerCapture(event.pointerId);
+                    updateProtractorRotation(point.x, point.y);
+                    canvas.style.cursor = 'grabbing';
+                    return;
+                }
+
+                if (showProtractor && isInsideProtractor(point.x, point.y)) {
+                    isDraggingProtractor = true;
+                    canvas.setPointerCapture(event.pointerId);
+                    protractor.x = point.x;
+                    protractor.y = point.y;
+                    draw();
+                    canvas.style.cursor = 'grabbing';
+                    return;
+                }
+
+                return;
+            }
+
+            isDraggingLaser = true;
+            canvas.setPointerCapture(event.pointerId);
+            updateBeamOffset(point.x, point.y);
+            canvas.style.cursor = 'grabbing';
+        });
+
+        canvas.addEventListener('pointermove', (event) => {
+            const point = getCanvasPoint(event);
+            if (isDraggingLaser) {
+                updateBeamOffset(point.x, point.y);
+                return;
+            }
+
+            if (isDraggingProtractor) {
+                protractor.x = point.x;
+                protractor.y = point.y;
+                draw();
+                return;
+            }
+
+            if (isRotatingProtractor) {
+                updateProtractorRotation(point.x, point.y);
+                return;
+            }
+
+            if (isNearLaser(point.x, point.y)) {
+                canvas.style.cursor = 'grab';
+            } else if (showProtractor && isNearProtractorHandle(point.x, point.y)) {
+                canvas.style.cursor = 'crosshair';
+            } else if (showProtractor && isInsideProtractor(point.x, point.y)) {
+                canvas.style.cursor = 'grab';
+            } else {
+                canvas.style.cursor = 'default';
+            }
+        });
+
+        canvas.addEventListener('pointerup', () => {
+            isDraggingLaser = false;
+            isDraggingProtractor = false;
+            isRotatingProtractor = false;
+            canvas.style.cursor = 'default';
+        });
+
+        canvas.addEventListener('pointercancel', () => {
+            isDraggingLaser = false;
+            isDraggingProtractor = false;
+            isRotatingProtractor = false;
+            canvas.style.cursor = 'default';
+        });
+
+        canvas.addEventListener('contextmenu', (event) => {
+            event.preventDefault();
+        });
+
+        function resize() {
+            const viewport = window.visualViewport || window;
+            const cssWidth = Math.round(viewport.width);
+            const cssHeight = Math.round(viewport.height);
+            const dpr = Math.min(window.devicePixelRatio || 1, 2);
+
+            width = cssWidth;
+            height = cssHeight;
+            canvas.width = Math.round(cssWidth * dpr);
+            canvas.height = Math.round(cssHeight * dpr);
+            canvas.style.width = `${cssWidth}px`;
+            canvas.style.height = `${cssHeight}px`;
+            ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+            const reservedPanelWidth = width > 920 ? 470 : 0;
+            cx = (width - reservedPanelWidth) / 2;
+            cy = height * 0.53;
+
+            if (width <= 920) {
+                cx = width / 2;
+                cy = height * 0.56;
+            }
+
+            if (protractor.x === 0 && protractor.y === 0) {
+                protractor.x = width * 0.28;
+                protractor.y = height * 0.76;
+                protractor.rotation = 0;
+            }
+
+            draw();
+        }
+
+        function clamp(value, min, max) {
+            return Math.max(min, Math.min(max, value));
+        }
+
+        function getCanvasPoint(event) {
+            const rect = canvas.getBoundingClientRect();
+            return {
+                x: event.clientX - rect.left,
+                y: event.clientY - rect.top
+            };
+        }
+
+        function isNearLaser(x, y) {
+            const dx = x - laserHandle.x;
+            const dy = y - laserHandle.y;
+            return Math.hypot(dx, dy) <= laserHandle.radius + 10;
+        }
+
+        function getProtractorHandlePosition() {
+            const handleRadius = protractor.radius + 34;
+            return {
+                x: protractor.x + Math.cos(protractor.rotation - Math.PI / 2) * handleRadius,
+                y: protractor.y + Math.sin(protractor.rotation - Math.PI / 2) * handleRadius
+            };
+        }
+
+        function isInsideProtractor(x, y) {
+            const dx = x - protractor.x;
+            const dy = y - protractor.y;
+            return Math.hypot(dx, dy) <= protractor.radius + 16;
+        }
+
+        function isNearProtractorHandle(x, y) {
+            const handle = getProtractorHandlePosition();
+            return Math.hypot(x - handle.x, y - handle.y) <= 16;
+        }
+
+        function updateProtractorRotation(pointerX, pointerY) {
+            protractor.rotation = Math.atan2(pointerY - protractor.y, pointerX - protractor.x) + Math.PI / 2;
+            draw();
+        }
+
+        function updateBeamOffset(pointerX, pointerY) {
+            if (mode === '90') {
+                const prism = getPrism90();
+                beamOffsets['90'] = clamp(pointerY - cy, -prism.size + 26, prism.size - 26);
+            } else if (mode === '30') {
+                const prism = getPrism30();
+                const midX = (prism.leftX + prism.rightX) / 2;
+                beamOffsets['30'] = clamp(pointerX - midX, -prism.base / 2 + 26, prism.base / 2 - 26);
+            } else if (mode === '60') {
+                const prism = getPrism60();
+                const tangent = {
+                    x: (prism.apex.x - prism.left.x) / prism.side,
+                    y: (prism.apex.y - prism.left.y) / prism.side
+                };
+                const midX = (prism.left.x + prism.apex.x) / 2;
+                const midY = (prism.left.y + prism.apex.y) / 2;
+                const projected = (pointerX - midX) * tangent.x + (pointerY - midY) * tangent.y;
+                beamOffsets['60'] = clamp(projected, -prism.side * 0.38, prism.side * 0.38);
+            } else {
+                const prism = getPrism180();
+                const maxOffset = prism.halfBase - 34;
+                const minAbsOffset = 44;
+                const prismCenterX = prism.apex.x;
+                let next = clamp(pointerX - prismCenterX, -maxOffset, maxOffset);
+
+                if (Math.abs(next) < minAbsOffset) {
+                    const fallbackSign = Math.sign(beamOffsets['180']) || -1;
+                    next = (Math.sign(next) || fallbackSign) * minAbsOffset;
+                }
+
+                beamOffsets['180'] = next;
+            }
+
+            draw();
+        }
+
+        function getPrism90() {
+            const size = Math.min(width * 0.24, height * 0.31, 280);
+            const centerX = cx + Math.min(width * 0.14, 112);
+            return {
+                size,
+                centerX,
+                leftX: centerX - size,
+                topY: cy - size,
+                bottomY: cy + size,
+                rightX: centerX + size
+            };
+        }
+
+        function getPrism180() {
+            const halfBase = Math.min(width * 0.33, height * 0.44, 430);
+            const centerY = cy - Math.min(halfBase * 0.1, 42);
+            const centerX = cx + Math.min(width * 0.09, 82);
+            return {
+                halfBase,
+                apex: { x: centerX, y: centerY - halfBase / 2 },
+                left: { x: centerX - halfBase, y: centerY + halfBase / 2 },
+                right: { x: centerX + halfBase, y: centerY + halfBase / 2 },
+                baseY: centerY + halfBase / 2
+            };
+        }
+
+        function getPrism30() {
+            const base = Math.min(width * 0.41, height * 0.32, 390);
+            const height30 = base * Math.sqrt(3);
+            const leftX = cx - base / 2 + Math.min(width * 0.13, 104);
+            const bottomY = cy + Math.min(height * 0.12, 78);
+            return {
+                base,
+                height: height30,
+                leftX,
+                rightX: leftX + base,
+                topY: bottomY - height30,
+                bottomY,
+                A: { x: leftX, y: bottomY - height30 },
+                B: { x: leftX, y: bottomY },
+                C: { x: leftX + base, y: bottomY }
+            };
+        }
+
+        function getPrism60() {
+            const side = Math.min(width * 0.51, height * 0.75, 660);
+            const altitude = side * Math.sqrt(3) / 2;
+            const centerX = cx + Math.min(width * 0.1, 86);
+            const centerY = cy + Math.min(height * 0.04, 28);
+            return {
+                side,
+                altitude,
+                apex: { x: centerX, y: centerY - 2 * altitude / 3 },
+                left: { x: centerX - side / 2, y: centerY + altitude / 3 },
+                right: { x: centerX + side / 2, y: centerY + altitude / 3 },
+                baseY: centerY + altitude / 3
+            };
+        }
+
+        function intersectRaySegment(origin, direction, segA, segB) {
+            const segDir = {
+                x: segB.x - segA.x,
+                y: segB.y - segA.y
+            };
+            const denom = direction.x * segDir.y - direction.y * segDir.x;
+
+            if (Math.abs(denom) < 1e-8) {
+                return null;
+            }
+
+            const diff = {
+                x: segA.x - origin.x,
+                y: segA.y - origin.y
+            };
+            const t = (diff.x * segDir.y - diff.y * segDir.x) / denom;
+            const u = (diff.x * direction.y - diff.y * direction.x) / denom;
+
+            if (t < 0 || u < 0 || u > 1) {
+                return null;
+            }
+
+            return {
+                x: origin.x + direction.x * t,
+                y: origin.y + direction.y * t,
+                t
+            };
+        }
+
+        function drawNormal(x, y, angle) {
+            ctx.save();
+            ctx.beginPath();
+            ctx.strokeStyle = 'rgba(226, 232, 240, 0.38)';
+            ctx.setLineDash([5, 5]);
+            ctx.lineWidth = 1.2;
+            ctx.moveTo(x - Math.cos(angle) * 46, y - Math.sin(angle) * 46);
+            ctx.lineTo(x + Math.cos(angle) * 46, y + Math.sin(angle) * 46);
+            ctx.stroke();
+            ctx.restore();
+        }
+
+        function drawTextLabel(x, y, text, align = 'center') {
+            ctx.save();
+            ctx.font = '600 14px "Segoe UI", system-ui, sans-serif';
+            ctx.textAlign = align;
+            ctx.textBaseline = 'middle';
+            ctx.fillStyle = 'rgba(248, 250, 252, 0.96)';
+            ctx.shadowColor = 'rgba(8, 15, 28, 0.9)';
+            ctx.shadowBlur = 6;
+            ctx.fillText(text, x, y + 0.5);
+            ctx.restore();
+        }
+
+        function drawAngleArc(x, y, radius, startAngle, endAngle, label, labelRadius = radius + 14) {
+            let delta = endAngle - startAngle;
+
+            while (delta <= -Math.PI) {
+                delta += Math.PI * 2;
+            }
+
+            while (delta > Math.PI) {
+                delta -= Math.PI * 2;
+            }
+
+            const finalEndAngle = startAngle + delta;
+
+            ctx.save();
+            ctx.beginPath();
+            ctx.strokeStyle = 'rgba(241, 245, 249, 0.92)';
+            ctx.lineWidth = 1.8;
+            ctx.arc(x, y, radius, startAngle, finalEndAngle, delta < 0);
+            ctx.stroke();
+            ctx.restore();
+
+            const midAngle = startAngle + delta / 2;
+            drawTextLabel(
+                x + Math.cos(midAngle) * labelRadius,
+                y + Math.sin(midAngle) * labelRadius,
+                label
+            );
+        }
+
+        function drawPrism(points) {
+            ctx.beginPath();
+            ctx.moveTo(points[0].x, points[0].y);
+            for (let i = 1; i < points.length; i += 1) {
+                ctx.lineTo(points[i].x, points[i].y);
+            }
+            ctx.closePath();
+            ctx.fillStyle = 'rgba(148, 163, 184, 0.12)';
+            ctx.strokeStyle = 'rgba(226, 232, 240, 0.72)';
+            ctx.lineWidth = 2.2;
+            ctx.fill();
+            ctx.stroke();
+        }
+
+        function drawLaserPath(points, color) {
+            ctx.save();
+            ctx.beginPath();
+            ctx.moveTo(points[0].x, points[0].y);
+            for (let i = 1; i < points.length; i += 1) {
+                ctx.lineTo(points[i].x, points[i].y);
+            }
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 3.5;
+            ctx.lineJoin = 'round';
+            ctx.lineCap = 'round';
+            ctx.shadowColor = color;
+            ctx.shadowBlur = 22;
+            ctx.stroke();
+            ctx.restore();
+        }
+
+        function drawLaserSource(x, y, color, direction) {
+            laserHandle = { x, y, radius: 18 };
+
+            ctx.save();
+            ctx.translate(x, y);
+            ctx.rotate(direction);
+
+            ctx.fillStyle = 'rgba(8, 15, 28, 0.98)';
+            ctx.strokeStyle = 'rgba(226, 232, 240, 0.35)';
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            const left = -28;
+            const top = -12;
+            const rectWidth = 36;
+            const rectHeight = 24;
+            const radius = 12;
+            ctx.moveTo(left + radius, top);
+            ctx.lineTo(left + rectWidth - radius, top);
+            ctx.quadraticCurveTo(left + rectWidth, top, left + rectWidth, top + radius);
+            ctx.lineTo(left + rectWidth, top + rectHeight - radius);
+            ctx.quadraticCurveTo(left + rectWidth, top + rectHeight, left + rectWidth - radius, top + rectHeight);
+            ctx.lineTo(left + radius, top + rectHeight);
+            ctx.quadraticCurveTo(left, top + rectHeight, left, top + rectHeight - radius);
+            ctx.lineTo(left, top + radius);
+            ctx.quadraticCurveTo(left, top, left + radius, top);
+            ctx.fill();
+            ctx.stroke();
+
+            ctx.beginPath();
+            ctx.fillStyle = color;
+            ctx.shadowColor = color;
+            ctx.shadowBlur = 22;
+            ctx.arc(12, 0, 8, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.restore();
+        }
+
+        function drawSceneBackground() {
+            ctx.clearRect(0, 0, width, height);
+
+            const halo = ctx.createRadialGradient(cx, cy, 80, cx, cy, Math.max(width, height) * 0.55);
+            halo.addColorStop(0, 'rgba(96, 165, 250, 0.09)');
+            halo.addColorStop(1, 'rgba(96, 165, 250, 0)');
+            ctx.fillStyle = halo;
+            ctx.fillRect(0, 0, width, height);
+        }
+
+        function drawProtractor() {
+            if (!showProtractor) {
+                return;
+            }
+
+            const radius = protractor.radius;
+            const handle = getProtractorHandlePosition();
+
+            ctx.save();
+            ctx.translate(protractor.x, protractor.y);
+            ctx.rotate(protractor.rotation);
+
+            ctx.beginPath();
+            ctx.fillStyle = 'rgba(248, 250, 252, 0.08)';
+            ctx.strokeStyle = 'rgba(241, 245, 249, 0.82)';
+            ctx.lineWidth = 2;
+            ctx.arc(0, 0, radius, Math.PI, 0, false);
+            ctx.lineTo(radius, 0);
+            ctx.lineTo(-radius, 0);
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+
+            ctx.beginPath();
+            ctx.strokeStyle = 'rgba(241, 245, 249, 0.42)';
+            ctx.lineWidth = 1.2;
+            ctx.moveTo(-radius, 0);
+            ctx.lineTo(radius, 0);
+            ctx.moveTo(0, 0);
+            ctx.lineTo(0, -radius);
+            ctx.stroke();
+
+            for (let degree = 0; degree <= 180; degree += 10) {
+                const angle = Math.PI - degree * Math.PI / 180;
+                const outer = radius;
+                const inner = degree % 30 === 0 ? radius - 16 : radius - 10;
+                const x1 = Math.cos(angle) * outer;
+                const y1 = Math.sin(angle) * outer;
+                const x2 = Math.cos(angle) * inner;
+                const y2 = Math.sin(angle) * inner;
+
+                ctx.beginPath();
+                ctx.strokeStyle = 'rgba(241, 245, 249, 0.78)';
+                ctx.lineWidth = degree % 30 === 0 ? 1.5 : 1;
+                ctx.moveTo(x1, y1);
+                ctx.lineTo(x2, y2);
+                ctx.stroke();
+
+                if (degree > 0 && degree < 180 && degree % 30 === 0) {
+                    ctx.save();
+                    ctx.translate(Math.cos(angle) * (radius - 28), Math.sin(angle) * (radius - 28));
+                    ctx.rotate(-protractor.rotation);
+                    ctx.fillStyle = 'rgba(248, 250, 252, 0.9)';
+                    ctx.font = '600 11px "Segoe UI", system-ui, sans-serif';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText(String(degree), 0, 0);
+                    ctx.restore();
+                }
+            }
+
+            ctx.beginPath();
+            ctx.fillStyle = 'rgba(96, 165, 250, 0.2)';
+            ctx.strokeStyle = 'rgba(96, 165, 250, 0.88)';
+            ctx.lineWidth = 1.4;
+            ctx.arc(0, 0, 10, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+
+            ctx.restore();
+
+            ctx.beginPath();
+            ctx.strokeStyle = 'rgba(96, 165, 250, 0.86)';
+            ctx.lineWidth = 1.4;
+            ctx.moveTo(protractor.x, protractor.y - radius - 12);
+            ctx.lineTo(handle.x, handle.y);
+            ctx.stroke();
+
+            ctx.beginPath();
+            ctx.fillStyle = 'rgba(96, 165, 250, 0.95)';
+            ctx.arc(handle.x, handle.y, 10, 0, Math.PI * 2);
+            ctx.fill();
+
+            drawTextLabel(protractor.x, protractor.y + 18, 'Drag to move');
+        }
+
+        function updatePanel(copy) {
+            badge.className = 'tir-active';
+            badge.textContent = copy.badge;
+            statsInfo.innerHTML = `
+                Mode: <span>${copy.modeLabel}</span><br>
+                Prism angles: <span>${copy.prismAngles}</span><br>
+                Refractive index: <span>${FIXED_N.toFixed(2)}</span><br>
+                Critical angle: <span>${CRITICAL_ANGLE_DEG.toFixed(1)}&deg;</span><br>
+                Output: <span>${copy.outputLabel}</span>
+            `;
+            modeHint.textContent = copy.hint;
+        }
+
+        function draw90Mode() {
+            const prism = getPrism90();
+            const offset = beamOffsets['90'];
+            const color = getComputedStyle(document.documentElement).getPropertyValue('--laser-90').trim();
+            const start = { x: prism.leftX - 150, y: cy + offset };
+            const entry = { x: prism.leftX, y: cy + offset };
+            const hit = { x: prism.centerX + offset, y: cy + offset };
+            const exit = { x: hit.x, y: prism.bottomY };
+            const end = { x: hit.x, y: prism.bottomY + 190 };
+
+            drawPrism([
+                { x: prism.leftX, y: prism.topY },
+                { x: prism.rightX, y: prism.bottomY },
+                { x: prism.leftX, y: prism.bottomY }
+            ]);
+
+            drawNormal(hit.x, hit.y, -Math.PI / 4);
+            drawLaserPath([start, entry, hit, exit, end], color);
+            drawLaserSource(start.x, start.y, color, 0);
+            drawAngleArc(prism.leftX, prism.topY, 28, Math.PI / 4, Math.PI / 2, '45°', 44);
+            drawAngleArc(prism.leftX, prism.bottomY, 34, -Math.PI / 2, 0, '90°', 50);
+            drawAngleArc(prism.rightX, prism.bottomY, 28, -3 * Math.PI / 4, -Math.PI, '45°', 44);
+
+            updatePanel({
+                badge: 'TIR ACTIVE',
+                modeLabel: '90-Degree Deviation',
+                prismAngles: '45°, 45°, 90°',
+                outputLabel: 'One total internal reflection, then normal exit',
+                hint: 'Drag the laser source up or down to change where the beam hits the hypotenuse.'
+            });
+        }
+
+        function draw180Mode() {
+            const prism = getPrism180();
+            const offset = beamOffsets['180'];
+            const color = getComputedStyle(document.documentElement).getPropertyValue('--laser-180').trim();
+            const prismCenterX = prism.apex.x;
+            const prismCenterY = (prism.apex.y + prism.baseY) / 2;
+            const start = { x: prismCenterX + offset, y: prism.baseY + 150 };
+            const entry = { x: prismCenterX + offset, y: prism.baseY };
+
+            let firstHit;
+            let secondHit;
+
+            if (offset < 0) {
+                firstHit = { x: prismCenterX + offset, y: prismCenterY - offset };
+                secondHit = { x: prismCenterX - offset, y: firstHit.y };
+                drawNormal(firstHit.x, firstHit.y, Math.PI / 4);
+                drawNormal(secondHit.x, secondHit.y, -Math.PI / 4);
+            } else {
+                firstHit = { x: prismCenterX + offset, y: prismCenterY + offset };
+                secondHit = { x: prismCenterX - offset, y: firstHit.y };
+                drawNormal(firstHit.x, firstHit.y, -Math.PI / 4);
+                drawNormal(secondHit.x, secondHit.y, Math.PI / 4);
+            }
+
+            const exit = { x: secondHit.x, y: prism.baseY };
+            const end = { x: secondHit.x, y: prism.baseY + 150 };
+
+            drawPrism([prism.left, prism.apex, prism.right]);
+            drawLaserPath([start, entry, firstHit, secondHit, exit, end], color);
+            drawLaserSource(start.x, start.y, color, -Math.PI / 2);
+            drawAngleArc(prism.left.x, prism.left.y, 28, -Math.PI / 4, 0, '45°', 42);
+            drawAngleArc(prism.apex.x, prism.apex.y, 34, Math.PI / 4, 3 * Math.PI / 4, '90°', 50);
+            drawAngleArc(prism.right.x, prism.right.y, 28, -Math.PI, -3 * Math.PI / 4, '45°', 42);
+
+            updatePanel({
+                badge: 'DOUBLE TIR ACTIVE',
+                modeLabel: '180-Degree Deviation',
+                prismAngles: '45°, 45°, 90°',
+                outputLabel: 'Two total internal reflections, retroreflected downward',
+                hint: 'Drag the laser source left or right. The beam enters normally through the base, reflects from both sloping faces, and emerges reversed.'
+            });
+        }
+
+        function draw30Mode() {
+            const prism = getPrism30();
+            const color = '#38bdf8';
+            const offset = beamOffsets['30'];
+            const entryX = (prism.leftX + prism.rightX) / 2 + offset;
+            const entry = { x: entryX, y: prism.bottomY };
+            const start = { x: entryX, y: prism.bottomY + 150 };
+            const hit = {
+                x: entryX,
+                y: prism.topY + ((entryX - prism.leftX) / prism.base) * prism.height
+            };
+            const reflected = {
+                x: -Math.sqrt(3) / 2,
+                y: -0.5
+            };
+            let exit = intersectRaySegment(hit, reflected, prism.A, prism.B);
+            if (!exit) {
+                exit = {
+                    x: prism.leftX,
+                    y: clamp(hit.y - (hit.x - prism.leftX) / Math.sqrt(3), prism.topY, prism.bottomY)
+                };
+            }
+            const exitLength = Math.max(width, height);
+            const end = {
+                x: exit.x + reflected.x * exitLength,
+                y: exit.y + reflected.y * exitLength
+            };
+
+            drawPrism([prism.A, prism.B, prism.C]);
+            drawNormal(entry.x, entry.y, Math.PI / 2);
+            drawNormal(hit.x, hit.y, 5 * Math.PI / 6);
+            drawNormal(exit.x, exit.y, 0);
+            drawLaserPath([start, entry, hit, exit, end], color);
+            drawLaserSource(start.x, start.y, color, -Math.PI / 2);
+            drawAngleArc(prism.A.x, prism.A.y, 28, Math.PI / 3, Math.PI / 2, '30°', 42);
+            drawAngleArc(prism.B.x, prism.B.y, 34, -Math.PI / 2, 0, '90°', 50);
+            drawAngleArc(prism.C.x, prism.C.y, 28, Math.PI, 4 * Math.PI / 3, '60°', 42);
+
+            updatePanel({
+                badge: 'TIR ACTIVE',
+                modeLabel: 'Less than 60° Deviation',
+                prismAngles: '30°, 90°, 60°',
+                outputLabel: 'Enters through BC, reflects from AC, then emerges from AB',
+                hint: 'Drag the laser source left or right along BC. The ray enters from the lower face BC, undergoes total internal reflection at AC, and emerges from AB.'
+            });
+        }
+
+        function draw60Mode() {
+            const prism = getPrism60();
+            const color = '#fbbf24';
+            const tangent = {
+                x: (prism.apex.x - prism.left.x) / prism.side,
+                y: (prism.apex.y - prism.left.y) / prism.side
+            };
+            const inwardNormal = {
+                x: Math.cos(Math.PI / 6),
+                y: Math.sin(Math.PI / 6)
+            };
+            const offsetAlongFace = beamOffsets['60'];
+            const leftFaceNormalAngle = Math.PI / 6;
+            const baseNormalAngle = Math.PI / 2;
+            const rightFaceNormalAngle = 5 * Math.PI / 6;
+            const entryMid = {
+                x: (prism.left.x + prism.apex.x) / 2,
+                y: (prism.left.y + prism.apex.y) / 2
+            };
+            const entry = {
+                x: entryMid.x + tangent.x * offsetAlongFace,
+                y: entryMid.y + tangent.y * offsetAlongFace
+            };
+            const start = {
+                x: entry.x - inwardNormal.x * 150,
+                y: entry.y - inwardNormal.y * 150
+            };
+
+            const baseTravel = (prism.baseY - entry.y) / inwardNormal.y;
+            const hit = {
+                x: entry.x + inwardNormal.x * baseTravel,
+                y: prism.baseY
+            };
+            const directToRight = intersectRaySegment(entry, inwardNormal, prism.apex, prism.right);
+            const directToBase = intersectRaySegment(entry, inwardNormal, prism.left, prism.right);
+
+            let pathPoints;
+            let outputLabel;
+            let hint;
+            let normalsToDraw;
+
+            if (directToRight && (!directToBase || directToRight.t < directToBase.t)) {
+                const reflectedDown = { x: 0, y: 1 };
+                const baseExit = {
+                    x: directToRight.x,
+                    y: prism.baseY
+                };
+                const end = {
+                    x: baseExit.x,
+                    y: prism.baseY + 150
+                };
+                pathPoints = [start, entry, directToRight, baseExit, end];
+                outputLabel = 'Reflects from the adjacent face, then exits through the base';
+                hint = 'Drag the laser source along the left face. Higher entry points touch the adjacent face first and then emerge from the base.';
+                normalsToDraw = [
+                    { x: entry.x, y: entry.y, angle: leftFaceNormalAngle },
+                    { x: directToRight.x, y: directToRight.y, angle: rightFaceNormalAngle },
+                    { x: baseExit.x, y: baseExit.y, angle: baseNormalAngle }
+                ];
+            } else {
+                const baseHit = directToBase || hit;
+                const reflectedUp = {
+                    x: inwardNormal.x,
+                    y: -inwardNormal.y
+                };
+                let rightExit = intersectRaySegment(baseHit, reflectedUp, prism.apex, prism.right);
+                if (!rightExit) {
+                    rightExit = {
+                        x: (prism.apex.x + prism.right.x) / 2,
+                        y: (prism.apex.y + prism.right.y) / 2
+                    };
+                }
+                const end = {
+                    x: rightExit.x + reflectedUp.x * 150,
+                    y: rightExit.y + reflectedUp.y * 150
+                };
+                pathPoints = [start, entry, baseHit, rightExit, end];
+                outputLabel = 'Reflects from the base, then exits through the other face';
+                hint = 'Drag the laser source along the left face. Lower entry points reach the base first and then emerge from the opposite face.';
+                normalsToDraw = [
+                    { x: entry.x, y: entry.y, angle: leftFaceNormalAngle },
+                    { x: baseHit.x, y: baseHit.y, angle: baseNormalAngle },
+                    { x: rightExit.x, y: rightExit.y, angle: rightFaceNormalAngle }
+                ];
+            }
+
+            drawPrism([prism.left, prism.apex, prism.right]);
+            normalsToDraw.forEach((normal) => drawNormal(normal.x, normal.y, normal.angle));
+            drawLaserPath(pathPoints, color);
+            drawLaserSource(start.x, start.y, color, Math.PI / 6);
+            drawAngleArc(prism.left.x, prism.left.y, 28, -Math.PI / 3, 0, '60°', 42);
+            drawAngleArc(prism.apex.x, prism.apex.y, 28, Math.PI / 3, 2 * Math.PI / 3, '60°', 42);
+            drawAngleArc(prism.right.x, prism.right.y, 28, Math.PI, 4 * Math.PI / 3, '60°', 42);
+
+            updatePanel({
+                badge: 'TIR ACTIVE',
+                modeLabel: 'Equilateral Prism',
+                prismAngles: '60°, 60°, 60°',
+                outputLabel,
+                hint
+            });
+        }
+
+        function draw() {
+            drawSceneBackground();
+
+            if (mode === '90') {
+                draw90Mode();
+            } else if (mode === '30') {
+                draw30Mode();
+            } else if (mode === '60') {
+                draw60Mode();
+            } else {
+                draw180Mode();
+            }
+
+            drawProtractor();
+        }
+
+        resize();
+    </script>
 </body>
 </html>
-```
