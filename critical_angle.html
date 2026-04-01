@@ -979,7 +979,6 @@
             const offset = beamOffsets['180'];
             const color = getComputedStyle(document.documentElement).getPropertyValue('--laser-180').trim();
             const prismCenterX = prism.apex.x;
-            const prismCenterY = (prism.apex.y + prism.baseY) / 2;
             const start = { x: prismCenterX + offset, y: prism.baseY + 150 };
             const entry = { x: prismCenterX + offset, y: prism.baseY };
 
@@ -987,12 +986,12 @@
             let secondHit;
 
             if (offset < 0) {
-                firstHit = { x: prismCenterX + offset, y: prismCenterY - offset };
+                firstHit = { x: prismCenterX + offset, y: prism.apex.y - offset };
                 secondHit = { x: prismCenterX - offset, y: firstHit.y };
                 drawNormal(firstHit.x, firstHit.y, Math.PI / 4);
                 drawNormal(secondHit.x, secondHit.y, -Math.PI / 4);
             } else {
-                firstHit = { x: prismCenterX + offset, y: prismCenterY + offset };
+                firstHit = { x: prismCenterX + offset, y: prism.apex.y + offset };
                 secondHit = { x: prismCenterX - offset, y: firstHit.y };
                 drawNormal(firstHit.x, firstHit.y, -Math.PI / 4);
                 drawNormal(secondHit.x, secondHit.y, Math.PI / 4);
