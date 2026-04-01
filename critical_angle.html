@@ -13,7 +13,7 @@
       background: #0f172a; /* Deep Slate Void */
       color: #e2e8f0;
       overflow: hidden; 
-      touch-action: none;
+      touch-action: manipulation;
     }
 
     canvas {
@@ -80,8 +80,11 @@
       color: #94a3b8;
       font-size: 1.2rem;
       cursor: pointer;
-      padding: 0;
+      padding: 6px;
+      min-width: 44px;
+      min-height: 44px;
       line-height: 1;
+      touch-action: manipulation;
     }
     .close-btn:hover { color: white; }
 
@@ -145,6 +148,7 @@
       width: 100%;
       margin-top: 10px;
       padding: 10px 12px;
+      min-height: 44px;
       border-radius: 8px;
       border: 1px solid rgba(250, 204, 21, 0.35);
       background: rgba(250, 204, 21, 0.12);
@@ -153,6 +157,7 @@
       font-weight: 700;
       cursor: pointer;
       transition: background 0.2s, border-color 0.2s;
+      touch-action: manipulation;
     }
 
     .action-btn:hover {
@@ -221,10 +226,10 @@
 
   <canvas id="simCanvas"></canvas>
   
-  <button id="toggleBtn" class="toggle-btn">⚙️ Settings & Lab</button>
+  <button id="toggleBtn" class="toggle-btn" type="button">⚙️ Settings & Lab</button>
 
   <div id="controlsPanel" class="controls-panel">
-    <button id="closeBtn" class="close-btn">✖</button>
+    <button id="closeBtn" class="close-btn" type="button">✖</button>
     <div class="title">TIR & Critical Angle</div>
 
     <div class="control-section" style="border-left: 4px solid #facc15;">
@@ -238,7 +243,7 @@
           </div>
         </label>
         <input type="range" id="slI" min="0" max="89.99" step="0.01" value="35">
-        <button class="action-btn" onclick="setIncidentToCritical()">Set i = Critical Angle</button>
+        <button id="setCriticalBtn" class="action-btn" type="button" onclick="setIncidentToCritical()">Set i = Critical Angle</button>
       </div>
     </div>
 
@@ -373,7 +378,8 @@
       
       toggleBtn: document.getElementById('toggleBtn'), 
       controlsPanel: document.getElementById('controlsPanel'), 
-      closeBtn: document.getElementById('closeBtn')
+      closeBtn: document.getElementById('closeBtn'),
+      setCriticalBtn: document.getElementById('setCriticalBtn')
     };
 
     const canvas = document.getElementById('simCanvas');
@@ -400,9 +406,24 @@
     }
     window.addEventListener('resize', resizeCanvas);
 
+    function bindTapAction(element, handler) {
+      let lastTouchTime = 0;
+
+      element.addEventListener('touchend', (event) => {
+        if (event.cancelable) event.preventDefault();
+        lastTouchTime = Date.now();
+        handler(event);
+      }, { passive: false });
+
+      element.addEventListener('click', (event) => {
+        if (Date.now() - lastTouchTime < 700) return;
+        handler(event);
+      });
+    }
+
     // --- UI EVENT LISTENERS ---
-    els.toggleBtn.addEventListener('click', () => els.controlsPanel.classList.remove('hidden'));
-    els.closeBtn.addEventListener('click', () => els.controlsPanel.classList.add('hidden'));
+    bindTapAction(els.toggleBtn, () => els.controlsPanel.classList.remove('hidden'));
+    bindTapAction(els.closeBtn, () => els.controlsPanel.classList.add('hidden'));
 
     window.stepState = function(param, amount) {
         state[param] += amount;
@@ -416,6 +437,10 @@
       state.i = state.criticalAngle;
       updateMathUI();
     };
+
+    bindTapAction(els.setCriticalBtn, () => {
+      window.setIncidentToCritical();
+    });
 
     els.slI.addEventListener('input', (e) => { state.i = parseFloat(e.target.value); updateMathUI(); });
     els.slMu.addEventListener('input', (e) => { state.muBase = parseFloat(e.target.value); updateMathUI(); });
@@ -560,7 +585,7 @@
     }
 
     function handleDragEnd(e) { 
-      if (e && e.touches && e.cancelable) e.preventDefault(); 
+      if (state.dragNode !== null && e && e.touches && e.cancelable) e.preventDefault();
       state.dragNode = null; 
       canvas.style.cursor = 'default';
     }
