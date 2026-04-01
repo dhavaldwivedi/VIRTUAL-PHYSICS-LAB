@@ -624,7 +624,7 @@
 
         function getPrism90() {
             const size = Math.min(width * 0.24, height * 0.31, 280);
-            const centerX = cx + Math.min(width * 0.07, 54);
+            const centerX = cx + Math.min(width * 0.14, 112);
             return {
                 size,
                 centerX,
@@ -638,11 +638,12 @@
         function getPrism180() {
             const halfBase = Math.min(width * 0.33, height * 0.44, 430);
             const centerY = cy - Math.min(halfBase * 0.1, 42);
+            const centerX = cx + Math.min(width * 0.09, 82);
             return {
                 halfBase,
-                apex: { x: cx, y: centerY - halfBase / 2 },
-                left: { x: cx - halfBase, y: centerY + halfBase / 2 },
-                right: { x: cx + halfBase, y: centerY + halfBase / 2 },
+                apex: { x: centerX, y: centerY - halfBase / 2 },
+                left: { x: centerX - halfBase, y: centerY + halfBase / 2 },
+                right: { x: centerX + halfBase, y: centerY + halfBase / 2 },
                 baseY: centerY + halfBase / 2
             };
         }
@@ -650,7 +651,7 @@
         function getPrism30() {
             const base = Math.min(width * 0.41, height * 0.32, 390);
             const height30 = base * Math.sqrt(3);
-            const leftX = cx - base / 2 + Math.min(width * 0.05, 38);
+            const leftX = cx - base / 2 + Math.min(width * 0.13, 104);
             const bottomY = cy + Math.min(height * 0.12, 78);
             return {
                 base,
@@ -668,7 +669,7 @@
         function getPrism60() {
             const side = Math.min(width * 0.51, height * 0.75, 660);
             const altitude = side * Math.sqrt(3) / 2;
-            const centerX = cx + Math.min(width * 0.03, 26);
+            const centerX = cx + Math.min(width * 0.1, 86);
             const centerY = cy + Math.min(height * 0.04, 28);
             return {
                 side,
