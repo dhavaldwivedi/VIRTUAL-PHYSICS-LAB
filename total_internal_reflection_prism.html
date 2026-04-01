@@ -609,7 +609,8 @@
                 const prism = getPrism180();
                 const maxOffset = prism.halfBase - 34;
                 const minAbsOffset = 44;
-                let next = clamp(pointerX - cx, -maxOffset, maxOffset);
+                const prismCenterX = prism.apex.x;
+                let next = clamp(pointerX - prismCenterX, -maxOffset, maxOffset);
 
                 if (Math.abs(next) < minAbsOffset) {
                     const fallbackSign = Math.sign(beamOffsets['180']) || -1;
@@ -977,20 +978,21 @@
             const prism = getPrism180();
             const offset = beamOffsets['180'];
             const color = getComputedStyle(document.documentElement).getPropertyValue('--laser-180').trim();
-            const start = { x: cx + offset, y: prism.baseY + 150 };
-            const entry = { x: cx + offset, y: prism.baseY };
+            const prismCenterX = prism.apex.x;
+            const start = { x: prismCenterX + offset, y: prism.baseY + 150 };
+            const entry = { x: prismCenterX + offset, y: prism.baseY };
 
             let firstHit;
             let secondHit;
 
             if (offset < 0) {
-                firstHit = { x: cx + offset, y: cy - offset - prism.halfBase / 2 };
-                secondHit = { x: cx - offset, y: firstHit.y };
+                firstHit = { x: prismCenterX + offset, y: prism.apex.y - offset };
+                secondHit = { x: prismCenterX - offset, y: firstHit.y };
                 drawNormal(firstHit.x, firstHit.y, Math.PI / 4);
                 drawNormal(secondHit.x, secondHit.y, -Math.PI / 4);
             } else {
-                firstHit = { x: cx + offset, y: cy + offset - prism.halfBase / 2 };
-                secondHit = { x: cx - offset, y: firstHit.y };
+                firstHit = { x: prismCenterX + offset, y: prism.apex.y + offset };
+                secondHit = { x: prismCenterX - offset, y: firstHit.y };
                 drawNormal(firstHit.x, firstHit.y, -Math.PI / 4);
                 drawNormal(secondHit.x, secondHit.y, Math.PI / 4);
             }
