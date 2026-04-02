@@ -711,6 +711,44 @@
             };
         }
 
+        function dot(a, b) {
+            return a.x * b.x + a.y * b.y;
+        }
+
+        function normalize(vector) {
+            const length = Math.hypot(vector.x, vector.y) || 1;
+            return {
+                x: vector.x / length,
+                y: vector.y / length
+            };
+        }
+
+        function refractFromPrism(incident, outwardNormal) {
+            const incidentUnit = normalize(incident);
+            const normalUnit = normalize(outwardNormal);
+            const tangentUnit = {
+                x: -normalUnit.y,
+                y: normalUnit.x
+            };
+            const tangentProjection = dot(incidentUnit, tangentUnit);
+            const alignedTangent = tangentProjection < 0
+                ? { x: -tangentUnit.x, y: -tangentUnit.y }
+                : tangentUnit;
+            const cosTheta1 = Math.abs(dot(incidentUnit, normalUnit));
+            const sinTheta1 = Math.sqrt(Math.max(0, 1 - cosTheta1 * cosTheta1));
+            const sinTheta2 = (FIXED_N / 1) * sinTheta1;
+
+            if (sinTheta2 >= 1) {
+                return null;
+            }
+
+            const cosTheta2 = Math.sqrt(1 - sinTheta2 * sinTheta2);
+            return normalize({
+                x: normalUnit.x * cosTheta2 + alignedTangent.x * sinTheta2,
+                y: normalUnit.y * cosTheta2 + alignedTangent.y * sinTheta2
+            });
+        }
+
         function drawNormal(x, y, angle) {
             ctx.save();
             ctx.beginPath();
@@ -1038,10 +1076,11 @@
                     y: clamp(hit.y - (hit.x - prism.leftX) / Math.sqrt(3), prism.topY, prism.bottomY)
                 };
             }
+            const emergent = refractFromPrism(reflected, { x: -1, y: 0 }) || reflected;
             const exitLength = Math.max(width, height);
             const end = {
-                x: exit.x + reflected.x * exitLength,
-                y: exit.y + reflected.y * exitLength
+                x: exit.x + emergent.x * exitLength,
+                y: exit.y + emergent.y * exitLength
             };
 
             drawPrism([prism.A, prism.B, prism.C]);
