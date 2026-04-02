@@ -259,6 +259,12 @@
             border: 1px solid rgba(52, 211, 153, 0.28);
         }
 
+        .tir-inactive {
+            background: rgba(251, 191, 36, 0.12);
+            color: #fde68a;
+            border: 1px solid rgba(251, 191, 36, 0.28);
+        }
+
         .stats {
             margin-top: 16px;
             padding: 14px;
@@ -327,6 +333,14 @@
                 <label class="radio-option">
                     <input type="radio" name="mode" value="30">
                     <span>Less than 60° Deviation (30°-90°-60° Prism)</span>
+                </label>
+                <label class="radio-option">
+                    <input type="radio" name="mode" value="30-exception">
+                    <span>No TIR Exception (30°-90°-60° Prism)</span>
+                </label>
+                <label class="radio-option">
+                    <input type="radio" name="mode" value="30-hypotenuse">
+                    <span>No TIR via AC to AB (30°-90°-60° Prism)</span>
                 </label>
             </div>
         </div>
@@ -400,7 +414,9 @@
             '90': 0,
             '180': -90,
             '60': -36,
-            '30': 0
+            '30': 0,
+            '30-exception': 0,
+            '30-hypotenuse': 0
         };
 
         nVal.textContent = FIXED_N.toFixed(2);
@@ -595,6 +611,23 @@
                 const prism = getPrism30();
                 const midX = (prism.leftX + prism.rightX) / 2;
                 beamOffsets['30'] = clamp(pointerX - midX, -prism.base / 2 + 26, prism.base / 2 - 26);
+            } else if (mode === '30-exception') {
+                const prism = getPrism30();
+                const midY = (prism.topY + prism.bottomY) / 2;
+                beamOffsets['30-exception'] = clamp(pointerY - midY, -prism.height / 2 + 26, prism.height / 2 - 26);
+            } else if (mode === '30-hypotenuse') {
+                const prism = getPrism30();
+                const sideLength = Math.hypot(prism.C.x - prism.A.x, prism.C.y - prism.A.y);
+                const tangent = {
+                    x: (prism.C.x - prism.A.x) / sideLength,
+                    y: (prism.C.y - prism.A.y) / sideLength
+                };
+                const entryMid = {
+                    x: prism.A.x + tangent.x * prism.base * 0.8,
+                    y: prism.A.y + tangent.y * prism.base * 0.8
+                };
+                const projected = (pointerX - entryMid.x) * tangent.x + (pointerY - entryMid.y) * tangent.y;
+                beamOffsets['30-hypotenuse'] = clamp(projected, -prism.base * 0.45, prism.base * 0.45);
             } else if (mode === '60') {
                 const prism = getPrism60();
                 const tangent = {
@@ -968,7 +1001,7 @@
         }
 
         function updatePanel(copy) {
-            badge.className = 'tir-active';
+            badge.className = copy.badgeClass || 'tir-active';
             badge.textContent = copy.badge;
             statsInfo.innerHTML = `
                 Mode: <span>${copy.modeLabel}</span><br>
@@ -1102,6 +1135,119 @@
             });
         }
 
+        function draw30ExceptionMode() {
+            const prism = getPrism30();
+            const color = '#f97316';
+            const offset = beamOffsets['30-exception'];
+            const entryY = (prism.topY + prism.bottomY) / 2 + offset;
+            const start = { x: prism.leftX - 150, y: entryY };
+            const entry = { x: prism.leftX, y: entryY };
+            const hit = {
+                x: prism.leftX + ((entryY - prism.topY) / prism.height) * prism.base,
+                y: entryY
+            };
+            const incident = { x: 1, y: 0 };
+            const hypotenuseNormal = {
+                x: Math.sqrt(3) / 2,
+                y: -0.5
+            };
+            const emergent = refractFromPrism(incident, hypotenuseNormal) || incident;
+            const exitLength = Math.max(width, height);
+            const end = {
+                x: hit.x + emergent.x * exitLength,
+                y: hit.y + emergent.y * exitLength
+            };
+
+            drawPrism([prism.A, prism.B, prism.C]);
+            drawNormal(entry.x, entry.y, 0);
+            drawNormal(hit.x, hit.y, -Math.PI / 6);
+            drawLaserPath([start, entry, hit, end], color);
+            drawLaserSource(start.x, start.y, color, 0);
+            drawAngleArc(prism.A.x, prism.A.y, 28, Math.PI / 3, Math.PI / 2, '30°', 42);
+            drawAngleArc(prism.B.x, prism.B.y, 34, -Math.PI / 2, 0, '90°', 50);
+            drawAngleArc(prism.C.x, prism.C.y, 28, Math.PI, 4 * Math.PI / 3, '60°', 42);
+
+            updatePanel({
+                badge: 'NO TIR',
+                badgeClass: 'tir-inactive',
+                modeLabel: 'Non-TIR Exception Case',
+                prismAngles: '30°, 90°, 60°',
+                outputLabel: 'Enters through AB, then refracts out of AC away from the normal',
+                hint: 'Drag the laser source up or down along AB. The ray enters normally through AB and meets AC at 30°, so it refracts into air instead of undergoing total internal reflection.'
+            });
+        }
+
+        function draw30HypotenuseMode() {
+            const prism = getPrism30();
+            const color = '#a78bfa';
+            const sideLength = Math.hypot(prism.C.x - prism.A.x, prism.C.y - prism.A.y);
+            const tangent = {
+                x: (prism.C.x - prism.A.x) / sideLength,
+                y: (prism.C.y - prism.A.y) / sideLength
+            };
+            const outwardNormal = {
+                x: Math.sqrt(3) / 2,
+                y: -0.5
+            };
+            const internal = {
+                x: -Math.sqrt(3) / 2,
+                y: 0.5
+            };
+            const reverseIncident = refractFromPrism(
+                { x: -internal.x, y: -internal.y },
+                outwardNormal
+            ) || { x: Math.sqrt(3) / 2, y: -0.5 };
+            const incident = {
+                x: -reverseIncident.x,
+                y: -reverseIncident.y
+            };
+            const entryMid = {
+                x: prism.A.x + tangent.x * prism.base * 0.8,
+                y: prism.A.y + tangent.y * prism.base * 0.8
+            };
+            const offset = beamOffsets['30-hypotenuse'];
+            const entry = {
+                x: entryMid.x + tangent.x * offset,
+                y: entryMid.y + tangent.y * offset
+            };
+            const start = {
+                x: entry.x - incident.x * 150,
+                y: entry.y - incident.y * 150
+            };
+
+            let exit = intersectRaySegment(entry, internal, prism.A, prism.B);
+            if (!exit) {
+                exit = {
+                    x: prism.leftX,
+                    y: clamp(entry.y + (entry.x - prism.leftX) / Math.sqrt(3), prism.topY, prism.bottomY)
+                };
+            }
+            const emergent = refractFromPrism(internal, { x: -1, y: 0 }) || internal;
+            const exitLength = Math.max(width, height);
+            const end = {
+                x: exit.x + emergent.x * exitLength,
+                y: exit.y + emergent.y * exitLength
+            };
+
+            drawPrism([prism.A, prism.B, prism.C]);
+            drawNormal(entry.x, entry.y, -Math.PI / 6);
+            drawNormal(exit.x, exit.y, 0);
+            drawLaserPath([start, entry, exit, end], color);
+            drawLaserSource(start.x, start.y, color, Math.atan2(incident.y, incident.x));
+            drawAngleArc(prism.A.x, prism.A.y, 28, Math.PI / 3, Math.PI / 2, '30°', 42);
+            drawAngleArc(prism.B.x, prism.B.y, 34, -Math.PI / 2, 0, '90°', 50);
+            drawAngleArc(prism.C.x, prism.C.y, 28, Math.PI, 4 * Math.PI / 3, '60°', 42);
+
+            updatePanel({
+                badge: 'NO TIR',
+                badgeClass: 'tir-inactive',
+                modeLabel: 'Non-TIR AC to AB Case',
+                prismAngles: '30°, 90°, 60°',
+                outputLabel: 'Enters through AC, then refracts out of AB away from the normal',
+                hint: 'Drag the laser source along AC. The ray enters through the hypotenuse, reaches AB below the critical angle, and bends away from the horizontal normal as it exits into air.'
+            });
+        }
+
         function draw60Mode() {
             const prism = getPrism60();
             const color = '#fbbf24';
@@ -1212,6 +1358,10 @@
                 draw90Mode();
             } else if (mode === '30') {
                 draw30Mode();
+            } else if (mode === '30-exception') {
+                draw30ExceptionMode();
+            } else if (mode === '30-hypotenuse') {
+                draw30HypotenuseMode();
             } else if (mode === '60') {
                 draw60Mode();
             } else {
