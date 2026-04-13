@@ -1,0 +1,1275 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Torque Lab</title>
+    <style>
+        :root {
+            --bg-top: #071723;
+            --bg-bottom: #03111a;
+            --glow-a: rgba(98, 213, 255, 0.16);
+            --glow-b: rgba(255, 201, 107, 0.15);
+            --panel-bg: rgba(6, 19, 29, 0.82);
+            --panel-border: rgba(148, 203, 233, 0.18);
+            --panel-shadow: 0 24px 60px rgba(0, 0, 0, 0.34);
+            --text-main: #eef8ff;
+            --text-soft: #b7cbda;
+            --text-faint: #7f97a8;
+            --accent: #62d5ff;
+            --accent-strong: #a7edff;
+            --warm: #ffd36e;
+            --force-color: #ff7182;
+            --distance-color: #61e3b7;
+            --torque-color: #ffd36e;
+            --success: #89f0b8;
+            --button-bg: rgba(11, 31, 46, 0.78);
+            --button-border: rgba(152, 206, 235, 0.2);
+        }
+
+        * {
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        html,
+        body {
+            margin: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            font-family: "Avenir Next", "Trebuchet MS", "Segoe UI", sans-serif;
+            color: var(--text-main);
+            background:
+                radial-gradient(circle at top left, var(--glow-a), transparent 30%),
+                radial-gradient(circle at 78% 18%, var(--glow-b), transparent 22%),
+                linear-gradient(180deg, var(--bg-top), var(--bg-bottom));
+        }
+
+        body {
+            position: relative;
+            overscroll-behavior: none;
+        }
+
+        #simCanvas {
+            position: absolute;
+            inset: 0;
+            width: 100vw;
+            height: 100vh;
+            display: block;
+        }
+
+        .action-dock,
+        #panel-toggle,
+        #ui-panel {
+            backdrop-filter: blur(18px);
+            -webkit-backdrop-filter: blur(18px);
+        }
+
+        .eyebrow {
+            margin: 0 0 8px;
+            color: var(--accent);
+            font-size: 0.72rem;
+            letter-spacing: 0.16em;
+            text-transform: uppercase;
+            font-weight: 700;
+        }
+
+        .panel-heading h2 {
+            margin: 0;
+            font-size: clamp(1.12rem, 1vw + 1rem, 1.58rem);
+            line-height: 1.15;
+        }
+
+        .panel-heading p,
+        .helper-text,
+        .note,
+        .status-item strong {
+            color: var(--text-soft);
+        }
+
+        .panel-heading p {
+            margin: 10px 0 0;
+            font-size: 0.96rem;
+            line-height: 1.5;
+        }
+
+        .action-dock {
+            position: absolute;
+            left: calc(16px + env(safe-area-inset-left));
+            top: calc(16px + env(safe-area-inset-top));
+            z-index: 11;
+            width: min(260px, calc(100vw - 32px));
+            padding: 14px;
+            border-radius: 22px;
+            background: rgba(5, 16, 25, 0.68);
+            border: 1px solid rgba(152, 206, 235, 0.16);
+            box-shadow: 0 20px 44px rgba(0, 0, 0, 0.28);
+        }
+
+        .action-dock p {
+            margin: 0;
+        }
+
+        .scene-button {
+            width: 100%;
+            min-height: 52px;
+            border: 0;
+            border-radius: 18px;
+            background: linear-gradient(135deg, #9feaff, #ffd680);
+            color: #04121b;
+            font: inherit;
+            font-size: 0.96rem;
+            font-weight: 800;
+            cursor: pointer;
+            box-shadow: 0 14px 28px rgba(98, 213, 255, 0.18);
+            transition: transform 0.2s ease;
+        }
+
+        .scene-button:hover,
+        .scene-button:focus-visible {
+            outline: none;
+            transform: translateY(-1px);
+        }
+
+        .scene-button.secondary {
+            margin-top: 10px;
+            background: rgba(14, 35, 49, 0.95);
+            color: var(--text-main);
+            border: 1px solid rgba(152, 206, 235, 0.16);
+            box-shadow: none;
+        }
+
+        .scene-status {
+            margin-top: 10px;
+            padding: 11px 12px;
+            border-radius: 16px;
+            background: rgba(14, 35, 49, 0.9);
+            color: var(--text-soft);
+            font-size: 0.88rem;
+            line-height: 1.45;
+            border: 1px solid rgba(152, 206, 235, 0.12);
+        }
+
+        .scene-status.ok {
+            color: #caffde;
+            border-color: rgba(137, 240, 184, 0.3);
+            background: rgba(20, 61, 45, 0.58);
+        }
+
+        .scene-status.warn {
+            color: #ffe1af;
+            border-color: rgba(255, 211, 110, 0.26);
+            background: rgba(70, 48, 16, 0.44);
+        }
+
+        #panel-toggle {
+            position: absolute;
+            top: calc(18px + env(safe-area-inset-top));
+            right: calc(18px + env(safe-area-inset-right));
+            z-index: 12;
+            min-height: 50px;
+            padding: 0 18px;
+            border: 1px solid var(--button-border);
+            border-radius: 999px;
+            background: var(--button-bg);
+            color: var(--text-main);
+            font: inherit;
+            font-size: 0.94rem;
+            font-weight: 700;
+            cursor: pointer;
+            box-shadow: 0 16px 36px rgba(0, 0, 0, 0.25);
+            transition: transform 0.2s ease, opacity 0.2s ease;
+        }
+
+        #panel-toggle.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        #panel-toggle:hover,
+        #panel-toggle:focus-visible,
+        .close-button:hover,
+        .close-button:focus-visible {
+            outline: none;
+            transform: translateY(-1px);
+        }
+
+        #ui-panel {
+            position: absolute;
+            top: calc(18px + env(safe-area-inset-top));
+            right: calc(18px + env(safe-area-inset-right));
+            width: min(360px, calc(100vw - 24px));
+            max-height: calc(100vh - 36px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+            overflow-y: auto;
+            z-index: 15;
+            padding: 20px;
+            border-radius: 28px;
+            background: var(--panel-bg);
+            border: 1px solid var(--panel-border);
+            box-shadow: var(--panel-shadow);
+            transition: transform 0.28s ease, opacity 0.28s ease;
+        }
+
+        #ui-panel.hidden {
+            transform: translateX(calc(100% + 26px));
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        #ui-panel::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        #ui-panel::-webkit-scrollbar-thumb {
+            background: rgba(126, 148, 164, 0.45);
+            border-radius: 999px;
+        }
+
+        .panel-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 14px;
+            margin-bottom: 18px;
+        }
+
+        .close-button {
+            width: 42px;
+            height: 42px;
+            border: 1px solid rgba(152, 206, 235, 0.18);
+            border-radius: 50%;
+            background: rgba(12, 33, 48, 0.9);
+            color: var(--text-main);
+            font: inherit;
+            font-size: 1.2rem;
+            cursor: pointer;
+            flex: 0 0 auto;
+            transition: transform 0.2s ease;
+        }
+
+        .controls-stack {
+            display: grid;
+            gap: 18px;
+        }
+
+        .card {
+            padding: 16px;
+            border-radius: 20px;
+            background: rgba(8, 24, 37, 0.76);
+            border: 1px solid rgba(152, 206, 235, 0.12);
+        }
+
+        .card h3 {
+            margin: 0 0 10px;
+            font-size: 0.98rem;
+            color: #fff;
+        }
+
+        .goal-card {
+            background: linear-gradient(180deg, rgba(16, 44, 62, 0.92), rgba(9, 26, 39, 0.88));
+            border-color: rgba(133, 214, 255, 0.18);
+        }
+
+        .control-group {
+            margin-bottom: 16px;
+        }
+
+        .control-group:last-child {
+            margin-bottom: 0;
+        }
+
+        label {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 9px;
+            color: var(--text-soft);
+            font-size: 0.92rem;
+            font-weight: 600;
+        }
+
+        .value-pill {
+            padding: 4px 10px;
+            border-radius: 999px;
+            background: rgba(98, 213, 255, 0.14);
+            color: var(--accent-strong);
+            font-size: 0.84rem;
+            font-weight: 700;
+        }
+
+        input[type="range"] {
+            width: 100%;
+            height: 8px;
+            margin: 0;
+            background: linear-gradient(90deg, rgba(98, 213, 255, 0.26), rgba(255, 201, 107, 0.3));
+            border-radius: 999px;
+            outline: none;
+            -webkit-appearance: none;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 22px;
+            height: 22px;
+            border-radius: 50%;
+            background: #fff;
+            border: 3px solid var(--accent);
+            box-shadow: 0 0 16px rgba(98, 213, 255, 0.32);
+            cursor: pointer;
+        }
+
+        input[type="range"]::-moz-range-thumb {
+            width: 22px;
+            height: 22px;
+            border: 3px solid var(--accent);
+            border-radius: 50%;
+            background: #fff;
+            box-shadow: 0 0 16px rgba(98, 213, 255, 0.32);
+            cursor: pointer;
+        }
+
+        .helper-text {
+            margin: 9px 0 0;
+            font-size: 0.82rem;
+            line-height: 1.45;
+        }
+
+        .status-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 12px;
+        }
+
+        .status-title {
+            margin: 0 0 12px;
+            color: var(--accent);
+            font-size: 0.75rem;
+            letter-spacing: 0.16em;
+            text-transform: uppercase;
+            font-weight: 700;
+        }
+
+        .status-item strong {
+            display: block;
+            margin-bottom: 4px;
+            font-size: 0.73rem;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+        }
+
+        .status-item span {
+            display: block;
+            font-size: 0.98rem;
+            font-weight: 700;
+            line-height: 1.3;
+            color: #fff;
+        }
+
+        .formula {
+            margin-top: 14px;
+            padding-top: 14px;
+            border-top: 1px solid rgba(152, 206, 235, 0.12);
+            font-size: 0.95rem;
+        }
+
+        .formula strong {
+            color: var(--torque-color);
+        }
+
+        .formula small {
+            display: block;
+            margin-top: 6px;
+            color: var(--text-faint);
+            font-size: 0.83rem;
+            line-height: 1.4;
+        }
+
+        .goal-meter {
+            margin-top: 12px;
+            height: 12px;
+            border-radius: 999px;
+            overflow: hidden;
+            background: rgba(255, 255, 255, 0.08);
+        }
+
+        .goal-fill {
+            height: 100%;
+            width: 0%;
+            border-radius: inherit;
+            background: linear-gradient(90deg, #7adfff, #ffd46d);
+            transition: width 0.22s ease;
+        }
+
+        .goal-meta {
+            display: flex;
+            justify-content: space-between;
+            gap: 12px;
+            margin-top: 10px;
+            color: var(--text-soft);
+            font-size: 0.83rem;
+        }
+
+        .note {
+            margin: 0;
+            font-size: 0.88rem;
+            line-height: 1.55;
+        }
+
+        @media (max-width: 860px) {
+            .action-dock {
+                top: calc(16px + env(safe-area-inset-top));
+            }
+        }
+
+        @media (max-width: 640px) {
+            .status-grid {
+                grid-template-columns: 1fr 1fr;
+            }
+
+            #ui-panel {
+                width: min(340px, calc(100vw - 18px));
+                right: calc(9px + env(safe-area-inset-right));
+                top: calc(9px + env(safe-area-inset-top));
+                max-height: calc(100vh - 18px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+                border-radius: 24px;
+            }
+
+            .action-dock {
+                top: calc(12px + env(safe-area-inset-top));
+                width: min(250px, calc(100vw - 32px));
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="action-dock" aria-live="polite">
+        <button id="apply-force-button" class="scene-button" type="button">Apply Force</button>
+        <button id="stop-force-button" class="scene-button secondary" type="button">Stop Force</button>
+        <button id="reset-button" class="scene-button secondary" type="button">Reset</button>
+        <p id="scene-status" class="scene-status">Press Apply Force to test whether the nut will turn.</p>
+    </div>
+
+    <button id="panel-toggle" type="button" aria-controls="ui-panel" aria-expanded="true">Controls</button>
+
+    <aside id="ui-panel" aria-label="Controls panel">
+        <div class="panel-top">
+            <div class="panel-heading">
+                <p class="eyebrow">Control Drawer</p>
+                <h2>Adjust The Wrench</h2>
+                <p>Torque = force × distance from the nut. </p>
+            </div>
+            <button id="close-panel" class="close-button" type="button" aria-label="Close controls">×</button>
+        </div>
+
+        <div class="controls-stack">
+            <section class="card">
+                <h3>Set The Values</h3>
+
+                <div class="control-group">
+                    <label for="required-slider">
+                        Required Torque
+                        <span class="value-pill" id="required-val">25 N·m</span>
+                    </label>
+                    <input type="range" id="required-slider" min="10" max="60" step="1" value="25">
+                    <p class="helper-text">This is the torque needed to turn the nut.</p>
+                </div>
+
+                <div class="control-group">
+                    <label for="force-slider">
+                        Force
+                        <span class="value-pill" id="force-val">40 N</span>
+                    </label>
+                    <input type="range" id="force-slider" min="0" max="100" step="1" value="40">
+                    <p class="helper-text">A bigger push gives more torque.</p>
+                </div>
+
+                <div class="control-group">
+                    <label for="distance-slider">
+                        Distance From Nut
+                        <span class="value-pill" id="distance-val">0.50 m</span>
+                    </label>
+                    <input type="range" id="distance-slider" min="0.1" max="1.0" step="0.01" value="0.5">
+                    <p class="helper-text">Pushing farther from the nut gives more torque.</p>
+                </div>
+            </section>
+
+            <section class="card goal-card">
+                <h3>Target</h3>
+                <p class="note" id="goal-text">The nut will turn when the current torque reaches 25 N·m.</p>
+                <div class="goal-meter" aria-hidden="true">
+                    <div class="goal-fill" id="goal-fill"></div>
+                </div>
+                <div class="goal-meta">
+                    <span id="goal-progress">Current torque: 20.0 N·m</span>
+                    <span id="goal-state">Nut locked</span>
+                </div>
+            </section>
+
+            <section class="card" aria-live="polite">
+                <p class="status-title">Live Reading</p>
+                <div class="status-grid">
+                    <div class="status-item">
+                        <strong>Force</strong>
+                        <span id="status-force">40 N</span>
+                    </div>
+                    <div class="status-item">
+                        <strong>Distance</strong>
+                        <span id="status-distance">0.50 m</span>
+                    </div>
+                    <div class="status-item">
+                        <strong>Current Torque</strong>
+                        <span id="status-current">20.0 N·m</span>
+                    </div>
+                    <div class="status-item">
+                        <strong>Required Torque</strong>
+                        <span id="status-required">25.0 N·m</span>
+                    </div>
+                    <div class="status-item">
+                        <strong>Nut Status</strong>
+                        <span id="status-state">Locked</span>
+                    </div>
+                    <div class="status-item">
+                        <strong>Need More</strong>
+                        <span id="status-gap">5.0 N·m</span>
+                    </div>
+                </div>
+                <div class="formula">
+                    <strong id="status-formula">Torque = 40 × 0.50 = 20.0 N·m</strong>
+                    <small>When current torque is equal to or greater than required torque, the nut turns.</small>
+                </div>
+            </section>
+
+            <section class="card">
+                <h3>Rule</h3>
+                <p class="note">To increase torque, increase the force, increase the distance from the nut, or increase both.</p>
+            </section>
+        </div>
+    </aside>
+
+    <canvas id="simCanvas"></canvas>
+
+    <script>
+        const canvas = document.getElementById("simCanvas");
+        const ctx = canvas.getContext("2d");
+
+        const panel = document.getElementById("ui-panel");
+        const panelToggle = document.getElementById("panel-toggle");
+        const closePanelButton = document.getElementById("close-panel");
+        const applyForceButton = document.getElementById("apply-force-button");
+        const stopForceButton = document.getElementById("stop-force-button");
+        const resetButton = document.getElementById("reset-button");
+        const sceneStatus = document.getElementById("scene-status");
+
+        const requiredSlider = document.getElementById("required-slider");
+        const forceSlider = document.getElementById("force-slider");
+        const distanceSlider = document.getElementById("distance-slider");
+
+        const requiredVal = document.getElementById("required-val");
+        const forceVal = document.getElementById("force-val");
+        const distanceVal = document.getElementById("distance-val");
+
+        const goalText = document.getElementById("goal-text");
+        const goalFill = document.getElementById("goal-fill");
+        const goalProgress = document.getElementById("goal-progress");
+        const goalState = document.getElementById("goal-state");
+
+        const statusForce = document.getElementById("status-force");
+        const statusDistance = document.getElementById("status-distance");
+        const statusCurrent = document.getElementById("status-current");
+        const statusRequired = document.getElementById("status-required");
+        const statusState = document.getElementById("status-state");
+        const statusGap = document.getElementById("status-gap");
+        const statusFormula = document.getElementById("status-formula");
+
+        let width = 0;
+        let height = 0;
+        let pivotX = 0;
+        let pivotY = 0;
+        let wrenchLengthPx = 0;
+
+        let requiredTorque = 25;
+        let force = 40;
+        let distance = 0.5;
+        let panelOpen = true;
+        let activeDrag = null;
+
+        let wrenchFlex = 0;
+        let assemblyRotation = 0;
+        let appliedForcePulse = 0;
+        let applyingForce = false;
+        let testResult = "idle";
+        let lastFrameTime = 0;
+
+        const METER_TO_PX = 420;
+        const FORCE_TO_PX = 2.3;
+
+        function resize() {
+            width = window.innerWidth;
+            height = window.innerHeight;
+
+            const dpr = Math.min(window.devicePixelRatio || 1, 2);
+            canvas.width = Math.round(width * dpr);
+            canvas.height = Math.round(height * dpr);
+            canvas.style.width = `${width}px`;
+            canvas.style.height = `${height}px`;
+            ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+            const reservedRight = panelOpen ? Math.min(390, Math.max(180, width * 0.36)) : 110;
+            const safeWidth = Math.max(320, width - reservedRight);
+
+            pivotX = Math.max(170, Math.min(safeWidth * 0.28, width - 540));
+            pivotY = Math.max(250, Math.min(height * 0.62, height - 150));
+            wrenchLengthPx = Math.max(260, Math.min(METER_TO_PX, width - pivotX - 120));
+
+            draw();
+        }
+
+        function torqueValue() {
+            return force * distance;
+        }
+
+        function targetReached() {
+            return torqueValue() >= requiredTorque;
+        }
+
+        function updateSceneStatus() {
+            if (!applyingForce && testResult === "stopped") {
+                sceneStatus.textContent = "Force stopped. The wrench stays at its current position.";
+                sceneStatus.className = "scene-status";
+                return;
+            }
+
+            if (testResult === "enough") {
+                sceneStatus.textContent = "Sufficient torque: the nut turns.";
+                sceneStatus.className = "scene-status ok";
+                return;
+            }
+
+            if (testResult === "not-enough") {
+                const gap = Math.max(0, requiredTorque - torqueValue());
+                sceneStatus.textContent = `Not enough torque: increase it by ${gap.toFixed(1)} N·m.`;
+                sceneStatus.className = "scene-status warn";
+                return;
+            }
+
+            sceneStatus.textContent = "Press Apply Force to test whether the nut will turn.";
+            sceneStatus.className = "scene-status";
+        }
+
+        function setPanelState(open) {
+            panelOpen = open;
+            panel.classList.toggle("hidden", !open);
+            panelToggle.classList.toggle("hidden", open);
+            panelToggle.setAttribute("aria-expanded", String(open));
+            resize();
+        }
+
+        function updateReadouts() {
+            const currentTorque = torqueValue();
+            const gap = Math.max(0, requiredTorque - currentTorque);
+            const progress = Math.min(1, currentTorque / requiredTorque);
+            const torqueEnough = targetReached();
+            const turning = applyingForce && torqueEnough;
+
+            requiredVal.textContent = `${requiredTorque.toFixed(0)} N·m`;
+            forceVal.textContent = `${force} N`;
+            distanceVal.textContent = `${distance.toFixed(2)} m`;
+
+            goalText.textContent = `The nut will turn when the current torque reaches ${requiredTorque.toFixed(0)} N·m.`;
+            goalProgress.textContent = `Current torque: ${currentTorque.toFixed(1)} N·m`;
+            goalState.textContent = turning ? "Nut turning" : (torqueEnough ? "Torque ready" : "Nut locked");
+            goalFill.style.width = `${(progress * 100).toFixed(1)}%`;
+            goalFill.style.background = torqueEnough
+                ? "linear-gradient(90deg, #79efb7, #c7ff8b)"
+                : "linear-gradient(90deg, #7adfff, #ffd46d)";
+
+            statusForce.textContent = `${force} N`;
+            statusDistance.textContent = `${distance.toFixed(2)} m`;
+            statusCurrent.textContent = `${currentTorque.toFixed(1)} N·m`;
+            statusRequired.textContent = `${requiredTorque.toFixed(1)} N·m`;
+            statusState.textContent = turning ? "Turning" : (torqueEnough ? "Ready" : "Locked");
+            statusGap.textContent = torqueEnough ? "0.0 N·m" : `${gap.toFixed(1)} N·m`;
+            statusFormula.textContent = `Torque = ${force} × ${distance.toFixed(2)} = ${currentTorque.toFixed(1)} N·m`;
+            updateSceneStatus();
+        }
+
+        function drawBackdrop() {
+            ctx.clearRect(0, 0, width, height);
+
+            ctx.save();
+            ctx.strokeStyle = "rgba(255,255,255,0.035)";
+            ctx.lineWidth = 1;
+            for (let x = 0; x <= width; x += 48) {
+                ctx.beginPath();
+                ctx.moveTo(x, 0);
+                ctx.lineTo(x, height);
+                ctx.stroke();
+            }
+            for (let y = 0; y <= height; y += 48) {
+                ctx.beginPath();
+                ctx.moveTo(0, y);
+                ctx.lineTo(width, y);
+                ctx.stroke();
+            }
+            ctx.restore();
+
+            const glow = ctx.createRadialGradient(pivotX, pivotY + 4, 20, pivotX, pivotY + 4, 190);
+            glow.addColorStop(0, "rgba(255, 211, 110, 0.18)");
+            glow.addColorStop(0.45, "rgba(98, 213, 255, 0.08)");
+            glow.addColorStop(1, "rgba(0, 0, 0, 0)");
+
+            ctx.save();
+            ctx.fillStyle = glow;
+            ctx.beginPath();
+            ctx.arc(pivotX, pivotY + 4, 190, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+
+            ctx.save();
+            const surfaceY = pivotY + 112;
+            const surfaceGradient = ctx.createLinearGradient(0, surfaceY - 10, 0, surfaceY + 40);
+            surfaceGradient.addColorStop(0, "rgba(140, 170, 190, 0.12)");
+            surfaceGradient.addColorStop(1, "rgba(12, 26, 36, 0)");
+            ctx.fillStyle = surfaceGradient;
+            ctx.beginPath();
+            ctx.ellipse(pivotX + 80, surfaceY + 8, 300, 48, 0, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+        }
+
+        function wrenchAngle() {
+            return assemblyRotation + wrenchFlex;
+        }
+
+        function drawBase() {
+            ctx.save();
+            ctx.translate(pivotX, pivotY + 62);
+
+            const plateGradient = ctx.createLinearGradient(-120, -10, 120, 26);
+            plateGradient.addColorStop(0, "rgba(70, 96, 112, 0.95)");
+            plateGradient.addColorStop(0.5, "rgba(141, 166, 181, 0.98)");
+            plateGradient.addColorStop(1, "rgba(78, 101, 116, 0.95)");
+
+            ctx.shadowBlur = 24;
+            ctx.shadowColor = "rgba(0, 0, 0, 0.25)";
+            ctx.fillStyle = "rgba(0, 0, 0, 0.2)";
+            ctx.beginPath();
+            ctx.roundRect(-132, 18, 264, 22, 11);
+            ctx.fill();
+
+            ctx.beginPath();
+            ctx.roundRect(-132, -4, 264, 28, 14);
+            ctx.fillStyle = plateGradient;
+            ctx.fill();
+
+            ctx.fillStyle = "rgba(255,255,255,0.16)";
+            ctx.beginPath();
+            ctx.roundRect(-112, 0, 224, 5, 999);
+            ctx.fill();
+            ctx.restore();
+
+            ctx.save();
+            ctx.translate(pivotX, pivotY + 6);
+            ctx.fillStyle = "rgba(46, 63, 74, 0.95)";
+            ctx.beginPath();
+            ctx.roundRect(-8, 8, 16, 52, 7);
+            ctx.fill();
+            ctx.restore();
+        }
+
+        function drawNut() {
+            ctx.save();
+            ctx.translate(pivotX, pivotY + 4);
+
+            const washerGradient = ctx.createRadialGradient(0, 0, 8, 0, 0, 34);
+            washerGradient.addColorStop(0, "rgba(245, 251, 255, 0.95)");
+            washerGradient.addColorStop(0.45, "rgba(183, 203, 215, 0.98)");
+            washerGradient.addColorStop(1, "rgba(88, 110, 125, 0.95)");
+
+            ctx.shadowBlur = 18;
+            ctx.shadowColor = "rgba(0, 0, 0, 0.24)";
+            ctx.fillStyle = washerGradient;
+            ctx.beginPath();
+            ctx.arc(0, 0, 30, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.fillStyle = "rgba(38, 52, 62, 0.95)";
+            ctx.beginPath();
+            ctx.arc(0, 0, 12, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+
+            ctx.save();
+            ctx.translate(pivotX, pivotY + 4);
+            ctx.rotate(assemblyRotation);
+            ctx.fillStyle = targetReached() ? "#98f3c0" : "#fff1d4";
+            ctx.beginPath();
+            for (let side = 0; side < 6; side++) {
+                const angle = (Math.PI / 3) * side + Math.PI / 6;
+                const x = 20 * Math.cos(angle);
+                const y = 20 * Math.sin(angle);
+                if (side === 0) {
+                    ctx.moveTo(x, y);
+                } else {
+                    ctx.lineTo(x, y);
+                }
+            }
+            ctx.closePath();
+            ctx.fill();
+
+            ctx.fillStyle = "rgba(6, 19, 29, 0.88)";
+            ctx.beginPath();
+            ctx.arc(0, 0, 7.5, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+
+            ctx.save();
+            ctx.fillStyle = "rgba(255,255,255,0.88)";
+            ctx.font = "700 14px 'Avenir Next', sans-serif";
+            ctx.textAlign = "center";
+            ctx.fillText(applyingForce && targetReached() ? "Nut turning" : "Nut", pivotX, pivotY + 122);
+            ctx.restore();
+        }
+
+        function drawWrench() {
+            ctx.save();
+            ctx.translate(pivotX, pivotY);
+            ctx.rotate(wrenchAngle());
+
+            const handleStart = 22;
+            const handleLength = wrenchLengthPx + 52;
+            const handleEnd = handleStart + handleLength;
+            const handleHeight = 34;
+            const headRadius = 35;
+
+            ctx.shadowBlur = 26;
+            ctx.shadowColor = "rgba(0, 0, 0, 0.28)";
+            ctx.fillStyle = "rgba(0, 0, 0, 0.18)";
+            ctx.beginPath();
+            ctx.ellipse(handleEnd * 0.52, 24, handleEnd * 0.54, 16, 0.02, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.beginPath();
+            ctx.ellipse(8, 18, 54, 20, 0.08, 0, Math.PI * 2);
+            ctx.fill();
+
+            const bodyGradient = ctx.createLinearGradient(-18, -26, handleEnd + 20, 28);
+            bodyGradient.addColorStop(0, "#6f8797");
+            bodyGradient.addColorStop(0.18, "#d9e9f0");
+            bodyGradient.addColorStop(0.52, "#9cb4c1");
+            bodyGradient.addColorStop(0.78, "#e8f4f9");
+            bodyGradient.addColorStop(1, "#708797");
+
+            const edgeGradient = ctx.createLinearGradient(0, -26, 0, 26);
+            edgeGradient.addColorStop(0, "rgba(255,255,255,0.42)");
+            edgeGradient.addColorStop(0.5, "rgba(255,255,255,0)");
+            edgeGradient.addColorStop(1, "rgba(6, 19, 29, 0.28)");
+
+            ctx.shadowBlur = 18;
+            ctx.shadowColor = "rgba(7, 22, 32, 0.42)";
+            ctx.fillStyle = bodyGradient;
+            ctx.beginPath();
+            ctx.roundRect(handleStart, -handleHeight / 2, handleLength, handleHeight, 18);
+            ctx.fill();
+
+            ctx.beginPath();
+            ctx.moveTo(0, -27);
+            ctx.lineTo(handleStart + 22, -17);
+            ctx.lineTo(handleStart + 22, 17);
+            ctx.lineTo(0, 27);
+            ctx.closePath();
+            ctx.fill();
+
+            const headGradient = ctx.createRadialGradient(-4, -8, 8, 6, 0, 46);
+            headGradient.addColorStop(0, "#eef9ff");
+            headGradient.addColorStop(0.42, "#b9ced9");
+            headGradient.addColorStop(1, "#6c8392");
+
+            ctx.fillStyle = headGradient;
+            ctx.beginPath();
+            ctx.arc(6, 0, headRadius, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.save();
+            ctx.globalCompositeOperation = "destination-out";
+            ctx.beginPath();
+            ctx.arc(0, 0, 22, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.beginPath();
+            ctx.moveTo(14, -10);
+            ctx.lineTo(58, -3);
+            ctx.lineTo(58, 3);
+            ctx.lineTo(14, 10);
+            ctx.closePath();
+            ctx.fill();
+            ctx.restore();
+
+            ctx.strokeStyle = "rgba(255,255,255,0.34)";
+            ctx.lineWidth = 2.2;
+            ctx.beginPath();
+            ctx.roundRect(handleStart + 18, -7, handleLength - 58, 6, 999);
+            ctx.stroke();
+
+            ctx.strokeStyle = edgeGradient;
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.roundRect(handleStart + 2, -handleHeight / 2 + 2, handleLength - 4, handleHeight - 4, 16);
+            ctx.stroke();
+
+            ctx.strokeStyle = "rgba(245, 251, 255, 0.48)";
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.arc(6, 0, headRadius - 3, Math.PI * 0.64, Math.PI * 1.34);
+            ctx.stroke();
+
+            ctx.strokeStyle = "rgba(27, 40, 49, 0.5)";
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.moveTo(18, -10);
+            ctx.lineTo(50, -3.5);
+            ctx.moveTo(18, 10);
+            ctx.lineTo(50, 3.5);
+            ctx.stroke();
+
+            for (let step = 2; step <= 10; step += 2) {
+                const x = wrenchLengthPx * step / 10;
+                ctx.strokeStyle = "rgba(235, 245, 255, 0.3)";
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.moveTo(x, -28);
+                ctx.lineTo(x, -48);
+                ctx.stroke();
+
+                ctx.fillStyle = "rgba(232, 243, 250, 0.78)";
+                ctx.font = "700 13px 'Avenir Next', sans-serif";
+                ctx.textAlign = "center";
+                ctx.fillText(`${(step / 10).toFixed(1)} m`, x, -64);
+            }
+
+            ctx.restore();
+        }
+
+        function drawDistanceGuide() {
+            const handDistancePx = distance * wrenchLengthPx;
+            const handX = pivotX + handDistancePx * Math.cos(wrenchAngle());
+            const handY = pivotY + handDistancePx * Math.sin(wrenchAngle());
+            const midX = (pivotX + handX) / 2;
+            const midY = (pivotY + handY) / 2;
+
+            ctx.save();
+            ctx.strokeStyle = "rgba(97, 227, 183, 0.88)";
+            ctx.fillStyle = "rgba(97, 227, 183, 0.9)";
+            ctx.lineWidth = 3;
+            ctx.setLineDash([10, 8]);
+
+            ctx.beginPath();
+            ctx.moveTo(pivotX, pivotY);
+            ctx.lineTo(handX, handY);
+            ctx.stroke();
+
+            ctx.setLineDash([]);
+            ctx.beginPath();
+            ctx.arc(pivotX, pivotY, 4, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.beginPath();
+            ctx.arc(handX, handY, 5, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.fillStyle = "#baf5e3";
+            ctx.font = "700 15px 'Avenir Next', sans-serif";
+            ctx.textAlign = "center";
+            ctx.fillText(`distance = ${distance.toFixed(2)} m`, midX, midY - 28);
+            ctx.restore();
+        }
+
+        function drawForce() {
+            const handDistancePx = distance * wrenchLengthPx;
+            const handX = pivotX + handDistancePx * Math.cos(wrenchAngle());
+            const handY = pivotY + handDistancePx * Math.sin(wrenchAngle());
+            const arrowLength = Math.max(30, force * FORCE_TO_PX);
+            const arrowAngle = wrenchAngle() + Math.PI / 2;
+            const tipX = handX + arrowLength * Math.cos(arrowAngle);
+            const tipY = handY + arrowLength * Math.sin(arrowAngle);
+            const headSize = 18;
+            const leftHeadAngle = arrowAngle - Math.PI + Math.PI / 7;
+            const rightHeadAngle = arrowAngle - Math.PI - Math.PI / 7;
+
+            ctx.save();
+            ctx.shadowBlur = 22;
+            ctx.shadowColor = "rgba(255, 211, 110, 0.4)";
+            ctx.fillStyle = "#ffd36e";
+            ctx.beginPath();
+            ctx.arc(handX, handY, 12, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+
+            ctx.save();
+            ctx.strokeStyle = "var(--force-color)";
+            ctx.fillStyle = "var(--force-color)";
+            ctx.lineWidth = 5;
+            ctx.lineCap = "round";
+            ctx.lineJoin = "round";
+            ctx.shadowBlur = 16;
+            ctx.shadowColor = "#ff7182";
+
+            ctx.beginPath();
+            ctx.moveTo(handX, handY);
+            ctx.lineTo(tipX, tipY);
+            ctx.stroke();
+
+            ctx.beginPath();
+            ctx.moveTo(tipX, tipY);
+            ctx.lineTo(
+                tipX + headSize * Math.cos(leftHeadAngle),
+                tipY + headSize * Math.sin(leftHeadAngle)
+            );
+            ctx.lineTo(
+                tipX + headSize * Math.cos(rightHeadAngle),
+                tipY + headSize * Math.sin(rightHeadAngle)
+            );
+            ctx.closePath();
+            ctx.fill();
+            ctx.restore();
+
+            ctx.save();
+            ctx.fillStyle = "#ffe0e5";
+            ctx.font = "700 14px 'Avenir Next', sans-serif";
+            ctx.textAlign = "center";
+            ctx.fillText(
+                `${force} N`,
+                tipX + 22 * Math.cos(arrowAngle),
+                tipY + 22 * Math.sin(arrowAngle) + 6
+            );
+            ctx.restore();
+        }
+
+        function drawTorqueArc() {
+            const currentTorque = torqueValue();
+            if (currentTorque <= 0.1) {
+                return;
+            }
+
+            const arcRadius = 60 + Math.min(42, currentTorque * 0.55);
+            const baseAngle = assemblyRotation * 0.9;
+
+            ctx.save();
+            ctx.strokeStyle = applyingForce && targetReached() ? "var(--success)" : "var(--torque-color)";
+            ctx.fillStyle = applyingForce && targetReached() ? "var(--success)" : "var(--torque-color)";
+            ctx.lineWidth = 4;
+            ctx.lineCap = "round";
+            ctx.shadowBlur = 16;
+            ctx.shadowColor = applyingForce && targetReached() ? "rgba(137, 240, 184, 0.48)" : "rgba(255, 211, 110, 0.48)";
+
+            ctx.beginPath();
+            ctx.arc(pivotX, pivotY + 2, arcRadius, baseAngle + Math.PI * 0.86, baseAngle + Math.PI * 1.82);
+            ctx.stroke();
+
+            const arrowAngle = baseAngle + Math.PI * 1.82;
+            const arrowX = pivotX + arcRadius * Math.cos(arrowAngle);
+            const arrowY = pivotY + 2 + arcRadius * Math.sin(arrowAngle);
+            const tangentAngle = arrowAngle + Math.PI / 2;
+
+            ctx.beginPath();
+            ctx.moveTo(arrowX, arrowY);
+            ctx.lineTo(
+                arrowX - 12 * Math.cos(tangentAngle - Math.PI / 6),
+                arrowY - 12 * Math.sin(tangentAngle - Math.PI / 6)
+            );
+            ctx.lineTo(
+                arrowX - 12 * Math.cos(tangentAngle + Math.PI / 6),
+                arrowY - 12 * Math.sin(tangentAngle + Math.PI / 6)
+            );
+            ctx.closePath();
+            ctx.fill();
+            ctx.restore();
+        }
+
+        function updateAnimation(deltaMs) {
+            const dt = deltaMs / 1000;
+            const turning = applyingForce && testResult === "enough";
+            const ratio = Math.min(1.4, torqueValue() / requiredTorque);
+            const targetFlex = applyingForce
+                ? (turning ? 0.16 + Math.min(0.08, (ratio - 1) * 0.08) : 0.08 + 0.12 * Math.min(ratio, 1))
+                : 0;
+            const flexEase = 1 - Math.pow(0.78, deltaMs / 16.67);
+            wrenchFlex += (targetFlex - wrenchFlex) * flexEase;
+
+            if (turning) {
+                assemblyRotation += dt * (0.55 + Math.min(0.85, ratio - 0.9));
+            } else if (!applyingForce) {
+                assemblyRotation = assemblyRotation;
+            } else {
+                assemblyRotation *= Math.pow(0.86, deltaMs / 16.67);
+            }
+        }
+
+        function draw() {
+            drawBackdrop();
+            drawDistanceGuide();
+            drawWrench();
+            drawBase();
+            drawNut();
+            drawForce();
+            drawTorqueArc();
+            updateReadouts();
+        }
+
+        function animate(timestamp) {
+            if (!lastFrameTime) {
+                lastFrameTime = timestamp;
+            }
+
+            const delta = Math.min(40, timestamp - lastFrameTime);
+            lastFrameTime = timestamp;
+
+            updateAnimation(delta);
+            draw();
+            window.requestAnimationFrame(animate);
+        }
+
+        function handPoint() {
+            const handDistancePx = distance * wrenchLengthPx;
+            return {
+                x: pivotX + handDistancePx * Math.cos(wrenchAngle()),
+                y: pivotY + handDistancePx * Math.sin(wrenchAngle())
+            };
+        }
+
+        function forceTipPoint() {
+            const hand = handPoint();
+            const arrowAngle = wrenchAngle() + Math.PI / 2;
+            const arrowLength = Math.max(30, force * FORCE_TO_PX);
+            return {
+                x: hand.x + arrowLength * Math.cos(arrowAngle),
+                y: hand.y + arrowLength * Math.sin(arrowAngle)
+            };
+        }
+
+        function distanceHandlePoint() {
+            return handPoint();
+        }
+
+        function pointerPosition(event) {
+            const rect = canvas.getBoundingClientRect();
+            return {
+                x: event.clientX - rect.left,
+                y: event.clientY - rect.top
+            };
+        }
+
+        canvas.addEventListener("pointerdown", (event) => {
+            const hand = distanceHandlePoint();
+            const tip = forceTipPoint();
+            const pos = pointerPosition(event);
+
+            if (Math.hypot(pos.x - hand.x, pos.y - hand.y) < 16) {
+                activeDrag = "distance";
+                canvas.setPointerCapture(event.pointerId);
+                canvas.style.cursor = "grabbing";
+            } else if (Math.hypot(pos.x - tip.x, pos.y - tip.y) < 18) {
+                activeDrag = "force";
+                canvas.setPointerCapture(event.pointerId);
+                canvas.style.cursor = "grabbing";
+            }
+        });
+
+        canvas.addEventListener("pointermove", (event) => {
+            if (!activeDrag) {
+                return;
+            }
+
+            const pos = pointerPosition(event);
+            const hand = handPoint();
+            const axisAngle = wrenchAngle();
+            const dx = pos.x - pivotX;
+            const dy = pos.y - pivotY;
+            const projection = dx * Math.cos(axisAngle) + dy * Math.sin(axisAngle);
+
+            if (activeDrag === "distance") {
+                distance = Math.max(0.1, Math.min(1.0, projection / wrenchLengthPx));
+                distanceSlider.value = distance;
+            } else if (activeDrag === "force") {
+                const arrowAngle = wrenchAngle() + Math.PI / 2;
+                const forceProjection =
+                    (pos.x - hand.x) * Math.cos(arrowAngle) +
+                    (pos.y - hand.y) * Math.sin(arrowAngle);
+                const newForce = Math.max(0, Math.min(100, Math.round(forceProjection / FORCE_TO_PX)));
+                force = newForce;
+                forceSlider.value = force;
+            }
+
+            applyingForce = false;
+            testResult = "idle";
+            draw();
+        });
+
+        function stopDragging(event) {
+            if (!activeDrag) {
+                return;
+            }
+
+            if (event && canvas.hasPointerCapture(event.pointerId)) {
+                canvas.releasePointerCapture(event.pointerId);
+            }
+
+            activeDrag = null;
+            canvas.style.cursor = "default";
+        }
+
+        canvas.addEventListener("pointerup", stopDragging);
+        canvas.addEventListener("pointercancel", stopDragging);
+        canvas.addEventListener("pointerleave", stopDragging);
+
+        requiredSlider.addEventListener("input", (event) => {
+            requiredTorque = parseFloat(event.target.value);
+            applyingForce = false;
+            testResult = "idle";
+            draw();
+        });
+
+        forceSlider.addEventListener("input", (event) => {
+            force = parseInt(event.target.value, 10);
+            applyingForce = false;
+            testResult = "idle";
+            draw();
+        });
+
+        distanceSlider.addEventListener("input", (event) => {
+            distance = parseFloat(event.target.value);
+            applyingForce = false;
+            testResult = "idle";
+            draw();
+        });
+
+        applyForceButton.addEventListener("click", () => {
+            applyingForce = true;
+            testResult = targetReached() ? "enough" : "not-enough";
+            draw();
+        });
+
+        stopForceButton.addEventListener("click", () => {
+            applyingForce = false;
+            testResult = "stopped";
+            draw();
+        });
+
+        resetButton.addEventListener("click", () => {
+            applyingForce = false;
+            testResult = "idle";
+            wrenchFlex = 0;
+            assemblyRotation = 0;
+            draw();
+        });
+
+        panelToggle.addEventListener("click", () => setPanelState(true));
+        closePanelButton.addEventListener("click", () => setPanelState(false));
+        window.addEventListener("resize", resize);
+
+        updateReadouts();
+        setPanelState(window.innerWidth > 700);
+        window.requestAnimationFrame(animate);
+    </script>
+</body>
+</html>
