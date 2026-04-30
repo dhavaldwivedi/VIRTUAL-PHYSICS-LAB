@@ -1,0 +1,938 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Prism Dispersion Simulation</title>
+    <style>
+        :root {
+            --panel-bg: rgba(15, 23, 42, 0.84);
+            --panel-border: rgba(255, 255, 255, 0.14);
+            --text-main: #e2e8f0;
+            --text-soft: #cbd5e1;
+            --text-muted: #94a3b8;
+            --accent: #38bdf8;
+            --accent-2: #f59e0b;
+            --shadow: rgba(2, 6, 23, 0.56);
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        html, body {
+            margin: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background:
+                radial-gradient(circle at 18% 18%, rgba(56, 189, 248, 0.12), transparent 26%),
+                radial-gradient(circle at 88% 20%, rgba(148, 163, 184, 0.10), transparent 24%),
+                linear-gradient(180deg, #08111f 0%, #0f172a 58%, #111827 100%);
+            color: var(--text-main);
+            font-family: "Avenir Next", "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+            -webkit-user-select: none;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            position: relative;
+        }
+
+        body.hide-ui #controls,
+        body.hide-ui #hint {
+            display: none;
+        }
+
+        canvas {
+            display: block;
+            width: 100vw;
+            width: 100svw;
+            height: 100vh;
+            height: 100svh;
+            touch-action: none;
+        }
+
+        #controls {
+            position: absolute;
+            top: max(18px, env(safe-area-inset-top));
+            left: max(18px, env(safe-area-inset-left));
+            z-index: 5;
+            width: min(340px, calc(100vw - 36px - env(safe-area-inset-left) - env(safe-area-inset-right)));
+            padding: 18px 18px 16px;
+            border-radius: 18px;
+            border: 1px solid var(--panel-border);
+            background: var(--panel-bg);
+            backdrop-filter: blur(14px);
+            -webkit-backdrop-filter: blur(14px);
+            box-shadow: 0 18px 42px var(--shadow);
+        }
+
+        h1 {
+            margin: 0 0 8px;
+            font-size: 1.15rem;
+            line-height: 1.2;
+            color: #f8fafc;
+            letter-spacing: 0.02em;
+        }
+
+        .subtext {
+            margin: 0 0 16px;
+            color: var(--text-soft);
+            font-size: 0.92rem;
+            line-height: 1.45;
+        }
+
+        .control-group {
+            margin-bottom: 14px;
+        }
+
+        .control-group:last-of-type {
+            margin-bottom: 0;
+        }
+
+        .row-label {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 7px;
+            font-size: 0.9rem;
+            color: var(--text-soft);
+        }
+
+        .value-pill {
+            padding: 4px 10px;
+            border-radius: 999px;
+            background: rgba(15, 118, 110, 0.22);
+            color: #d5fbff;
+            font-weight: 700;
+            font-size: 0.88rem;
+            min-width: 68px;
+            text-align: center;
+        }
+
+        input[type="range"],
+        select,
+        button {
+            font-size: 16px;
+        }
+
+        input[type="range"] {
+            width: 100%;
+            margin: 0;
+            accent-color: var(--accent);
+            min-height: 34px;
+            cursor: pointer;
+        }
+
+        select {
+            width: 100%;
+            border: 1px solid rgba(148, 163, 184, 0.35);
+            border-radius: 12px;
+            padding: 12px 14px;
+            background: rgba(15, 23, 42, 0.92);
+            color: #f8fafc;
+            outline: none;
+        }
+
+        .button-row {
+            display: flex;
+            gap: 10px;
+            margin-top: 14px;
+        }
+
+        button {
+            border: none;
+            border-radius: 12px;
+            padding: 12px 14px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: transform 0.15s ease, opacity 0.15s ease;
+        }
+
+        button:active {
+            transform: translateY(1px);
+        }
+
+        #resetRay {
+            flex: 1;
+            background: linear-gradient(135deg, #0ea5e9, #2563eb);
+            color: white;
+            box-shadow: 0 10px 22px rgba(37, 99, 235, 0.28);
+        }
+
+        #toggleGuide {
+            background: rgba(148, 163, 184, 0.16);
+            color: #e2e8f0;
+            border: 1px solid rgba(148, 163, 184, 0.25);
+        }
+
+        .hud {
+            margin-top: 16px;
+            padding: 14px;
+            border-radius: 14px;
+            background: rgba(2, 6, 23, 0.74);
+            border: 1px solid rgba(71, 85, 105, 0.5);
+        }
+
+        .hud-row {
+            display: flex;
+            justify-content: space-between;
+            gap: 12px;
+            padding: 8px 0;
+            border-bottom: 1px dashed rgba(51, 65, 85, 0.85);
+            font-size: 0.91rem;
+        }
+
+        .hud-row:last-child {
+            border-bottom: none;
+            padding-bottom: 0;
+        }
+
+        .hud-label {
+            color: var(--text-muted);
+        }
+
+        .hud-value {
+            font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+            font-weight: 700;
+        }
+
+        .red {
+            color: #f87171;
+        }
+
+        .violet {
+            color: #c084fc;
+        }
+
+        .spread {
+            color: #67e8f9;
+        }
+
+        #statusBadge {
+            margin-top: 14px;
+            padding: 11px 12px;
+            border-radius: 12px;
+            font-size: 0.9rem;
+            font-weight: 700;
+            text-align: center;
+            letter-spacing: 0.02em;
+            background: rgba(14, 165, 233, 0.16);
+            color: #d7f4ff;
+            border: 1px solid rgba(56, 189, 248, 0.3);
+        }
+
+        #hint {
+            position: absolute;
+            right: max(18px, env(safe-area-inset-right));
+            bottom: max(18px, env(safe-area-inset-bottom));
+            z-index: 4;
+            max-width: min(360px, calc(100vw - 36px));
+            padding: 12px 14px;
+            border-radius: 14px;
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            background: rgba(15, 23, 42, 0.76);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            color: #e2e8f0;
+            font-size: 0.9rem;
+            line-height: 1.45;
+            box-shadow: 0 16px 34px rgba(2, 6, 23, 0.42);
+        }
+
+        #hint strong {
+            color: white;
+        }
+
+        @media (max-width: 1100px), (pointer: coarse) {
+            #controls {
+                top: auto;
+                bottom: max(14px, env(safe-area-inset-bottom));
+                left: 50%;
+                transform: translateX(-50%);
+                width: min(720px, calc(100vw - 24px - env(safe-area-inset-left) - env(safe-area-inset-right)));
+            }
+
+            #hint {
+                right: 50%;
+                bottom: calc(max(14px, env(safe-area-inset-bottom)) + 294px);
+                transform: translateX(50%);
+                text-align: center;
+            }
+        }
+
+        @media (max-width: 720px) {
+            #controls {
+                padding: 16px 14px 14px;
+            }
+
+            h1 {
+                font-size: 1.02rem;
+            }
+
+            .subtext,
+            .row-label,
+            #hint,
+            .hud-row {
+                font-size: 0.85rem;
+            }
+
+            .button-row {
+                flex-direction: column;
+            }
+
+            #hint {
+                bottom: calc(max(12px, env(safe-area-inset-bottom)) + 360px);
+                width: calc(100vw - 24px);
+            }
+        }
+    </style>
+</head>
+<body class="hide-ui">
+    <div id="controls">
+        <h1>Prism Dispersion Lab</h1>
+        <p class="subtext">The prism is larger, the screen is clearer, and the incident ray can now be dragged directly. This works with mouse, touch, and Apple Pencil on iPad.</p>
+
+        <div class="control-group">
+            <div class="row-label">
+                <span>Angle of incidence</span>
+                <span id="angleValue" class="value-pill">42.0 deg</span>
+            </div>
+            <input type="range" id="angleSlider" min="8" max="72" step="0.1" value="42">
+        </div>
+
+        <div class="control-group">
+            <div class="row-label">
+                <span>Prism material</span>
+            </div>
+            <select id="materialSelect">
+                <option value="crown">Crown Glass</option>
+                <option value="flint" selected>Flint Glass</option>
+                <option value="diamond">Diamond</option>
+            </select>
+        </div>
+
+        <div class="button-row">
+            <button id="resetRay" type="button">Reset Ray</button>
+            <button id="toggleGuide" type="button">Hide Guide</button>
+        </div>
+
+        <div class="hud">
+            <div class="hud-row">
+                <span class="hud-label">Red deviation</span>
+                <span id="redValue" class="hud-value red">0.00 deg</span>
+            </div>
+            <div class="hud-row">
+                <span class="hud-label">Violet deviation</span>
+                <span id="violetValue" class="hud-value violet">0.00 deg</span>
+            </div>
+            <div class="hud-row">
+                <span class="hud-label">Angular spread</span>
+                <span id="spreadValue" class="hud-value spread">0.00 deg</span>
+            </div>
+            <div id="statusBadge">Drag the white handle to change the incident ray.</div>
+        </div>
+    </div>
+
+    <div id="hint"><strong>Interaction:</strong> drag the glowing white handle on the left arc to move the incident ray. The slider gives finer control if you want a precise angle.</div>
+
+    <canvas id="simCanvas"></canvas>
+
+    <script>
+        const canvas = document.getElementById("simCanvas");
+        const ctx = canvas.getContext("2d");
+
+        const angleSlider = document.getElementById("angleSlider");
+        const materialSelect = document.getElementById("materialSelect");
+        const angleValue = document.getElementById("angleValue");
+        const redValue = document.getElementById("redValue");
+        const violetValue = document.getElementById("violetValue");
+        const spreadValue = document.getElementById("spreadValue");
+        const statusBadge = document.getElementById("statusBadge");
+        const resetRay = document.getElementById("resetRay");
+        const toggleGuide = document.getElementById("toggleGuide");
+        const hint = document.getElementById("hint");
+        const body = document.body;
+
+        const spectrum = [
+            { name: "Red", color: "#ff4d4d", n: { crown: 1.513, flint: 1.610, diamond: 2.410 } },
+            { name: "Orange", color: "#ff8a2a", n: { crown: 1.516, flint: 1.615, diamond: 2.418 } },
+            { name: "Yellow", color: "#ffe45c", n: { crown: 1.519, flint: 1.621, diamond: 2.427 } },
+            { name: "Green", color: "#66ff99", n: { crown: 1.523, flint: 1.630, diamond: 2.440 } },
+            { name: "Blue", color: "#50b8ff", n: { crown: 1.528, flint: 1.642, diamond: 2.458 } },
+            { name: "Indigo", color: "#6b6bff", n: { crown: 1.533, flint: 1.655, diamond: 2.478 } },
+            { name: "Violet", color: "#c166ff", n: { crown: 1.538, flint: 1.670, diamond: 2.500 } }
+        ];
+
+        const state = {
+            width: window.innerWidth,
+            height: window.innerHeight,
+            dpr: Math.max(1, window.devicePixelRatio || 1),
+            incidenceDeg: 42,
+            dragging: false,
+            guideVisible: true,
+            pointerId: null,
+            geometry: null
+        };
+
+        const INCIDENCE_MIN = 8;
+        const INCIDENCE_MAX = 72;
+        const DEFAULT_INCIDENCE = 42;
+
+        function clamp(value, min, max) {
+            return Math.min(max, Math.max(min, value));
+        }
+
+        function degToRad(deg) {
+            return deg * Math.PI / 180;
+        }
+
+        function radToDeg(rad) {
+            return rad * 180 / Math.PI;
+        }
+
+        function add(a, b) {
+            return { x: a.x + b.x, y: a.y + b.y };
+        }
+
+        function sub(a, b) {
+            return { x: a.x - b.x, y: a.y - b.y };
+        }
+
+        function scale(v, factor) {
+            return { x: v.x * factor, y: v.y * factor };
+        }
+
+        function dot(a, b) {
+            return a.x * b.x + a.y * b.y;
+        }
+
+        function cross(a, b) {
+            return a.x * b.y - a.y * b.x;
+        }
+
+        function length(v) {
+            return Math.hypot(v.x, v.y);
+        }
+
+        function normalize(v) {
+            const len = length(v);
+            if (!len) {
+                return { x: 0, y: 0 };
+            }
+            return { x: v.x / len, y: v.y / len };
+        }
+
+        function rotate(v, angle) {
+            const c = Math.cos(angle);
+            const s = Math.sin(angle);
+            return {
+                x: v.x * c - v.y * s,
+                y: v.x * s + v.y * c
+            };
+        }
+
+        function signedAngle(from, to) {
+            return Math.atan2(cross(from, to), dot(from, to));
+        }
+
+        function faceNormalToward(faceStart, faceEnd, point) {
+            const edge = sub(faceEnd, faceStart);
+            const candidateA = normalize({ x: -edge.y, y: edge.x });
+            const candidateB = scale(candidateA, -1);
+            const midpoint = scale(add(faceStart, faceEnd), 0.5);
+            return dot(sub(point, midpoint), candidateA) > 0 ? candidateA : candidateB;
+        }
+
+        function refract(direction, normal, n1, n2) {
+            const eta = n1 / n2;
+            const cosI = -dot(normal, direction);
+            const sinT2 = eta * eta * (1 - cosI * cosI);
+
+            if (sinT2 > 1) {
+                return null;
+            }
+
+            const cosT = Math.sqrt(1 - sinT2);
+            return normalize(add(scale(direction, eta), scale(normal, eta * cosI - cosT)));
+        }
+
+        function reflect(direction, normal) {
+            return normalize(sub(direction, scale(normal, 2 * dot(direction, normal))));
+        }
+
+        function raySegmentIntersection(rayOrigin, rayDir, segA, segB) {
+            const segDir = sub(segB, segA);
+            const denom = cross(rayDir, segDir);
+
+            if (Math.abs(denom) < 1e-7) {
+                return null;
+            }
+
+            const diff = sub(segA, rayOrigin);
+            const t = cross(diff, segDir) / denom;
+            const u = cross(diff, rayDir) / denom;
+
+            if (t >= 0 && u >= 0 && u <= 1) {
+                return {
+                    point: add(rayOrigin, scale(rayDir, t)),
+                    distance: t
+                };
+            }
+
+            return null;
+        }
+
+        function getPointerPos(event) {
+            const rect = canvas.getBoundingClientRect();
+            return {
+                x: event.clientX - rect.left,
+                y: event.clientY - rect.top
+            };
+        }
+
+        function resizeCanvas() {
+            state.width = window.innerWidth;
+            state.height = window.innerHeight;
+            state.dpr = Math.max(1, window.devicePixelRatio || 1);
+
+            canvas.width = Math.round(state.width * state.dpr);
+            canvas.height = Math.round(state.height * state.dpr);
+            ctx.setTransform(state.dpr, 0, 0, state.dpr, 0, 0);
+
+            render();
+        }
+
+        function computeGeometry() {
+            const width = state.width;
+            const height = state.height;
+            const compact = width <= 1100 || window.matchMedia("(pointer: coarse)").matches;
+            const portrait = height > width;
+
+            const prismSide = clamp(Math.min(width * 0.38, height * 0.5), 240, 440);
+            const prismHeight = prismSide * Math.sqrt(3) / 2;
+            const centerX = compact ? width * 0.42 : Math.max(500, width * 0.47);
+            const centerY = portrait ? height * 0.34 : compact ? height * 0.41 : height * 0.46;
+
+            const apex = { x: centerX, y: centerY - (2 * prismHeight / 3) };
+            const leftBase = { x: centerX - prismSide / 2, y: centerY + prismHeight / 3 };
+            const rightBase = { x: centerX + prismSide / 2, y: centerY + prismHeight / 3 };
+            const center = { x: centerX, y: centerY };
+            const entry = scale(add(apex, leftBase), 0.5);
+
+            const leftNormalIn = faceNormalToward(leftBase, apex, center);
+            const leftNormalOut = scale(leftNormalIn, -1);
+            const rightNormalIn = faceNormalToward(apex, rightBase, center);
+            const handleRadius = prismSide * 0.82;
+            const screenX = width - clamp(compact ? width * 0.18 : width * 0.16, 140, 300);
+
+            const incomingDir = rotate(leftNormalIn, -degToRad(state.incidenceDeg));
+            const handle = sub(entry, scale(incomingDir, handleRadius));
+
+            return {
+                compact,
+                portrait,
+                prismSide,
+                prismHeight,
+                apex,
+                leftBase,
+                rightBase,
+                center,
+                entry,
+                leftNormalIn,
+                leftNormalOut,
+                rightNormalIn,
+                handleRadius,
+                handle,
+                screenX
+            };
+        }
+
+        function updateAngle(angle) {
+            state.incidenceDeg = clamp(angle, INCIDENCE_MIN, INCIDENCE_MAX);
+            angleSlider.value = state.incidenceDeg.toFixed(1);
+            render();
+        }
+
+        function syncAngleFromPointer(point) {
+            const geometry = state.geometry || computeGeometry();
+            const vectorToPointer = sub(point, geometry.entry);
+            const sourceDirection = normalize(scale(vectorToPointer, -1));
+            const rawAngle = Math.abs(radToDeg(signedAngle(geometry.leftNormalIn, sourceDirection)));
+            updateAngle(rawAngle);
+        }
+
+        function traceSpectrum(geometry) {
+            const material = materialSelect.value;
+            const incomingDir = normalize(sub(geometry.entry, geometry.handle));
+            const exitData = [];
+            let redDeviation = 0;
+            let violetDeviation = 0;
+            let tirOccurred = false;
+
+            spectrum.forEach((band, index) => {
+                const refractedInside = refract(incomingDir, geometry.leftNormalOut, 1, band.n[material]);
+
+                if (!refractedInside) {
+                    tirOccurred = true;
+                    return;
+                }
+
+                const insideOrigin = add(geometry.entry, scale(refractedInside, 0.5));
+                const exitHit = raySegmentIntersection(insideOrigin, refractedInside, geometry.apex, geometry.rightBase);
+
+                if (!exitHit) {
+                    tirOccurred = true;
+                    return;
+                }
+
+                const exitDir = refract(refractedInside, geometry.rightNormalIn, band.n[material], 1);
+
+                if (!exitDir) {
+                    tirOccurred = true;
+                    exitData.push({
+                        type: "tir",
+                        color: band.color,
+                        insideStart: geometry.entry,
+                        insideEnd: exitHit.point,
+                        reflectedDir: reflect(refractedInside, geometry.rightNormalIn)
+                    });
+                    return;
+                }
+
+                if (Math.abs(exitDir.x) < 1e-5) {
+                    tirOccurred = true;
+                    return;
+                }
+
+                const deviation = radToDeg(Math.acos(clamp(dot(incomingDir, exitDir), -1, 1)));
+                const screenT = (geometry.screenX - exitHit.point.x) / exitDir.x;
+
+                if (!Number.isFinite(screenT) || screenT <= 0) {
+                    tirOccurred = true;
+                    return;
+                }
+
+                const screenPoint = add(exitHit.point, scale(exitDir, screenT));
+
+                if (index === 0) {
+                    redDeviation = deviation;
+                }
+
+                if (index === spectrum.length - 1) {
+                    violetDeviation = deviation;
+                }
+
+                exitData.push({
+                    type: "refract",
+                    color: band.color,
+                    insideStart: geometry.entry,
+                    insideEnd: exitHit.point,
+                    screenPoint,
+                    exitDir
+                });
+            });
+
+            return {
+                incomingDir,
+                redDeviation,
+                violetDeviation,
+                spread: violetDeviation - redDeviation,
+                tirOccurred,
+                rays: exitData
+            };
+        }
+
+        function drawBackgroundGrid() {
+            ctx.save();
+            ctx.strokeStyle = "rgba(148, 163, 184, 0.07)";
+            ctx.lineWidth = 1;
+
+            const step = state.width < 700 ? 34 : 46;
+            for (let x = 0; x <= state.width; x += step) {
+                ctx.beginPath();
+                ctx.moveTo(x, 0);
+                ctx.lineTo(x, state.height);
+                ctx.stroke();
+            }
+
+            for (let y = 0; y <= state.height; y += step) {
+                ctx.beginPath();
+                ctx.moveTo(0, y);
+                ctx.lineTo(state.width, y);
+                ctx.stroke();
+            }
+            ctx.restore();
+        }
+
+        function drawPrism(geometry) {
+            const prismGradient = ctx.createLinearGradient(geometry.leftBase.x, geometry.apex.y, geometry.rightBase.x, geometry.rightBase.y);
+            prismGradient.addColorStop(0, "rgba(255, 255, 255, 0.12)");
+            prismGradient.addColorStop(0.5, "rgba(191, 219, 254, 0.18)");
+            prismGradient.addColorStop(1, "rgba(255, 255, 255, 0.08)");
+
+            ctx.save();
+            ctx.beginPath();
+            ctx.moveTo(geometry.apex.x, geometry.apex.y);
+            ctx.lineTo(geometry.leftBase.x, geometry.leftBase.y);
+            ctx.lineTo(geometry.rightBase.x, geometry.rightBase.y);
+            ctx.closePath();
+            ctx.fillStyle = prismGradient;
+            ctx.fill();
+            ctx.lineWidth = 3;
+            ctx.strokeStyle = "rgba(226, 232, 240, 0.7)";
+            ctx.stroke();
+
+            ctx.beginPath();
+            ctx.moveTo(geometry.apex.x, geometry.apex.y);
+            ctx.lineTo(geometry.center.x, geometry.center.y);
+            ctx.lineTo(geometry.leftBase.x, geometry.leftBase.y);
+            ctx.strokeStyle = "rgba(255, 255, 255, 0.08)";
+            ctx.lineWidth = 1.5;
+            ctx.stroke();
+            ctx.restore();
+        }
+
+        function drawScreen(geometry, result) {
+            const screenWidth = state.width < 700 ? 24 : 30;
+
+            ctx.save();
+            ctx.fillStyle = "rgba(30, 41, 59, 0.95)";
+            ctx.strokeStyle = "rgba(148, 163, 184, 0.75)";
+            ctx.lineWidth = 2;
+            ctx.fillRect(geometry.screenX - screenWidth / 2, 0, screenWidth, state.height);
+            ctx.strokeRect(geometry.screenX - screenWidth / 2, 0, screenWidth, state.height);
+
+            ctx.fillStyle = "rgba(226, 232, 240, 0.82)";
+            ctx.font = `700 ${state.width < 700 ? 13 : 15}px "Avenir Next", sans-serif`;
+            ctx.fillText("SCREEN", geometry.screenX - screenWidth / 2 - 6, 28);
+
+            if (!result.tirOccurred) {
+                const visibleHits = result.rays
+                    .filter((ray) => ray.type === "refract" && Number.isFinite(ray.screenPoint.y))
+                    .sort((a, b) => a.screenPoint.y - b.screenPoint.y);
+
+                if (visibleHits.length > 1) {
+                    const top = visibleHits[0].screenPoint.y;
+                    const bottom = visibleHits[visibleHits.length - 1].screenPoint.y;
+                    const spreadHeight = Math.max(26, bottom - top);
+                    const gradient = ctx.createLinearGradient(0, top, 0, top + spreadHeight);
+
+                    visibleHits.forEach((ray, index) => {
+                        gradient.addColorStop(index / (visibleHits.length - 1), ray.color);
+                    });
+
+                    ctx.shadowBlur = 24;
+                    ctx.shadowColor = "rgba(255, 255, 255, 0.5)";
+                    ctx.fillStyle = gradient;
+                    ctx.fillRect(geometry.screenX - 8, top - 14, 16, spreadHeight + 28);
+                    ctx.shadowBlur = 0;
+                }
+            }
+            ctx.restore();
+        }
+
+        function drawGuide(geometry) {
+            if (!state.guideVisible) {
+                return;
+            }
+
+            ctx.save();
+            ctx.beginPath();
+            ctx.setLineDash([8, 8]);
+            ctx.arc(geometry.entry.x, geometry.entry.y, geometry.handleRadius, Math.PI + 0.05, Math.PI * 2 - 0.55);
+            ctx.strokeStyle = "rgba(148, 163, 184, 0.32)";
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            ctx.beginPath();
+            ctx.arc(geometry.entry.x, geometry.entry.y, 5, 0, Math.PI * 2);
+            ctx.fillStyle = "rgba(248, 250, 252, 0.9)";
+            ctx.fill();
+
+            ctx.fillStyle = "rgba(226, 232, 240, 0.8)";
+            ctx.font = `600 ${state.width < 700 ? 12 : 14}px "Avenir Next", sans-serif`;
+            ctx.fillText("Drag ray", geometry.handle.x - 28, geometry.handle.y - 16);
+            ctx.restore();
+        }
+
+        function drawRays(geometry, result) {
+            ctx.save();
+            ctx.beginPath();
+            ctx.moveTo(geometry.handle.x, geometry.handle.y);
+            ctx.lineTo(geometry.entry.x, geometry.entry.y);
+            ctx.lineWidth = state.width < 700 ? 5 : 6;
+            ctx.strokeStyle = "rgba(255, 255, 255, 0.96)";
+            ctx.shadowBlur = 22;
+            ctx.shadowColor = "rgba(255, 255, 255, 0.9)";
+            ctx.stroke();
+            ctx.shadowBlur = 0;
+
+            result.rays.forEach((ray) => {
+                ctx.beginPath();
+                ctx.moveTo(ray.insideStart.x, ray.insideStart.y);
+                ctx.lineTo(ray.insideEnd.x, ray.insideEnd.y);
+                ctx.strokeStyle = ray.color;
+                ctx.lineWidth = state.width < 700 ? 2.4 : 3.2;
+                ctx.globalCompositeOperation = "screen";
+                ctx.stroke();
+                ctx.globalCompositeOperation = "source-over";
+
+                if (ray.type === "refract") {
+                    ctx.beginPath();
+                    ctx.moveTo(ray.insideEnd.x, ray.insideEnd.y);
+                    ctx.lineTo(geometry.screenX, ray.screenPoint.y);
+                    ctx.strokeStyle = ray.color;
+                    ctx.lineWidth = state.width < 700 ? 2.1 : 2.8;
+                    ctx.shadowBlur = 12;
+                    ctx.shadowColor = ray.color;
+                    ctx.stroke();
+                    ctx.shadowBlur = 0;
+                } else if (ray.type === "tir") {
+                    ctx.beginPath();
+                    ctx.moveTo(ray.insideEnd.x, ray.insideEnd.y);
+                    ctx.lineTo(ray.insideEnd.x + ray.reflectedDir.x * 110, ray.insideEnd.y + ray.reflectedDir.y * 110);
+                    ctx.strokeStyle = "rgba(248, 113, 113, 0.65)";
+                    ctx.lineWidth = 2;
+                    ctx.setLineDash([7, 6]);
+                    ctx.stroke();
+                    ctx.setLineDash([]);
+                }
+            });
+
+            ctx.beginPath();
+            ctx.arc(geometry.handle.x, geometry.handle.y, state.dragging ? 14 : 12, 0, Math.PI * 2);
+            ctx.fillStyle = "#ffffff";
+            ctx.shadowBlur = 30;
+            ctx.shadowColor = "#ffffff";
+            ctx.fill();
+            ctx.shadowBlur = 0;
+
+            ctx.beginPath();
+            ctx.arc(geometry.handle.x, geometry.handle.y, state.dragging ? 23 : 20, 0, Math.PI * 2);
+            ctx.strokeStyle = "rgba(255, 255, 255, 0.28)";
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            ctx.restore();
+        }
+
+        function drawLabels(geometry) {
+            ctx.save();
+            ctx.fillStyle = "rgba(226, 232, 240, 0.86)";
+            ctx.font = `700 ${state.width < 700 ? 12 : 14}px "Avenir Next", sans-serif`;
+            ctx.fillText("WHITE LIGHT", geometry.handle.x - 18, geometry.handle.y + 36);
+            ctx.fillText("GLASS PRISM", geometry.center.x - 42, geometry.rightBase.y + 26);
+            ctx.restore();
+        }
+
+        function updateHud(result) {
+            angleValue.textContent = `${state.incidenceDeg.toFixed(1)} deg`;
+
+            if (result.tirOccurred) {
+                redValue.textContent = "TIR";
+                violetValue.textContent = "TIR";
+                spreadValue.textContent = "No spectrum";
+                statusBadge.textContent = "Total internal reflection for at least one color. Reduce the incident angle to recover the spectrum.";
+                statusBadge.style.background = "rgba(239, 68, 68, 0.14)";
+                statusBadge.style.color = "#fecaca";
+                statusBadge.style.borderColor = "rgba(239, 68, 68, 0.3)";
+                return;
+            }
+
+            redValue.textContent = `${result.redDeviation.toFixed(2)} deg`;
+            violetValue.textContent = `${result.violetDeviation.toFixed(2)} deg`;
+            spreadValue.textContent = `${result.spread.toFixed(2)} deg`;
+            statusBadge.textContent = "A larger prism and longer screen path make the spectrum easier to observe.";
+            statusBadge.style.background = "rgba(14, 165, 233, 0.16)";
+            statusBadge.style.color = "#d7f4ff";
+            statusBadge.style.borderColor = "rgba(56, 189, 248, 0.3)";
+        }
+
+        function render() {
+            state.geometry = computeGeometry();
+            const geometry = state.geometry;
+            const result = traceSpectrum(geometry);
+
+            ctx.clearRect(0, 0, state.width, state.height);
+            drawBackgroundGrid();
+            drawScreen(geometry, result);
+            drawGuide(geometry);
+            drawRays(geometry, result);
+            drawPrism(geometry);
+            drawLabels(geometry);
+            updateHud(result);
+        }
+
+        function startDrag(event) {
+            const geometry = state.geometry || computeGeometry();
+            const point = getPointerPos(event);
+            const distToHandle = Math.hypot(point.x - geometry.handle.x, point.y - geometry.handle.y);
+
+            if (distToHandle <= 34) {
+                state.dragging = true;
+                state.pointerId = event.pointerId;
+                canvas.setPointerCapture(event.pointerId);
+                syncAngleFromPointer(point);
+            }
+        }
+
+        function moveDrag(event) {
+            if (!state.dragging || event.pointerId !== state.pointerId) {
+                return;
+            }
+
+            syncAngleFromPointer(getPointerPos(event));
+        }
+
+        function endDrag(event) {
+            if (event.pointerId !== state.pointerId) {
+                return;
+            }
+
+            if (canvas.hasPointerCapture(event.pointerId)) {
+                canvas.releasePointerCapture(event.pointerId);
+            }
+
+            state.dragging = false;
+            state.pointerId = null;
+            render();
+        }
+
+        angleSlider.addEventListener("input", (event) => {
+            updateAngle(parseFloat(event.target.value));
+        });
+
+        materialSelect.addEventListener("change", render);
+
+        resetRay.addEventListener("click", () => {
+            updateAngle(DEFAULT_INCIDENCE);
+        });
+
+        toggleGuide.addEventListener("click", () => {
+            state.guideVisible = !state.guideVisible;
+            toggleGuide.textContent = state.guideVisible ? "Hide Guide" : "Show Guide";
+            hint.style.display = state.guideVisible ? "block" : "none";
+            render();
+        });
+
+        window.addEventListener("keydown", (event) => {
+            if (event.key.toLowerCase() === "c") {
+                body.classList.toggle("hide-ui");
+            }
+        });
+
+        canvas.addEventListener("pointerdown", startDrag);
+        canvas.addEventListener("pointermove", moveDrag);
+        canvas.addEventListener("pointerup", endDrag);
+        canvas.addEventListener("pointercancel", endDrag);
+
+        window.addEventListener("resize", resizeCanvas);
+
+        resizeCanvas();
+    </script>
+</body>
+</html>
