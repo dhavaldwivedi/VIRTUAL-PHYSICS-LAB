@@ -595,9 +595,11 @@
                     tirOccurred = true;
                     exitData.push({
                         type: "tir",
+                        bandIndex: index,
                         color: band.color,
                         insideStart: geometry.entry,
                         insideEnd: exitHit.point,
+                        insideDir: refractedInside,
                         reflectedDir: reflect(refractedInside, geometry.rightNormalIn)
                     });
                     return;
@@ -628,9 +630,11 @@
 
                 exitData.push({
                     type: "refract",
+                    bandIndex: index,
                     color: band.color,
                     insideStart: geometry.entry,
                     insideEnd: exitHit.point,
+                    insideDir: refractedInside,
                     screenPoint,
                     exitDir
                 });
@@ -761,6 +765,9 @@
         }
 
         function drawRays(geometry, result) {
+            const midBandIndex = (spectrum.length - 1) / 2;
+            const internalSpread = state.width < 700 ? 12 : 18;
+
             ctx.save();
             ctx.beginPath();
             ctx.moveTo(geometry.handle.x, geometry.handle.y);
@@ -773,13 +780,23 @@
             ctx.shadowBlur = 0;
 
             result.rays.forEach((ray) => {
+                const perp = normalize({ x: -ray.insideDir.y, y: ray.insideDir.x });
+                const spreadOffset = (ray.bandIndex - midBandIndex) * internalSpread / spectrum.length;
+                const controlPoint = add(
+                    scale(add(ray.insideStart, ray.insideEnd), 0.5),
+                    scale(perp, spreadOffset)
+                );
+
                 ctx.beginPath();
                 ctx.moveTo(ray.insideStart.x, ray.insideStart.y);
-                ctx.lineTo(ray.insideEnd.x, ray.insideEnd.y);
+                ctx.quadraticCurveTo(controlPoint.x, controlPoint.y, ray.insideEnd.x, ray.insideEnd.y);
                 ctx.strokeStyle = ray.color;
-                ctx.lineWidth = state.width < 700 ? 2.4 : 3.2;
+                ctx.lineWidth = state.width < 700 ? 2.7 : 3.6;
                 ctx.globalCompositeOperation = "screen";
+                ctx.shadowBlur = 7;
+                ctx.shadowColor = ray.color;
                 ctx.stroke();
+                ctx.shadowBlur = 0;
                 ctx.globalCompositeOperation = "source-over";
 
                 if (ray.type === "refract") {
